@@ -33,6 +33,8 @@ Que un Administrador autenticado registre un Cobrador (`POST /cobradores`) asoci
 - Pregunta: correo/teléfono → Respuesta: obligatorios.
 
 ## Resultado final (llenar al completar)
-- Comandos ejecutados para verificar: `scripts/check.sh` (lint+typecheck+48 tests unitarios), `npm run test:e2e` (19 tests: health, auth, socios, cobradores).
-- Archivos modificados: `src/app.module.ts`, `src/modules/cobradores/*` (entity, module, service, controller, dto), `test/e2e/cobradores.e2e-spec.ts`, `docs/ai/tasks/registrar-cobrador.md`.
-- Pendientes/seguimiento: se detectó colisión de datos únicos entre specs e2e paralelas que comparten DB (socios vs cobradores) — resuelto con valores únicos por spec; conviene documentar/estandarizar los datos de prueba e2e para futuras HU. `JwtAuthGuard` sigue sin distinguir rol admin/socio (pendiente HU-07).
+- Comandos ejecutados para verificar: `scripts/check.sh` (lint+typecheck+50 tests unitarios), `npm run test:e2e` (20 tests: health, auth, socios, cobradores).
+- Archivos modificados: `src/app.module.ts`, `src/modules/cobradores/*` (entity, module, service, controller, dto), `test/e2e/cobradores.e2e-spec.ts`, `docs/ai/tasks/registrar-cobrador.md`, `docs/ai/tasks/backlog.md`.
+- **Revisión independiente (code-reviewer, 2026-08-11):** RECHAZADO inicial por proceso (falta de commit/PR, DoD §6.5); código aprobado en checklist funcional/seguridad. Correcciones aplicadas tras la revisión: cobertura de unicidad parametrizada (4 campos), e2e 400 de estatus inválido, ítem de backlog para extraer helper compartido en el 3er uso. Veredicto final: APROBADO.
+- **PR:** https://github.com/devrochy/app-cobranza/pull/3 (feature/registrar-cobrador → develop), CI en verde (build-and-test + e2e). PRs #1 (login) y #2 (socios) ya mergeadas a develop.
+- Pendientes/seguimiento: colisión de datos únicos entre specs e2e paralelas que comparten DB (resuelto con valores únicos por spec; conviene estandarizar). `JwtAuthGuard` sigue sin distinguir rol admin/socio — HU-07 deberá añadir guard de rol (no solo documentarlo).
