@@ -143,6 +143,29 @@ export class CobradoresService {
     return this.toPublic(saved, cobrador.socioId);
   }
 
+  async setEstatus(id: number, estatus: CobradorEstatus): Promise<CobradorPublic> {
+    const cobrador = await this.repo.findOne({ where: { id } });
+    if (!cobrador) {
+      throw new NotFoundException("El cobrador no existe");
+    }
+
+    cobrador.estatus = estatus;
+    const saved = await this.repo.save(cobrador);
+    await this.bloquearRutasEnCascada(id, estatus);
+    return this.toPublic(saved, cobrador.socioId);
+  }
+
+  private async bloquearRutasEnCascada(
+    cobradorId: number,
+    estatus: CobradorEstatus,
+  ): Promise<void> {
+    // Punto de integración del bloqueo en cascada de rutas (HU-05 → HU-08).
+    // Cuando exista la tabla `rutas`, aquí se bloquearán las rutas del cobrador
+    // al bloquearlo (estatus === "bloqueado"). Por ahora es una no-op deliberada.
+    void cobradorId;
+    void estatus;
+  }
+
   private assertUpdateNoConflicts(existing: Cobrador, input: UpdateCobradorInput): void {
     const conflicts: Array<[string, string | undefined]> = [
       ["correo", input.correo],
