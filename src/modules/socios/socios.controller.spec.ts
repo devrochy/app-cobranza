@@ -12,6 +12,7 @@ describe("SociosController", () => {
 
   const mockService = {
     create: jest.fn(),
+    update: jest.fn(),
   };
 
   const baseDto: CreateSocioDto = {
@@ -62,5 +63,26 @@ describe("SociosController", () => {
     expect(service.create).toHaveBeenCalledWith(baseDto);
     expect(result.id).toBe(1);
     expect(result.codigo).toBe("SC001");
+  });
+
+  it("delega en el servicio con id y DTO al actualizar", async () => {
+    const updated = {
+      id: 1,
+      usuario: "socio1",
+      nombre: "Juan Carlos",
+      apellido: "Pérez",
+      correo: "juan@correo.com",
+      telefono: "+59170000001",
+      codigo: "SC001",
+      moneda: "BOB",
+      estatus: "activo",
+      createdAt: new Date(),
+    };
+    (service.update as jest.Mock).mockResolvedValue(updated);
+
+    const result = await controller.update(1, { nombre: "Juan Carlos" });
+
+    expect(service.update).toHaveBeenCalledWith(1, { nombre: "Juan Carlos" });
+    expect(result.nombre).toBe("Juan Carlos");
   });
 });

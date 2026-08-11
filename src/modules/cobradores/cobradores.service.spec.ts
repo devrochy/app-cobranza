@@ -1,11 +1,15 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
 import { Socio } from "../socios/socio.entity";
 import { Cobrador } from "./cobrador.entity";
-import { CobradoresService, CreateCobradorInput } from "./cobradores.service";
+import {
+  CobradoresService,
+  CreateCobradorInput,
+  UpdateCobradorInput,
+} from "./cobradores.service";
 
 describe("CobradoresService", () => {
   let service: CobradoresService;
@@ -138,5 +142,123 @@ describe("CobradoresService", () => {
     (cobradorRepo.save as jest.Mock).mockRejectedValue(uniqueError);
 
     await expect(service.create(baseInput)).rejects.toThrow(ConflictException);
+  });
+
+  describe("update", () => {
+    function cobradorActual(): Cobrador {
+      return {
+        id: 1,
+        socio: { id: 1 } as Socio,
+        ...baseInput,
+        passwordHash: "hash-viejo",
+        createdAt: new Date(),
+      } as Cobrador;
+    }
+
+    it("actualiza el perfil y devuelve sin passwordHash", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
+      (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
+        ...cobradorActual(),
+        ...e,
+      }));
+
+      const result = await service.update(1, { nombre: "Carlos Eduardo" });
+
+      expect(cobradorRepo.save).toHaveBeenCalled();
+      expect(result.nombre).toBe("Carlos Eduardo");
+      expect(Object.keys(result)).not.toContain("passwordHash");
+    });
+
+    it("re-hashea la contraseña cuando se envía una nueva", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
+      (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
+        ...cobradorActual(),
+        ...e,
+      }));
+
+      await service.update(1, { password: "nueva-password" });
+
+      const saved = (cobradorRepo.save as jest.Mock).mock.calls[0][0] as Partial<Cobrador>;
+      expect(saved.passwordHash).toBeDefined();
+      expect(saved.passwordHash).not.toBe("nueva-password");
+      expect(
+        await new PasswordService().compare("nueva-password", saved.passwordHash!),
+      ).toBe(true);
+    });
+
+    it("lanza NotFoundException si el cobrador no existe", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.update(999, { nombre: "X" })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("lanza BadRequestException si no hay campos editables", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
+
+      await expect(service.update(1, {} as UpdateCobradorInput)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("rechaza con 409 si el correo pertenece a otro cobrador", async () => {
+      (cobradorRepo.findOne as jest.Mock)
+        .mockResolvedValueOnce(cobradorActual())
+        .mockResolvedValueOnce({
+          id: 2,
+          ...baseInput,
+          passwordHash: "x",
+          usuario: "otro-cobrador",
+          correo: "otro@correo.com",
+          telefono: "+59100000000",
+        });
+
+      await expect(
+        service.update(1, { correo: "otro@correo.com" }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("rechaza con 409 si el teléfono pertenece a otro cobrador", async () => {
+      (cobradorRepo.findOne as jest.Mock)
+        .mockResolvedValueOnce(cobradorActual())
+        .mockResolvedValueOnce({
+          id: 2,
+          ...baseInput,
+          passwordHash: "x",
+          usuario: "otro-cobrador",
+          correo: "otro@correo.com",
+          telefono: "+59100000000",
+        });
+
+      await expect(
+        service.update(1, { telefono: "+59100000000" }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("no rechaza si el correo coincide con el propio registro", async () => {
+      (cobradorRepo.findOne as jest.Mock)
+        .mockResolvedValueOnce(cobradorActual())
+        .mockResolvedValueOnce(cobradorActual());
+      (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
+        ...cobradorActual(),
+        ...e,
+      }));
+
+      const result = await service.update(1, { correo: "carlos@correo.com" });
+
+      expect(result.id).toBe(1);
+    });
+
+    it("convierte una violación de unicidad de la BD (23505) en 409", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
+      const uniqueError = new Error("duplicate key") as Error & { code?: string };
+      uniqueError.code = "23505";
+      (cobradorRepo.save as jest.Mock).mockRejectedValue(uniqueError);
+
+      await expect(service.update(1, { nombre: "X" })).rejects.toThrow(
+        ConflictException,
+      );
+    });
   });
 });
