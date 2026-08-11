@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
@@ -15,6 +15,14 @@ export interface CreateCobradorInput {
   telefono: string;
   codigo: string;
   estatus?: CobradorEstatus;
+}
+
+export interface UpdateCobradorInput {
+  nombre?: string;
+  apellido?: string;
+  correo?: string;
+  telefono?: string;
+  password?: string;
 }
 
 export interface CobradorPublic {
@@ -89,6 +97,62 @@ export class CobradoresService {
 
   private isUniqueViolation(err: unknown): boolean {
     return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
+  }
+
+  async update(id: number, input: UpdateCobradorInput): Promise<CobradorPublic> {
+    const cobrador = await this.repo.findOne({ where: { id } });
+    if (!cobrador) {
+      throw new NotFoundException("El cobrador no existe");
+    }
+
+    if (Object.values(input).every((value) => value === undefined)) {
+      throw new BadRequestException("No hay campos para actualizar");
+    }
+
+    if (input.correo !== undefined || input.telefono !== undefined) {
+      const existing = await this.repo.findOne({
+        where: [
+          ...(input.correo !== undefined ? [{ correo: input.correo }] : []),
+          ...(input.telefono !== undefined ? [{ telefono: input.telefono }] : []),
+        ],
+      });
+      if (existing && existing.id !== id) {
+        this.assertUpdateNoConflicts(existing, input);
+      }
+    }
+
+    const updates: Partial<Cobrador> = {};
+    if (input.nombre !== undefined) updates.nombre = input.nombre;
+    if (input.apellido !== undefined) updates.apellido = input.apellido;
+    if (input.correo !== undefined) updates.correo = input.correo;
+    if (input.telefono !== undefined) updates.telefono = input.telefono;
+    if (input.password !== undefined) {
+      updates.passwordHash = await this.password.hash(input.password);
+    }
+    Object.assign(cobrador, updates);
+
+    let saved: Cobrador;
+    try {
+      saved = await this.repo.save(cobrador);
+    } catch (err) {
+      if (this.isUniqueViolation(err)) {
+        throw new ConflictException("Algún campo único ya está registrado");
+      }
+      throw err;
+    }
+    return this.toPublic(saved, cobrador.socioId);
+  }
+
+  private assertUpdateNoConflicts(existing: Cobrador, input: UpdateCobradorInput): void {
+    const conflicts: Array<[string, string | undefined]> = [
+      ["correo", input.correo],
+      ["telefono", input.telefono],
+    ];
+    for (const [field, value] of conflicts) {
+      if (value !== undefined && existing[field as keyof Cobrador] === value) {
+        throw new ConflictException(`El campo '${field}' ya está registrado`);
+      }
+    }
   }
 
   private assertNoConflicts(existing: Cobrador, input: CreateCobradorInput): void {
