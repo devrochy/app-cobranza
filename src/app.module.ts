@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AdminUsersModule } from "./modules/admin-users/admin-users.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { CobradoresModule } from "./modules/cobradores/cobradores.module";
 import { HealthModule } from "./modules/health/health.module";
 import { SecurityModule } from "./modules/security/security.module";
 import { SociosModule } from "./modules/socios/socios.module";
@@ -23,6 +24,7 @@ import { SociosModule } from "./modules/socios/socios.module";
     AuthModule,
     SecurityModule,
     SociosModule,
+    CobradoresModule,
     HealthModule,
   ],
 })

@@ -1,0 +1,65 @@
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { Test, TestingModule } from "@nestjs/testing";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CreateCobradorDto } from "./dto/create-cobrador.dto";
+import { CobradoresController } from "./cobradores.controller";
+import { CobradoresService } from "./cobradores.service";
+
+describe("CobradoresController", () => {
+  let controller: CobradoresController;
+  let service: CobradoresService;
+
+  const mockService = {
+    create: jest.fn(),
+  };
+
+  const baseDto: CreateCobradorDto = {
+    socioId: 1,
+    usuario: "cobrador1",
+    password: "password-seguro",
+    nombre: "Carlos",
+    apellido: "López",
+    correo: "carlos@correo.com",
+    telefono: "+59171111111",
+    codigo: "CB001",
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [CobradoresController],
+      providers: [
+        { provide: CobradoresService, useValue: mockService },
+        JwtAuthGuard,
+        { provide: JwtService, useValue: new JwtService() },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+
+    controller = module.get(CobradoresController);
+    service = module.get(CobradoresService);
+  });
+
+  it("delega en el servicio con el DTO y devuelve el cobrador creado", async () => {
+    const created = {
+      id: 1,
+      socioId: 1,
+      usuario: baseDto.usuario,
+      nombre: baseDto.nombre,
+      apellido: baseDto.apellido,
+      correo: baseDto.correo,
+      telefono: baseDto.telefono,
+      codigo: baseDto.codigo,
+      estatus: "activo",
+      createdAt: new Date(),
+    };
+    (service.create as jest.Mock).mockResolvedValue(created);
+
+    const result = await controller.create(baseDto);
+
+    expect(service.create).toHaveBeenCalledWith(baseDto);
+    expect(result.id).toBe(1);
+    expect(result.socioId).toBe(1);
+  });
+});
