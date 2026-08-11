@@ -14,4 +14,14 @@ Formato de cada entrada:
 
 ---
 
-(vacío por ahora)
+## Blacklist/revocación de refresh tokens
+- Detectado en: docs/ai/tasks/login-administrador.md
+- Fecha: 2026-08-11
+- Descripción: el refresh token es stateless (sin tabla de blacklist). Para logout y rotación segura con revocación real hará falta una tabla de tokens emitidos/revocados o lista negra.
+- Prioridad sugerida: media
+
+## Rate limiting del endpoint /auth/login
+- Detectado en: docs/ai/tasks/login-administrador.md
+- Fecha: 2026-08-11
+- Descripción: el login no tiene límite de intentos por IP/usuario; riesgo de fuerza bruta. Agregar throttling (ej. @nestjs/throttler) cuando se exponga fuera de local.
+- Prioridad sugerida: alta

@@ -1,7 +1,7 @@
 ---
 description: Único agente autorizado para ejecutar operaciones de git/GitHub que modifican el repositorio remoto o el historial compartido (push, tags, PRs, releases), siguiendo estrictamente GitFlow. Úsalo para crear branches, commits convencionales, abrir PRs, hacer merge de release/hotfix y taguear versiones. NO lo uses para escribir código de features.
 mode: subagent
-model: opencode/claude-haiku-4-5
+model: opencode-go/deepseek-v4-flash
 temperature: 0.1
 permission:
   edit: allow
