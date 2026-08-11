@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+
+.env
+.env.local
+.env.*.local
+
+*.log
+npm-debug.log*
+
+.DS_Store
+
+# Memoria persistente del MCP "memory" — es estado local del agente,
+# no debe compartirse entre máquinas/desarrolladores sin revisión explícita.
+docs/ai/memory/knowledge-graph.json
