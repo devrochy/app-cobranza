@@ -1,8 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
 
-  "model": "opencode/claude-sonnet-5",
-  "small_model": "opencode/gpt-5-nano",
+  "model": "opencode-go/deepseek-v4-flash",
+  "small_model": "opencode-go/deepseek-v4-flash",
   "default_agent": "build",
 
   "instructions": [
@@ -18,16 +18,16 @@
 
   "agent": {
     "build": {
-      "model": "opencode/claude-sonnet-5"
+      "model": "opencode-go/deepseek-v4-flash"
     },
     "plan": {
-      "model": "opencode/claude-sonnet-5"
+      "model": "opencode-go/deepseek-v4-flash"
     },
     "explore": {
-      "model": "opencode/claude-haiku-4-5"
+      "model": "opencode-go/deepseek-v4-flash"
     },
     "general": {
-      "model": "opencode/claude-sonnet-5"
+      "model": "opencode-go/deepseek-v4-flash"
     }
   },
 
