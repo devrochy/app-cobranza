@@ -1,10 +1,10 @@
-import { ConflictException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
 import { Socio } from "./socio.entity";
-import { CreateSocioInput, SociosService } from "./socios.service";
+import { CreateSocioInput, SociosService, UpdateSocioInput } from "./socios.service";
 
 describe("SociosService", () => {
   let service: SociosService;
@@ -143,5 +143,117 @@ describe("SociosService", () => {
     });
 
     await expect(service.create(baseInput)).rejects.toThrow(ConflictException);
+  });
+
+  describe("update", () => {
+    function socioActual(): Socio {
+      return { id: 1, ...baseInput, passwordHash: "hash-viejo", createdAt: new Date() } as Socio;
+    }
+
+    it("actualiza el perfil y devuelve sin passwordHash", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioActual(),
+        ...e,
+      }));
+
+      const result = await service.update(1, { nombre: "Juan Carlos", apellido: "Pérez Soto" });
+
+      expect(repo.save).toHaveBeenCalled();
+      expect(result.nombre).toBe("Juan Carlos");
+      expect(result.apellido).toBe("Pérez Soto");
+      expect(Object.keys(result)).not.toContain("passwordHash");
+    });
+
+    it("re-hashea la contraseña cuando se envía una nueva", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioActual(),
+        ...e,
+      }));
+
+      const result = await service.update(1, { password: "nueva-password" });
+
+      const saved = (repo.save as jest.Mock).mock.calls[0][0] as Partial<Socio>;
+      expect(saved.passwordHash).toBeDefined();
+      expect(saved.passwordHash).not.toBe("nueva-password");
+      expect(
+        await new PasswordService().compare("nueva-password", saved.passwordHash!),
+      ).toBe(true);
+      expect(Object.keys(result)).not.toContain("passwordHash");
+    });
+
+    it("lanza NotFoundException si el socio no existe", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.update(999, { nombre: "X" })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("lanza BadRequestException si no hay campos editables", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
+
+      await expect(service.update(1, {} as UpdateSocioInput)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("rechaza con 409 si el correo pertenece a otro socio", async () => {
+      (repo.findOne as jest.Mock)
+        .mockResolvedValueOnce(socioActual())
+        .mockResolvedValueOnce({
+          id: 2,
+          ...baseInput,
+          passwordHash: "x",
+          correo: "otro@correo.com",
+          telefono: "+59100000000",
+        });
+
+      await expect(service.update(1, { correo: "otro@correo.com" })).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it("rechaza con 409 si el teléfono pertenece a otro socio", async () => {
+      (repo.findOne as jest.Mock)
+        .mockResolvedValueOnce(socioActual())
+        .mockResolvedValueOnce({
+          id: 2,
+          ...baseInput,
+          passwordHash: "x",
+          correo: "otro@correo.com",
+          telefono: "+59100000000",
+        });
+
+      await expect(service.update(1, { telefono: "+59100000000" })).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it("no rechaza si el correo coincide con el propio registro", async () => {
+      (repo.findOne as jest.Mock)
+        .mockResolvedValueOnce(socioActual())
+        .mockResolvedValueOnce(socioActual());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioActual(),
+        ...e,
+      }));
+
+      const result = await service.update(1, { correo: "juan@correo.com" });
+
+      expect(result.id).toBe(1);
+    });
+
+    it("convierte una violación de unicidad de la BD (23505) en 409", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
+      const uniqueError = new Error("duplicate key") as Error & { code?: string };
+      uniqueError.code = "23505";
+      (repo.save as jest.Mock).mockRejectedValue(uniqueError);
+
+      await expect(service.update(1, { nombre: "X" })).rejects.toThrow(
+        ConflictException,
+      );
+    });
   });
 });

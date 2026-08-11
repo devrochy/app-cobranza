@@ -14,6 +14,12 @@ Formato de cada entrada:
 
 ---
 
+## Unicidad de correo case-insensitive
+- Detectado en: docs/ai/tasks/editar-socio-cobrador.md (revisión code-reviewer)
+- Fecha: 2026-08-11
+- Descripción: la unicidad de `correo` (socios/cobradores) es case-sensitive por default en Postgres: `Correo@x.com` y `correo@x.com` pueden coexistir. Considerar normalizar a minúsculas al crear/editar (afecta create y update de ambos módulos).
+- Prioridad sugerida: media
+
 ## Extraer helper compartido de unicidad/conflicto (23505) tras el 3er uso
 - Detectado en: docs/ai/tasks/registrar-cobrador.md
 - Fecha: 2026-08-11

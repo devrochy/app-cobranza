@@ -1,6 +1,7 @@
-import { Body, Controller, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Param, ParseIntPipe, Patch, Post, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CreateSocioDto } from "./dto/create-socio.dto";
+import { UpdateSocioDto } from "./dto/update-socio.dto";
 import { SociosService } from "./socios.service";
 
 @Controller("socios")
@@ -11,5 +12,11 @@ export class SociosController {
   @UseGuards(JwtAuthGuard)
   create(@Body() dto: CreateSocioDto) {
     return this.sociosService.create(dto);
+  }
+
+  @Patch(":id")
+  @UseGuards(JwtAuthGuard)
+  update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateSocioDto) {
+    return this.sociosService.update(id, dto);
   }
 }
