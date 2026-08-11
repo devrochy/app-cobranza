@@ -23,7 +23,7 @@ Formato de cada entrada:
 ## Extraer helper compartido de unicidad/conflicto (23505) tras el 3er uso
 - Detectado en: docs/ai/tasks/registrar-cobrador.md
 - Fecha: 2026-08-11
-- Descripción: `isUniqueViolation` + `assertNoConflicts` + `toPublic` están duplicados entre `socios.service.ts` y `cobradores.service.ts`. Si HU-08 (rutas) u otra HU vuelve a necesitar la misma validación, extraer un servicio/helper común; si no, revisar este ítem cuando se toque socios/cobradores.
+- Descripción: `isUniqueViolation` + `assertNoConflicts` + `toPublic` (y ahora `setEstatus`) están duplicados entre `socios.service.ts` y `cobradores.service.ts`. Si HU-08 (rutas) u otra HU vuelve a necesitar la misma validación/operación, extraer un servicio/helper común; si no, revisar este ítem cuando se toque socios/cobradores. También se podría mover `UpdateEstatusDto` a una ubicación común (`src/common/`) al hacerlo.
 - Prioridad sugerida: media
 
 ## Blacklist/revocación de refresh tokens

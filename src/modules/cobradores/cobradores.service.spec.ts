@@ -261,4 +261,60 @@ describe("CobradoresService", () => {
       );
     });
   });
+
+  describe("setEstatus", () => {
+    function cobradorActual(): Cobrador {
+      return {
+        id: 1,
+        socio: { id: 1 } as Socio,
+        ...baseInput,
+        passwordHash: "hash",
+        createdAt: new Date(),
+      } as Cobrador;
+    }
+
+    it("bloquea al cobrador y devuelve sin passwordHash", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
+      (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
+        ...cobradorActual(),
+        ...e,
+      }));
+
+      const result = await service.setEstatus(1, "bloqueado");
+
+      expect(cobradorRepo.save).toHaveBeenCalled();
+      expect(result.estatus).toBe("bloqueado");
+      expect(Object.keys(result)).not.toContain("passwordHash");
+    });
+
+    it("reactiva al cobrador", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
+      (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
+        ...cobradorActual(),
+        ...e,
+      }));
+
+      const result = await service.setEstatus(1, "activo");
+
+      expect(result.estatus).toBe("activo");
+    });
+
+    it("es idempotente y no lanza por el hook de cascada (no-op)", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
+      (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
+        ...cobradorActual(),
+        ...e,
+      }));
+
+      await expect(service.setEstatus(1, "bloqueado")).resolves.toBeDefined();
+    });
+
+    it("lanza NotFoundException si el cobrador no existe", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.setEstatus(999, "bloqueado")).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
 });

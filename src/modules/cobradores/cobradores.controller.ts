@@ -1,5 +1,6 @@
 import { Body, Controller, Param, ParseIntPipe, Patch, Post, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { UpdateEstatusDto } from "../socios/dto/update-estatus.dto";
 import { CobradoresService } from "./cobradores.service";
 import { CreateCobradorDto } from "./dto/create-cobrador.dto";
 import { UpdateCobradorDto } from "./dto/update-cobrador.dto";
@@ -18,5 +19,11 @@ export class CobradoresController {
   @UseGuards(JwtAuthGuard)
   update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateCobradorDto) {
     return this.cobradoresService.update(id, dto);
+  }
+
+  @Patch(":id/estatus")
+  @UseGuards(JwtAuthGuard)
+  setEstatus(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateEstatusDto) {
+    return this.cobradoresService.setEstatus(id, dto.estatus);
   }
 }

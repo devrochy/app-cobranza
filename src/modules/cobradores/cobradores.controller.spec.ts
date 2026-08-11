@@ -13,6 +13,7 @@ describe("CobradoresController", () => {
   const mockService = {
     create: jest.fn(),
     update: jest.fn(),
+    setEstatus: jest.fn(),
   };
 
   const baseDto: CreateCobradorDto = {
@@ -83,5 +84,14 @@ describe("CobradoresController", () => {
 
     expect(service.update).toHaveBeenCalledWith(1, { nombre: "Carlos Eduardo" });
     expect(result.nombre).toBe("Carlos Eduardo");
+  });
+
+  it("delega en el servicio al cambiar el estatus", async () => {
+    (service.setEstatus as jest.Mock).mockResolvedValue({ id: 1, estatus: "bloqueado" });
+
+    const result = await controller.setEstatus(1, { estatus: "bloqueado" });
+
+    expect(service.setEstatus).toHaveBeenCalledWith(1, "bloqueado");
+    expect(result.estatus).toBe("bloqueado");
   });
 });

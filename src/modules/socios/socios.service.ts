@@ -132,6 +132,17 @@ export class SociosService {
     return this.toPublic(saved);
   }
 
+  async setEstatus(id: number, estatus: SocioEstatus): Promise<SocioPublic> {
+    const socio = await this.repo.findOne({ where: { id } });
+    if (!socio) {
+      throw new NotFoundException("El socio no existe");
+    }
+
+    socio.estatus = estatus;
+    const saved = await this.repo.save(socio);
+    return this.toPublic(saved);
+  }
+
   private assertUpdateNoConflicts(existing: Socio, input: UpdateSocioInput): void {
     const conflicts: Array<[string, string | undefined]> = [
       ["correo", input.correo],
