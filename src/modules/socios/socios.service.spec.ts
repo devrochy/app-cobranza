@@ -256,4 +256,66 @@ describe("SociosService", () => {
       );
     });
   });
+
+  describe("setEstatus", () => {
+    function socioActual(): Socio {
+      return {
+        id: 1,
+        usuario: "socio1",
+        passwordHash: "hash",
+        nombre: "Juan",
+        apellido: "Pérez",
+        correo: "juan@correo.com",
+        telefono: "+59170000001",
+        codigo: "SC001",
+        moneda: "BOB",
+        estatus: "activo",
+        createdAt: new Date(),
+      } as Socio;
+    }
+
+    it("bloquea al socio y devuelve sin passwordHash", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioActual(),
+        ...e,
+      }));
+
+      const result = await service.setEstatus(1, "bloqueado");
+
+      expect(repo.save).toHaveBeenCalled();
+      expect(result.estatus).toBe("bloqueado");
+      expect(Object.keys(result)).not.toContain("passwordHash");
+    });
+
+    it("reactiva al socio", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioActual(),
+        ...e,
+      }));
+
+      const result = await service.setEstatus(1, "activo");
+
+      expect(result.estatus).toBe("activo");
+    });
+
+    it("es idempotente: aplicar el mismo estatus no falla", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioActual(),
+        ...e,
+      }));
+
+      await expect(service.setEstatus(1, "activo")).resolves.toBeDefined();
+    });
+
+    it("lanza NotFoundException si el socio no existe", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.setEstatus(999, "bloqueado")).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
 });
