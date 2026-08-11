@@ -36,19 +36,32 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Se habilita cuando exista docker-compose para Postgres/servicios de integración
-  # e2e:
-  #   needs: build-and-test
-  #   runs-on: ubuntu-latest
-  #   services:
-  #     postgres:
-  #       image: postgis/postgis:16-3.4
-  #       env:
-  #         POSTGRES_PASSWORD: postgres
-  #       ports: ["5432:5432"]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-node@v4
-  #       with: { node-version: "20", cache: "npm" }
-  #     - run: npm ci
-  #     - run: npm run test:e2e
+  e2e:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app_cobranza
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app_cobranza"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Tests end-to-end (Postgres real)
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_cobranza
