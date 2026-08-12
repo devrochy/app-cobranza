@@ -20,7 +20,7 @@ describe("InyeccionesService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockInyRepo = { create: jest.fn(), save: jest.fn() };
+  const mockInyRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
     return {
@@ -106,5 +106,74 @@ describe("InyeccionesService", () => {
     const result = await service.crear(1, baseInput, socioContext);
 
     expect(result.rutaId).toBe(1);
+  });
+
+  describe("eliminar", () => {
+    function inyeccionActual(overrides: Partial<Inyeccion> = {}): Inyeccion {
+      return {
+        id: 10,
+        rutaId: 1,
+        valor: 1500,
+        comentario: "Aporte",
+        fechaHora: new Date("2026-08-12T10:00:00Z"),
+        estado: "activa",
+        ...overrides,
+      } as Inyeccion;
+    }
+
+    it("cambia el estado a eliminada conservando la fechaHora", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      const actual = inyeccionActual();
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+      (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+        ...actual,
+        ...e,
+      }) as Inyeccion);
+
+      const result = await service.eliminar(1, 10, adminContext);
+
+      expect(inyRepo.save).toHaveBeenCalled();
+      expect(result.estado).toBe("eliminada");
+      expect(result.fechaHora).toEqual(actual.fechaHora);
+    });
+
+    it("es idempotente si la inyección ya estaba eliminada", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      const actual = inyeccionActual({ estado: "eliminada" });
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+      (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+        ...actual,
+        ...e,
+      }) as Inyeccion);
+
+      const result = await service.eliminar(1, 10, adminContext);
+
+      expect(result.estado).toBe("eliminada");
+    });
+
+    it("lanza NotFoundException si la ruta no existe", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.eliminar(999, 10, adminContext)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("lanza NotFoundException si la inyección no existe o es de otra ruta", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.eliminar(1, 999, adminContext)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("un socio no puede eliminar una inyección de una ruta ajena -> 403", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
+
+      await expect(service.eliminar(1, 10, socioContext)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
   });
 });

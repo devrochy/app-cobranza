@@ -60,6 +60,31 @@ export class InyeccionesService {
     return this.toPublic(saved, rutaId);
   }
 
+  async eliminar(
+    rutaId: number,
+    inyeccionId: number,
+    requester: RequesterInyeccionContext,
+  ): Promise<InyeccionPublic> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    this.assertOwned(ruta, requester);
+
+    const inyeccion = await this.repo.findOne({
+      where: { id: inyeccionId, ruta: { id: rutaId } },
+    });
+    if (!inyeccion) {
+      throw new NotFoundException("La inyección no existe");
+    }
+
+    // HU-12: soft-delete idempotente. Se conserva el registro y su fecha_hora
+    // (trazabilidad, PRD 4.3:274); solo cambia la visibilidad via estado.
+    inyeccion.estado = "eliminada";
+    const saved = await this.repo.save(inyeccion);
+    return this.toPublic(saved, rutaId);
+  }
+
   private assertOwned(ruta: Ruta, requester: RequesterInyeccionContext): void {
     if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
       throw new ForbiddenException(ACCESO_DENEGADO);

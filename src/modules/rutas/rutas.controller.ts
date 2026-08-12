@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -50,6 +51,20 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.inyeccionesService.crear(id, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Delete(":id/inyecciones/:inyeccionId")
+  @PermisoRequerido("eliminar_inyeccion")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  eliminarInyeccion(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("inyeccionId", ParseIntPipe) inyeccionId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.inyeccionesService.eliminar(id, inyeccionId, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
