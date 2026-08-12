@@ -17,8 +17,20 @@ Formato de cada entrada:
 ## `assertOwned` duplicado en RutaConfigService (3er uso)
 - Detectado en: docs/ai/tasks/ruta-config.md (revisión code-reviewer)
 - Fecha: 2026-08-12
-- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts` (crear y eliminar) ya son 5 usos (rutas, ruta-config, inyecciones). Conviene extraer un helper compartido. También se duplica el `numericTransformer` (ruta, ruta-config, inyeccion).
+- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts`, `cliente.service.ts` y `prestamo.service.ts` ya son 6 usos (rutas, ruta-config, inyecciones, cliente, prestamo). Conviene extraer un helper compartido. También se duplica el `numericTransformer` en 5 entidades (ruta, ruta-config, inyeccion, prestamo, cuota).
 - Prioridad sugerida: media
+
+## `Repository.delete` con criterio anidado falla en `Prestamo`
+- Detectado en: docs/ai/tasks/registrar-prestamo.md
+- Fecha: 2026-08-12
+- Descripción: `prestamoRepo.delete({ ruta: { id } })` falla ("Cannot find alias for relation") porque Prestamo tiene dos relaciones (cliente y ruta). La limpieza e2e usa query builder con columnas directas. Si el patrón se repite, evaluar un helper de borrado o documentar la limitación.
+- Prioridad sugerida: baja
+
+## Unicidad del teléfono de WhatsApp del cliente
+- Detectado en: docs/ai/tasks/registrar-prestamo.md
+- Fecha: 2026-08-12
+- Descripción: el PRD no define unicidad para `clientes.telefono_whatsapp`. Decisión MVP: NO es único (se documenta); evaluar unicidad si se requiere evitar duplicados de cliente en HU-15/HU-19.
+- Prioridad sugerida: baja
 
 ## `prestamos.tipo_interes` — desviación del PRD 4.2 para HU-14
 - Detectado en: docs/ai/tasks/editar-nombre-ruta.md
