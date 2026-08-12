@@ -97,6 +97,28 @@ export class RutasService {
     await this.repo.update({ cobrador: { id: cobradorId } }, { estatus });
   }
 
+  async actualizarInformacion(
+    id: number,
+    input: { nombre: string; descripcion?: string | null },
+    requester: RequesterContext,
+  ): Promise<RutaPublic> {
+    const ruta = await this.repo.findOne({ where: { id } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    this.assertOwned(ruta, requester);
+
+    // HU-09: solo metadata (nombre/descripción). La configuración operativa
+    // (cobrador, tipoInteres, numCuotas, moneda, estatus) queda intacta.
+    // descripcion: null limpia el valor (permitido por la API).
+    ruta.nombre = input.nombre;
+    if (input.descripcion !== undefined) {
+      ruta.descripcion = input.descripcion;
+    }
+    const saved = await this.repo.save(ruta);
+    return this.toPublic(saved);
+  }
+
   async setEstatus(
     id: number,
     estatus: RutaEstatus,

@@ -24,6 +24,7 @@
 
 8. `/plan-feature Registrar ruta con nombre, descripción, socio, cobrador, tipo de interés, número de cuotas y moneda (HU-08)`
 9. `/plan-feature Editar el nombre de una ruta existente sin alterar su configuración (HU-09)`
+9a. `/plan-feature Editar configuración de ruta (tipo de interés y número de cuotas); la moneda NO es editable (decisión) — amplía HU-09`
 10. `/plan-feature Matriz de parámetros por ruta (ruta_config) para controlar la app móvil en campo (HU-10)`
 11. `/plan-feature Registrar inyección de capital con valor y comentario sobre una ruta (HU-11)`
 12. `/plan-feature Eliminar inyección con confirmación conservando trazabilidad de fecha/hora (HU-12)`
