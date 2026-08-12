@@ -16,6 +16,7 @@ import { PermisoRequerido } from "../auth/permiso-requerido.decorator";
 import { CreateRutaDto } from "./dto/create-ruta.dto";
 import { ReasignarCobradorDto } from "./dto/reasignar-cobrador.dto";
 import { UpdateEstatusRutaDto } from "./dto/update-estatus-ruta.dto";
+import { UpdateRutaConfigDto } from "./dto/update-ruta-config.dto";
 import { UpdateRutaDto } from "./dto/update-ruta.dto";
 import { RutasService } from "./rutas.service";
 
@@ -39,6 +40,20 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasService.actualizarInformacion(id, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch(":id/configuracion")
+  @PermisoRequerido("configurar_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  actualizarConfiguracion(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: UpdateRutaConfigDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasService.actualizarConfiguracion(id, dto, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
