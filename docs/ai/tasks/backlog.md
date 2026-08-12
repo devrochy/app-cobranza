@@ -14,6 +14,12 @@ Formato de cada entrada:
 
 ---
 
+## JwtAuthGuard no revalida el estado del admin por request
+- Detectado en: docs/ai/tasks/matriz-permisos-socio.md (revisión code-reviewer)
+- Fecha: 2026-08-11
+- Descripción: `JwtAuthGuard` valida el token (tipo access) pero no consulta si el admin sigue activo por request: un admin bloqueado con access token vigente (15m) puede operar. Es un patrón pre-existente en todo el módulo. Evaluar revalidar `estado` del admin en el guard (o al menos al entrar en HU-07 cuando existan roles).
+- Prioridad sugerida: media
+
 ## Unicidad de correo case-insensitive
 - Detectado en: docs/ai/tasks/editar-socio-cobrador.md (revisión code-reviewer)
 - Fecha: 2026-08-11
