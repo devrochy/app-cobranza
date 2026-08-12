@@ -8,12 +8,14 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CreateRutaDto } from "./dto/create-ruta.dto";
+import { RutaConfigService } from "./ruta-config.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
 describe("RutasController", () => {
   let controller: RutasController;
   let service: RutasService;
+  let rutaConfigService: RutaConfigService;
 
   const mockService = {
     create: jest.fn(),
@@ -21,6 +23,11 @@ describe("RutasController", () => {
     reasignarCobrador: jest.fn(),
     actualizarInformacion: jest.fn(),
     actualizarConfiguracion: jest.fn(),
+  };
+
+  const mockRutaConfigService = {
+    getMatriz: jest.fn(),
+    setMatriz: jest.fn(),
   };
 
   const baseDto: CreateRutaDto = {
@@ -39,6 +46,7 @@ describe("RutasController", () => {
       controllers: [RutasController],
       providers: [
         { provide: RutasService, useValue: mockService },
+        { provide: RutaConfigService, useValue: mockRutaConfigService },
         JwtAuthGuard,
         PermisoGuard,
         Reflector,
@@ -50,6 +58,7 @@ describe("RutasController", () => {
 
     controller = module.get(RutasController);
     service = module.get(RutasService);
+    rutaConfigService = module.get(RutaConfigService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -105,5 +114,28 @@ describe("RutasController", () => {
     await controller.actualizarConfiguracion(1, { tipoInteres: 25 }, req);
 
     expect(service.actualizarConfiguracion).toHaveBeenCalledWith(1, { tipoInteres: 25 }, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al consultar la matriz ruta_config", async () => {
+    (rutaConfigService.getMatriz as jest.Mock).mockResolvedValue({});
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.getRutaConfig(1, req);
+
+    expect(rutaConfigService.getMatriz).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al configurar la matriz ruta_config", async () => {
+    (rutaConfigService.setMatriz as jest.Mock).mockResolvedValue({});
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { mostrarCaja: true };
+
+    await controller.setRutaConfig(1, dto, req);
+
+    expect(rutaConfigService.setMatriz).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
   });
 });
