@@ -32,4 +32,4 @@ Que un Administrador o un Socio con `eliminar_inyeccion` elimine (soft-delete) u
 - Archivos modificados: `src/modules/rutas/inyecciones.service.ts` (+spec), `rutas.controller.ts` (+spec), `test/e2e/eliminar-inyeccion.e2e-spec.ts`, `docs/ai/tasks/eliminar-inyeccion.md`.
 - Pendientes/seguimiento: la liquidación (HU-20) debe sumar solo inyecciones `activa`; `assertOwned` sigue acumulando usos (backlog del helper).
 - **Revisión independiente (code-reviewer, 2026-08-12):** APROBADO CON OBSERVACIONES (sin bloqueantes). Correcciones aplicadas: igualdad de `fechaHora` antes/después del DELETE en e2e (snapshot inmutable a nivel BD), e2e de "socio sin `eliminar_inyeccion` → 403" (primera ruta gated por un permiso distinto de `configurar_ruta`), e2e del doble filtro (inyección de otra ruta → 404), backlog actualizado a 5 usos de `assertOwned`.
-- **PR:** (a completar al abrirla)
+- **PR:** https://github.com/devrochy/app-cobranza/pull/14 (feature/eliminar-inyeccion → develop), CI en verde (build-and-test + e2e).
