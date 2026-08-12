@@ -16,11 +16,13 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisoRequerido } from "../auth/permiso-requerido.decorator";
 import { CreateRutaDto } from "./dto/create-ruta.dto";
+import { CreateInyeccionDto } from "./dto/create-inyeccion.dto";
 import { ReasignarCobradorDto } from "./dto/reasignar-cobrador.dto";
 import { UpdateEstatusRutaDto } from "./dto/update-estatus-ruta.dto";
 import { UpdateRutaConfigDto } from "./dto/update-ruta-config.dto";
 import { UpdateRutaConfigMatrixDto } from "./dto/update-ruta-config-matrix.dto";
 import { UpdateRutaDto } from "./dto/update-ruta.dto";
+import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
 import { RutasService } from "./rutas.service";
 
@@ -29,6 +31,7 @@ export class RutasController {
   constructor(
     private readonly rutasService: RutasService,
     private readonly rutaConfigService: RutaConfigService,
+    private readonly inyeccionesService: InyeccionesService,
   ) {}
 
   @Post()
@@ -36,6 +39,20 @@ export class RutasController {
   @UseGuards(JwtAuthGuard, PermisoGuard)
   create(@Body() dto: CreateRutaDto, @Req() req: Request & { user: AuthTokenPayload }) {
     return this.rutasService.create(dto, { rol: req.user.rol, sub: req.user.sub });
+  }
+
+  @Post(":id/inyecciones")
+  @PermisoRequerido("configurar_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  crearInyeccion(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: CreateInyeccionDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.inyeccionesService.crear(id, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
   }
 
   @Get(":id/ruta-config")
