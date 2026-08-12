@@ -277,4 +277,93 @@ describe("RutasService", () => {
       );
     });
   });
+
+  describe("actualizarInformacion", () => {
+    function rutaActual(overrides: Partial<Ruta> = {}): Ruta {
+      return {
+        id: 1,
+        socioId: 1,
+        cobradorId: 1,
+        nombre: "Ruta Centro",
+        descripcion: "Zona céntrica",
+        tipoInteres: 20,
+        numCuotas: 8,
+        moneda: "BOB",
+        estatus: "activo",
+        createdAt: new Date(),
+        ...overrides,
+      } as Ruta;
+    }
+
+    it("renombra la ruta y edita la descripción sin alterar la configuración", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(rutaActual());
+      (mockRutaRepo.save as jest.Mock).mockImplementation(async (e: Partial<Ruta>) => ({
+        ...rutaActual(),
+        ...e,
+      }));
+
+      const result = await service.actualizarInformacion(
+        1,
+        { nombre: "Ruta Norte", descripcion: "Nueva zona" },
+        adminContext,
+      );
+
+      expect(result.nombre).toBe("Ruta Norte");
+      expect(result.descripcion).toBe("Nueva zona");
+      expect(result.cobradorId).toBe(1);
+      expect(result.tipoInteres).toBe(20);
+      expect(result.numCuotas).toBe(8);
+      expect(result.moneda).toBe("BOB");
+      expect(result.estatus).toBe("activo");
+    });
+
+    it("actualiza la descripción junto al nombre", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(rutaActual());
+      (mockRutaRepo.save as jest.Mock).mockImplementation(async (e: Partial<Ruta>) => ({
+        ...rutaActual(),
+        ...e,
+      }));
+
+      const result = await service.actualizarInformacion(
+        1,
+        { nombre: "Ruta Centro", descripcion: "Solo descripción" },
+        adminContext,
+      );
+
+      expect(result.descripcion).toBe("Solo descripción");
+      expect(result.nombre).toBe("Ruta Centro");
+    });
+
+    it("limpia la descripción cuando se envía null", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(rutaActual());
+      (mockRutaRepo.save as jest.Mock).mockImplementation(async (e: Partial<Ruta>) => ({
+        ...rutaActual(),
+        ...e,
+      }));
+
+      const result = await service.actualizarInformacion(
+        1,
+        { nombre: "Ruta Centro", descripcion: null },
+        adminContext,
+      );
+
+      expect(result.descripcion).toBeNull();
+    });
+
+    it("lanza NotFoundException si la ruta no existe", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.actualizarInformacion(999, { nombre: "X" }, adminContext),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("un socio no puede editar la información de una ruta ajena -> 403", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(rutaActual({ socioId: 2 }));
+
+      await expect(
+        service.actualizarInformacion(1, { nombre: "X" }, socioContext),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
 });

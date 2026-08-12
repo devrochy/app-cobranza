@@ -19,6 +19,7 @@ describe("RutasController", () => {
     create: jest.fn(),
     setEstatus: jest.fn(),
     reasignarCobrador: jest.fn(),
+    actualizarInformacion: jest.fn(),
   };
 
   const baseDto: CreateRutaDto = {
@@ -81,5 +82,16 @@ describe("RutasController", () => {
     await controller.reasignarCobrador(1, { cobradorId: 2 }, req);
 
     expect(service.reasignarCobrador).toHaveBeenCalledWith(1, 2, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al editar la información de la ruta", async () => {
+    (service.actualizarInformacion as jest.Mock).mockResolvedValue({ id: 1, nombre: "Ruta Norte" });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.actualizarInformacion(1, { nombre: "Ruta Norte" }, req);
+
+    expect(service.actualizarInformacion).toHaveBeenCalledWith(1, { nombre: "Ruta Norte" }, { rol: "admin", sub: 1 });
   });
 });
