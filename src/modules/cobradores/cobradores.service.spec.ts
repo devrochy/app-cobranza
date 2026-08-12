@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
+import { RutasService } from "../rutas/rutas.service";
 import { Socio } from "../socios/socio.entity";
 import { Cobrador } from "./cobrador.entity";
 import {
@@ -38,6 +39,10 @@ describe("CobradoresService", () => {
     findOne: jest.fn(),
   };
 
+  const mockRutasService = {
+    aplicarCascada: jest.fn(),
+  };
+
   function socioFixture(overrides: Partial<Socio> = {}): Socio {
     return { id: 1, usuario: "socio1", estatus: "activo", ...overrides } as Socio;
   }
@@ -50,6 +55,7 @@ describe("CobradoresService", () => {
         { provide: getRepositoryToken(Cobrador), useValue: mockCobradorRepo },
         { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
         PasswordService,
+        { provide: RutasService, useValue: mockRutasService },
       ],
     }).compile();
 
@@ -326,6 +332,20 @@ describe("CobradoresService", () => {
       expect(Object.keys(result)).not.toContain("passwordHash");
     });
 
+    it("invoca la cascada de rutas al bloquear y al reactivar", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
+      (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
+        ...cobradorActual(),
+        ...e,
+      }));
+
+      await service.setEstatus(1, "bloqueado");
+      expect(mockRutasService.aplicarCascada).toHaveBeenCalledWith(1, true);
+
+      await service.setEstatus(1, "activo");
+      expect(mockRutasService.aplicarCascada).toHaveBeenCalledWith(1, false);
+    });
+
     it("reactiva al cobrador", async () => {
       (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
       (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
@@ -338,7 +358,7 @@ describe("CobradoresService", () => {
       expect(result.estatus).toBe("activo");
     });
 
-    it("es idempotente y no lanza por el hook de cascada (no-op)", async () => {
+    it("es idempotente y no falla por la cascada de rutas", async () => {
       (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorActual());
       (cobradorRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cobrador>) => ({
         ...cobradorActual(),

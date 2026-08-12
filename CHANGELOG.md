@@ -4,6 +4,26 @@ Formato basado en [Conventional Commits](https://www.conventionalcommits.org/) y
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-12
+
+### Added
+
+- **HU-08 — Registro de rutas**: `POST /rutas` (gated por `registrar_ruta`) con validaciones (404 socio/cobrador inexistentes, 409 si bloqueados, interés > 0, moneda ISO) y ownership; **cascada de bloqueo de rutas** al bloquear/activar un cobrador (diferida de HU-05); `PATCH /rutas/:id/estatus` (reactivación manual) y `PATCH /rutas/:id/cobrador` (reasignación).
+- **HU-09 — Editar nombre/descripción de ruta**: `PATCH /rutas/:id` (gated por `configurar_ruta`) que solo toca metadata, dejando intacta la configuración operativa.
+- **9a — Editar configuración de ruta**: `PATCH /rutas/:id/configuracion` para `tipoInteres`/`numCuotas`; la `moneda` NO es editable (decisión, evita mezclar monedas en estadísticas).
+- **HU-10 — Matriz `ruta_config`**: `GET`/`PUT /rutas/:id/ruta-config` con los 25 parámetros de la APK del cobrador (visibilidad, cupo, comisión, permisos de borrado, etc.), defaults conservadores y PUT de reemplazo total.
+- **HU-11 — Inyecciones de capital**: `POST /rutas/:id/inyecciones` (valor > 0 + comentario obligatorio), estado `activa` y timestamp.
+- **HU-12 — Eliminar inyección con trazabilidad**: `DELETE /rutas/:id/inyecciones/:inyeccionId` como **soft-delete** (`estado = eliminada`) conservando el registro y su `fecha_hora` (snapshot inmutable, PRD 4.3).
+- **HU-13 — Color de riesgo por cliente**: regla pura `calcularColorRiesgo` (`src/domain/`, azul/rojo/blanco, umbral inclusivo desde `ruta_config`); el wiring con `clientes`/`cuotas` se difiere a HU-14/15.
+
+### Tests
+
+- Suite unitaria (186 tests) y e2e (126 tests sobre Postgres real) cubriendo la Épica 2. Se fijó ejecución serial de e2e (`testTimeout`/`maxWorkers: 1`) por flakiness de pools paralelos.
+
+### Docs
+
+- Archivo de tarea por HU en `docs/ai/tasks/` (HU-08 a HU-13, 9a) y backlog ampliado (desviación `prestamos.tipo_interes`, moneda no editable, `assertOwned`/`numericTransformer` duplicados, transaccionalidad de la cascada).
+
 ## [0.2.0] - 2026-08-12
 
 ### Added

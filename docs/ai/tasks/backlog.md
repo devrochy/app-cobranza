@@ -14,6 +14,30 @@ Formato de cada entrada:
 
 ---
 
+## `assertOwned` duplicado en RutaConfigService (3er uso)
+- Detectado en: docs/ai/tasks/ruta-config.md (revisión code-reviewer)
+- Fecha: 2026-08-12
+- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts` (crear y eliminar) ya son 5 usos (rutas, ruta-config, inyecciones). Conviene extraer un helper compartido. También se duplica el `numericTransformer` (ruta, ruta-config, inyeccion).
+- Prioridad sugerida: media
+
+## `prestamos.tipo_interes` — desviación del PRD 4.2 para HU-14
+- Detectado en: docs/ai/tasks/editar-nombre-ruta.md
+- Fecha: 2026-08-12
+- Descripción: el PRD 4.2 define `prestamos` sin `tipo_interes`, pero el modelo de dominio acordado es "la ruta solo tiene defaults y el préstamo cierra su propia tasa". Para validar/recalcular cuotas por préstamo y mantener reportes correctos, `prestamos` debe agregar `tipo_interes` al registrarlo (HU-14). Las cuotas se generan con la tasa del préstamo, no la de la ruta.
+- Prioridad sugerida: alta (necesario antes de HU-14)
+
+## Moneda de ruta no editable (decisión de producto)
+- Detectado en: docs/ai/tasks/editar-nombre-ruta.md
+- Fecha: 2026-08-12
+- Descripción: la `moneda` de una ruta NO es editable tras el registro (decisión del usuario) para evitar mezclar monedas en estadísticas/liquidaciones. La edición de configuración de ruta cubre solo tipoInteres y numCuotas (nueva HU 9a en el roadmap).
+- Prioridad sugerida: media
+
+## Cascada de bloqueo de rutas sin transacción
+- Detectado en: docs/ai/tasks/registrar-ruta.md (revisión code-reviewer)
+- Fecha: 2026-08-12
+- Descripción: en `CobradoresService.setEstatus`, el `save` del cobrador y el `update` de rutas (`aplicarCascada`) no comparten transacción; si la cascada falla, el cobrador queda bloqueado con rutas activas sin rollback. Evaluar envolver ambos en una transacción (o al menos loguear el fallo de cascada para reconciliación).
+- Prioridad sugerida: media
+
 ## JwtAuthGuard no revalida el estado del admin por request
 - Detectado en: docs/ai/tasks/matriz-permisos-socio.md (revisión code-reviewer)
 - Fecha: 2026-08-11
