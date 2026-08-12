@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -363,6 +364,85 @@ describe("RutasService", () => {
 
       await expect(
         service.actualizarInformacion(1, { nombre: "X" }, socioContext),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe("actualizarConfiguracion", () => {
+    function rutaActual(overrides: Partial<Ruta> = {}): Ruta {
+      return {
+        id: 1,
+        socioId: 1,
+        cobradorId: 1,
+        nombre: "Ruta Centro",
+        descripcion: null,
+        tipoInteres: 20,
+        numCuotas: 8,
+        moneda: "BOB",
+        estatus: "activo",
+        createdAt: new Date(),
+        ...overrides,
+      } as Ruta;
+    }
+
+    it("actualiza el tipo de interés y las cuotas sin tocar el resto", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(rutaActual());
+      (mockRutaRepo.save as jest.Mock).mockImplementation(async (e: Partial<Ruta>) => ({
+        ...rutaActual(),
+        ...e,
+      }));
+
+      const result = await service.actualizarConfiguracion(
+        1,
+        { tipoInteres: 25, numCuotas: 10 },
+        adminContext,
+      );
+
+      expect(result.tipoInteres).toBe(25);
+      expect(result.numCuotas).toBe(10);
+      expect(result.nombre).toBe("Ruta Centro");
+      expect(result.moneda).toBe("BOB");
+      expect(result.estatus).toBe("activo");
+    });
+
+    it("actualiza solo un campo si el otro no se envía", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(rutaActual());
+      (mockRutaRepo.save as jest.Mock).mockImplementation(async (e: Partial<Ruta>) => ({
+        ...rutaActual(),
+        ...e,
+      }));
+
+      const result = await service.actualizarConfiguracion(
+        1,
+        { tipoInteres: 30 },
+        adminContext,
+      );
+
+      expect(result.tipoInteres).toBe(30);
+      expect(result.numCuotas).toBe(8);
+    });
+
+    it("lanza BadRequestException si no llega ningún campo", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(rutaActual());
+
+      await expect(
+        service.actualizarConfiguracion(1, {}, adminContext),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("lanza NotFoundException si la ruta no existe", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.actualizarConfiguracion(999, { tipoInteres: 25 }, adminContext),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("un socio no puede editar la configuración de una ruta ajena -> 403", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(rutaActual({ socioId: 2 }));
+
+      await expect(
+        service.actualizarConfiguracion(1, { tipoInteres: 25 }, socioContext),
       ).rejects.toThrow(ForbiddenException);
     });
   });
