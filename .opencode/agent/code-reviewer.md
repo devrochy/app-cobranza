@@ -1,7 +1,7 @@
 ---
 description: Revisor de código de solo lectura. Úsalo antes de marcar cualquier tarea no trivial como completada, para obtener una segunda opinión independiente (evita que el mismo agente que escribió el código se autoapruebe). NO escribe código, NO ejecuta comandos que modifiquen el repositorio.
 mode: subagent
-model: opencode/claude-haiku-4-5
+model: opencode-go/deepseek-v4-flash
 temperature: 0.1
 permission:
   edit: deny

@@ -29,6 +29,7 @@ Primer paso obligatorio al entrar en modo ejecución para cualquier tarea no tri
 1. Escribir el archivo de tarea en `docs/ai/tasks/<slug>.md` usando la plantilla de la skill `task-decomposition`.
 2. Seguir el ciclo TDD descrito en la skill `tdd-workflow` para cada bloque de la tarea.
 3. Actualizar el archivo de tarea con el resultado real (no dejarlo como intención, sino como registro de lo que efectivamente se hizo).
+4. **Commit + PR obligatorio por HU completada**: al cerrar la tarea (DoD sección 6), crear la rama `feature/<slug>` desde `develop`, commitear con Conventional Commits (ver skill `github-gitflow-cicd`) y abrir la PR a `develop` vía el subagente `git-release-manager`. No se avanza a la siguiente HU con la anterior sin su PR abierta y el pipeline de CI en verde.
 
 **Nunca** escribas código de producción directamente en modo ejecución sin haber pasado por el modo planeación para features nuevas (CRUD de una entidad, integración externa, cambio de esquema de base de datos, lógica de negocio nueva). Excepciones permitidas sin plan formal: fixes de una línea, ajustes de lint/formato, actualizar documentación.
 
@@ -76,7 +77,7 @@ Una tarea NO se marca como completada (`todowrite` status `completed`) hasta que
 2. Se agregaron pruebas nuevas que cubren el comportamiento agregado/cambiado, y existían **antes** del código de producción (Red → Green → Refactor).
 3. El archivo de tarea en `docs/ai/tasks/<slug>.md` está actualizado con el resultado real.
 4. No quedan `TODO`/`FIXME` sin registrar como ítem de seguimiento explícito.
-5. Si el cambio toca git (commit/PR), se siguió la skill `github-gitflow-cicd` (branch correcto, commit convencional, PR con descripción y referencia a la tarea).
+5. **Commit + PR por cada HU completada** (regla de git de la sección 1, punto 4): rama `feature/<slug>` desde `develop`, commits Conventional Commits honrando el ciclo Red→Green en el historial, y PR a `develop` abierta por el subagente `git-release-manager` con la descripción obligatoria de la skill `github-gitflow-cicd` (tarea + cambios + cómo se probó + seguimiento). Sin PR abierta y sin el pipeline de CI en verde, la HU NO se considera terminada.
 
 Si algo de esto no se puede cumplir (ej. no hay forma de probar unitariamente una integración externa todavía), decláralo explícitamente en el archivo de tarea como limitación conocida — no lo omitas en silencio.
 
