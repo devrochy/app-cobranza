@@ -14,6 +14,18 @@ Formato de cada entrada:
 
 ---
 
+## `prestamos.tipo_interes` — desviación del PRD 4.2 para HU-14
+- Detectado en: docs/ai/tasks/editar-nombre-ruta.md
+- Fecha: 2026-08-12
+- Descripción: el PRD 4.2 define `prestamos` sin `tipo_interes`, pero el modelo de dominio acordado es "la ruta solo tiene defaults y el préstamo cierra su propia tasa". Para validar/recalcular cuotas por préstamo y mantener reportes correctos, `prestamos` debe agregar `tipo_interes` al registrarlo (HU-14). Las cuotas se generan con la tasa del préstamo, no la de la ruta.
+- Prioridad sugerida: alta (necesario antes de HU-14)
+
+## Moneda de ruta no editable (decisión de producto)
+- Detectado en: docs/ai/tasks/editar-nombre-ruta.md
+- Fecha: 2026-08-12
+- Descripción: la `moneda` de una ruta NO es editable tras el registro (decisión del usuario) para evitar mezclar monedas en estadísticas/liquidaciones. La edición de configuración de ruta cubre solo tipoInteres y numCuotas (nueva HU 9a en el roadmap).
+- Prioridad sugerida: media
+
 ## Cascada de bloqueo de rutas sin transacción
 - Detectado en: docs/ai/tasks/registrar-ruta.md (revisión code-reviewer)
 - Fecha: 2026-08-12
