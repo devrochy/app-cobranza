@@ -34,6 +34,7 @@ describe("RutasController", () => {
 
   const mockInyeccionesService = {
     crear: jest.fn(),
+    eliminar: jest.fn(),
   };
 
   const baseDto: CreateRutaDto = {
@@ -157,5 +158,16 @@ describe("RutasController", () => {
     await controller.crearInyeccion(1, dto, req);
 
     expect(inyeccionesService.crear).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al eliminar una inyección", async () => {
+    (inyeccionesService.eliminar as jest.Mock).mockResolvedValue({ id: 1, estado: "eliminada" });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.eliminarInyeccion(1, 10, req);
+
+    expect(inyeccionesService.eliminar).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
   });
 });
