@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -171,6 +172,34 @@ export class RutasService {
     if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
       throw new ForbiddenException(ACCESO_DENEGADO);
     }
+  }
+
+  async actualizarConfiguracion(
+    id: number,
+    input: { tipoInteres?: number; numCuotas?: number },
+    requester: RequesterContext,
+  ): Promise<RutaPublic> {
+    if (input.tipoInteres === undefined && input.numCuotas === undefined) {
+      throw new BadRequestException("No hay campos de configuración para actualizar");
+    }
+
+    const ruta = await this.repo.findOne({ where: { id } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    this.assertOwned(ruta, requester);
+
+    // 9a: solo configuración de default (tipoInteres/numCuotas). La moneda NO es
+    // editable (decisión) y la metadata (nombre/descripción) va por otro endpoint.
+    // El cambio solo afecta préstamos futuros (HU-14); no se recalculan cuotas.
+    if (input.tipoInteres !== undefined) {
+      ruta.tipoInteres = input.tipoInteres;
+    }
+    if (input.numCuotas !== undefined) {
+      ruta.numCuotas = input.numCuotas;
+    }
+    const saved = await this.repo.save(ruta);
+    return this.toPublic(saved);
   }
 
   protected toPublic(ruta: Ruta): RutaPublic {
