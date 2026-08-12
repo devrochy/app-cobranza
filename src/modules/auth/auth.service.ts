@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
+import { Socio } from "../socios/socio.entity";
 
 export interface AuthTokenPair {
   accessToken: string;
@@ -21,11 +22,28 @@ export interface LoginResult extends AuthTokenPair {
   };
 }
 
+export interface SocioLoginResult extends AuthTokenPair {
+  socio: {
+    id: number;
+    usuario: string;
+    nombre: string;
+    apellido: string;
+  };
+}
+
+export type RolUsuario = "admin" | "socio";
+
 export interface AuthTokenPayload {
   sub: number;
   tipo: "access" | "refresh";
+  rol: RolUsuario;
   usuario?: string;
   jti?: string;
+}
+
+interface TokenSubject {
+  id: number;
+  usuario: string;
 }
 
 const UNAUTHORIZED_MESSAGE = "Credenciales inválidas";
@@ -43,6 +61,8 @@ export class AuthService {
   constructor(
     @InjectRepository(AdminUser)
     private readonly repo: Repository<AdminUser>,
+    @InjectRepository(Socio)
+    private readonly socioRepo: Repository<Socio>,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly password: PasswordService,
@@ -71,7 +91,7 @@ export class AuthService {
       throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
     }
 
-    const tokens = await this.issueTokens(admin);
+    const tokens = await this.issueTokens("admin", admin);
     return {
       ...tokens,
       admin: {
@@ -79,6 +99,41 @@ export class AuthService {
         usuario: admin.usuario,
         nombre: admin.nombre,
         apellido: admin.apellido,
+      },
+    };
+  }
+
+  async loginSocio(usuario: string, password: string): Promise<SocioLoginResult> {
+    const socio = await this.socioRepo.findOne({
+      where: { usuario },
+      select: {
+        id: true,
+        usuario: true,
+        passwordHash: true,
+        estatus: true,
+        nombre: true,
+        apellido: true,
+      },
+    });
+
+    if (!socio) {
+      await this.password.compare(password, DUMMY_PASSWORD_HASH);
+      throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
+    }
+
+    const passwordOk = await this.password.compare(password, socio.passwordHash);
+    if (socio.estatus !== "activo" || !passwordOk) {
+      throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
+    }
+
+    const tokens = await this.issueTokens("socio", socio);
+    return {
+      ...tokens,
+      socio: {
+        id: socio.id,
+        usuario: socio.usuario,
+        nombre: socio.nombre,
+        apellido: socio.apellido,
       },
     };
   }
@@ -97,6 +152,17 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
     }
 
+    if (payload.rol === "socio") {
+      const socio = await this.socioRepo.findOne({
+        where: { id: payload.sub },
+        select: { id: true, usuario: true, estatus: true },
+      });
+      if (!socio || socio.estatus !== "activo") {
+        throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
+      }
+      return this.issueTokens("socio", socio);
+    }
+
     const admin = await this.repo.findOne({
       where: { id: payload.sub },
       select: { id: true, usuario: true, estado: true },
@@ -106,10 +172,10 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
     }
 
-    return this.issueTokens(admin);
+    return this.issueTokens("admin", admin);
   }
 
-  private async issueTokens(admin: AdminUser): Promise<AuthTokenPair> {
+  private async issueTokens(rol: RolUsuario, sub: TokenSubject): Promise<AuthTokenPair> {
     const accessExpiresIn =
       (this.config.get<string>("JWT_EXPIRES_IN") || "15m") as JwtSignOptions["expiresIn"];
     const refreshExpiresIn =
@@ -117,7 +183,12 @@ export class AuthService {
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(
-        { sub: admin.id, usuario: admin.usuario, tipo: "access" } satisfies AuthTokenPayload,
+        {
+          sub: sub.id,
+          usuario: sub.usuario,
+          rol,
+          tipo: "access",
+        } satisfies AuthTokenPayload,
         {
           secret: this.config.get<string>("JWT_SECRET"),
           expiresIn: accessExpiresIn,
@@ -125,7 +196,8 @@ export class AuthService {
       ),
       this.jwt.signAsync(
         {
-          sub: admin.id,
+          sub: sub.id,
+          rol,
           tipo: "refresh",
           jti: randomUUID(),
         } satisfies AuthTokenPayload,
