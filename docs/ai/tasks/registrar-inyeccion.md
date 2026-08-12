@@ -31,4 +31,4 @@ Que un Administrador o un Socio con `configurar_ruta` registre una inyección de
 - Archivos modificados: `src/modules/rutas/inyeccion.entity.ts`, `inyecciones.service.ts` (+spec), `rutas.controller.ts` (+spec), `rutas.module.ts`, `dto/create-inyeccion.dto.ts`, `test/e2e/registrar-inyeccion.e2e-spec.ts`, `docs/ai/tasks/registrar-inyeccion.md`.
 - Pendientes/seguimiento: la eliminación es HU-12 (`estado = eliminada`, snapshot inmutable); el enforcement APK del cobrador (`registrar_inyeccion_apk`) queda diferido; `assertOwned` se repite (4to uso en rutas) — el helper compartido sigue en backlog.
 - **Revisión independiente (code-reviewer, 2026-08-12):** APROBADO CON OBSERVACIONES (sin bloqueantes). Correcciones aplicadas: `@Matches(/\S/)` en el comentario (rechaza solo espacios), e2e de validación parametrizado (valor 0/negativo, comentario vacío/solo espacios), backlog actualizado (4º uso de `assertOwned` + `numericTransformer` duplicado).
-- **PR:** (a completar al abrirla)
+- **PR:** https://github.com/devrochy/app-cobranza/pull/13 (feature/registrar-inyeccion → develop), CI en verde (build-and-test + e2e).
