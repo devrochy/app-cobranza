@@ -3,17 +3,24 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CreateSocioDto } from "./dto/create-socio.dto";
+import { PermisosSocioService } from "./permisos-socio.service";
 import { SociosController } from "./socios.controller";
 import { SociosService } from "./socios.service";
 
 describe("SociosController", () => {
   let controller: SociosController;
   let service: SociosService;
+  let permisosService: PermisosSocioService;
 
   const mockService = {
     create: jest.fn(),
     update: jest.fn(),
     setEstatus: jest.fn(),
+  };
+
+  const mockPermisosService = {
+    getMatriz: jest.fn(),
+    setMatriz: jest.fn(),
   };
 
   const baseDto: CreateSocioDto = {
@@ -34,6 +41,7 @@ describe("SociosController", () => {
       controllers: [SociosController],
       providers: [
         { provide: SociosService, useValue: mockService },
+        { provide: PermisosSocioService, useValue: mockPermisosService },
         JwtAuthGuard,
         { provide: JwtService, useValue: new JwtService() },
         { provide: ConfigService, useValue: { get: jest.fn() } },
@@ -42,6 +50,7 @@ describe("SociosController", () => {
 
     controller = module.get(SociosController);
     service = module.get(SociosService);
+    permisosService = module.get(PermisosSocioService);
   });
 
   it("delega en el servicio con el DTO y devuelve el socio creado", async () => {
@@ -94,5 +103,22 @@ describe("SociosController", () => {
 
     expect(service.setEstatus).toHaveBeenCalledWith(1, "bloqueado");
     expect(result.estatus).toBe("bloqueado");
+  });
+
+  it("delega en el servicio de permisos al consultar la matriz", async () => {
+    (permisosService.getMatriz as jest.Mock).mockResolvedValue([]);
+
+    await controller.getPermisos(1);
+
+    expect(permisosService.getMatriz).toHaveBeenCalledWith(1);
+  });
+
+  it("delega en el servicio de permisos al configurar la matriz", async () => {
+    const matriz = { ver_reportes: true };
+    (permisosService.setMatriz as jest.Mock).mockResolvedValue([]);
+
+    await controller.setPermisos(1, { matriz });
+
+    expect(permisosService.setMatriz).toHaveBeenCalledWith(1, matriz);
   });
 });
