@@ -8,18 +8,20 @@ import { Cobrador } from "../cobradores/cobrador.entity";
 import { Ruta } from "./ruta.entity";
 import { RutaConfig } from "./ruta-config.entity";
 import { RutaConfigService } from "./ruta-config.service";
+import { Inyeccion } from "./inyeccion.entity";
+import { InyeccionesService } from "./inyecciones.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Ruta, RutaConfig, Socio, Cobrador]),
+    TypeOrmModule.forFeature([Ruta, RutaConfig, Inyeccion, Socio, Cobrador]),
     SecurityModule,
     JwtModule.register({}),
     SociosModule,
   ],
   controllers: [RutasController],
-  providers: [RutasService, RutaConfigService],
+  providers: [RutasService, RutaConfigService, InyeccionesService],
   exports: [RutasService],
 })
 export class RutasModule {}

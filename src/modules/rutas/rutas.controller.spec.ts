@@ -8,6 +8,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CreateRutaDto } from "./dto/create-ruta.dto";
+import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
@@ -16,6 +17,7 @@ describe("RutasController", () => {
   let controller: RutasController;
   let service: RutasService;
   let rutaConfigService: RutaConfigService;
+  let inyeccionesService: InyeccionesService;
 
   const mockService = {
     create: jest.fn(),
@@ -28,6 +30,10 @@ describe("RutasController", () => {
   const mockRutaConfigService = {
     getMatriz: jest.fn(),
     setMatriz: jest.fn(),
+  };
+
+  const mockInyeccionesService = {
+    crear: jest.fn(),
   };
 
   const baseDto: CreateRutaDto = {
@@ -47,6 +53,7 @@ describe("RutasController", () => {
       providers: [
         { provide: RutasService, useValue: mockService },
         { provide: RutaConfigService, useValue: mockRutaConfigService },
+        { provide: InyeccionesService, useValue: mockInyeccionesService },
         JwtAuthGuard,
         PermisoGuard,
         Reflector,
@@ -59,6 +66,7 @@ describe("RutasController", () => {
     controller = module.get(RutasController);
     service = module.get(RutasService);
     rutaConfigService = module.get(RutaConfigService);
+    inyeccionesService = module.get(InyeccionesService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -137,5 +145,17 @@ describe("RutasController", () => {
     await controller.setRutaConfig(1, dto, req);
 
     expect(rutaConfigService.setMatriz).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al registrar una inyección", async () => {
+    (inyeccionesService.crear as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { valor: 1500, comentario: "Aporte" };
+
+    await controller.crearInyeccion(1, dto, req);
+
+    expect(inyeccionesService.crear).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
   });
 });

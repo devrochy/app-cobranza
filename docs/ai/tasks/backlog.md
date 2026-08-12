@@ -17,7 +17,7 @@ Formato de cada entrada:
 ## `assertOwned` duplicado en RutaConfigService (3er uso)
 - Detectado en: docs/ai/tasks/ruta-config.md (revisión code-reviewer)
 - Fecha: 2026-08-12
-- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Sumado al ítem existente de helpers de socios/cobradores, conviene extraer un helper compartido.
+- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts` ya son 4 usos (rutas, ruta-config, inyecciones) más los de socios/cobradores. Conviene extraer un helper compartido. También se duplica el `numericTransformer` (ruta, ruta-config, inyeccion).
 - Prioridad sugerida: media
 
 ## `prestamos.tipo_interes` — desviación del PRD 4.2 para HU-14
