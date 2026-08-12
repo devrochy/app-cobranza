@@ -14,6 +14,12 @@ Formato de cada entrada:
 
 ---
 
+## Cascada de bloqueo de rutas sin transacción
+- Detectado en: docs/ai/tasks/registrar-ruta.md (revisión code-reviewer)
+- Fecha: 2026-08-12
+- Descripción: en `CobradoresService.setEstatus`, el `save` del cobrador y el `update` de rutas (`aplicarCascada`) no comparten transacción; si la cascada falla, el cobrador queda bloqueado con rutas activas sin rollback. Evaluar envolver ambos en una transacción (o al menos loguear el fallo de cascada para reconciliación).
+- Prioridad sugerida: media
+
 ## JwtAuthGuard no revalida el estado del admin por request
 - Detectado en: docs/ai/tasks/matriz-permisos-socio.md (revisión code-reviewer)
 - Fecha: 2026-08-11
