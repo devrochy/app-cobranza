@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { SecurityModule } from "../security/security.module";
 import { SociosModule } from "../socios/socios.module";
 import { Socio } from "../socios/socio.entity";
+import { RutasModule } from "../rutas/rutas.module";
 import { Cobrador } from "./cobrador.entity";
 import { CobradorPermiso } from "./cobrador-permiso.entity";
 import { CobradoresController } from "./cobradores.controller";
@@ -16,6 +17,7 @@ import { CobradoresService } from "./cobradores.service";
     SecurityModule,
     JwtModule.register({}),
     SociosModule,
+    RutasModule,
   ],
   controllers: [CobradoresController],
   providers: [CobradoresService, CobradoresPermisosService],

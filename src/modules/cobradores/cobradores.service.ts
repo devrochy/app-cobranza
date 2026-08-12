@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
+import { RutasService } from "../rutas/rutas.service";
 import { Socio } from "../socios/socio.entity";
 import { Cobrador, CobradorEstatus } from "./cobrador.entity";
 
@@ -46,6 +47,7 @@ export class CobradoresService {
     @InjectRepository(Socio)
     private readonly socioRepo: Repository<Socio>,
     private readonly password: PasswordService,
+    private readonly rutasService: RutasService,
   ) {}
 
   async create(input: CreateCobradorInput): Promise<CobradorPublic> {
@@ -170,11 +172,9 @@ export class CobradoresService {
     cobradorId: number,
     estatus: CobradorEstatus,
   ): Promise<void> {
-    // Punto de integración del bloqueo en cascada de rutas (HU-05 → HU-08).
-    // Cuando exista la tabla `rutas`, aquí se bloquearán las rutas del cobrador
-    // al bloquearlo (estatus === "bloqueado"). Por ahora es una no-op deliberada.
-    void cobradorId;
-    void estatus;
+    // Cascada de HU-05 → HU-08: al bloquear el cobrador se bloquean sus rutas
+    // y al reactivarlo se reactivan.
+    await this.rutasService.aplicarCascada(cobradorId, estatus === "bloqueado");
   }
 
   private assertUpdateNoConflicts(existing: Cobrador, input: UpdateCobradorInput): void {
