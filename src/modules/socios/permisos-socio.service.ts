@@ -36,6 +36,13 @@ export class PermisosSocioService {
     }));
   }
 
+  async tienePermiso(socioId: number, permiso: SocioPermisoNombre): Promise<boolean> {
+    const fila = await this.permisoRepo.findOne({
+      where: { socio: { id: socioId }, permiso, habilitado: true },
+    });
+    return fila !== null;
+  }
+
   async setMatriz(socioId: number, matriz: MatrizPermisos): Promise<PermisoEstado[]> {
     await this.assertSocioExists(socioId);
 
