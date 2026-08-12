@@ -42,7 +42,7 @@ export type RutaConfigInput = Partial<Omit<RutaConfigPublic, "rutaId">>;
 
 const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   cuotasMinimasPrestamo: 0,
-  cuotasAtrasoUmbral: 0,
+  cuotasAtrasoUmbral: 1,
   manejoCupoActivo: false,
   cupoDefault: 0,
   recargoActivo: false,
