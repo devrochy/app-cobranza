@@ -9,7 +9,7 @@ import { PermisosSocioService } from "./permisos-socio.service";
 describe("PermisosSocioService", () => {
   let service: PermisosSocioService;
   let socioRepo: { findOne: jest.Mock };
-  let permisoRepo: { find: jest.Mock };
+  let permisoRepo: { find: jest.Mock; findOne: jest.Mock };
   let manager: { delete: jest.Mock; save: jest.Mock };
 
   const mockQueryRunner = {
@@ -33,7 +33,7 @@ describe("PermisosSocioService", () => {
     };
 
     socioRepo = { findOne: jest.fn() };
-    permisoRepo = { find: jest.fn() };
+    permisoRepo = { find: jest.fn(), findOne: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -130,6 +130,23 @@ describe("PermisosSocioService", () => {
 
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.commitTransaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("tienePermiso", () => {
+    it("devuelve true si la fila del permiso está habilitada", async () => {
+      permisoRepo.findOne.mockResolvedValue({ permiso: "registrar_socio", habilitado: true });
+
+      await expect(service.tienePermiso(1, "registrar_socio")).resolves.toBe(true);
+      expect(permisoRepo.findOne).toHaveBeenCalledWith({
+        where: { socio: { id: 1 }, permiso: "registrar_socio", habilitado: true },
+      });
+    });
+
+    it("devuelve false si no hay fila habilitada", async () => {
+      permisoRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.tienePermiso(1, "eliminar_rutas")).resolves.toBe(false);
     });
   });
 });

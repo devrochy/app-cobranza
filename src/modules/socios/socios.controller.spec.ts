@@ -1,7 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
+import { Reflector } from "@nestjs/core";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { PermisoGuard } from "../auth/permiso.guard";
 import { CreateSocioDto } from "./dto/create-socio.dto";
 import { PermisosSocioService } from "./permisos-socio.service";
 import { SociosController } from "./socios.controller";
@@ -43,6 +45,8 @@ describe("SociosController", () => {
         { provide: SociosService, useValue: mockService },
         { provide: PermisosSocioService, useValue: mockPermisosService },
         JwtAuthGuard,
+        PermisoGuard,
+        Reflector,
         { provide: JwtService, useValue: new JwtService() },
         { provide: ConfigService, useValue: { get: jest.fn() } },
       ],

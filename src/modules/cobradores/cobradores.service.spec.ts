@@ -29,6 +29,7 @@ describe("CobradoresService", () => {
 
   const mockCobradorRepo = {
     findOne: jest.fn(),
+    find: jest.fn(),
     create: jest.fn((entity: Partial<Cobrador>) => entity as Cobrador),
     save: jest.fn(async (entity: Partial<Cobrador>) => entity as Cobrador),
   };
@@ -259,6 +260,44 @@ describe("CobradoresService", () => {
       await expect(service.update(1, { nombre: "X" })).rejects.toThrow(
         ConflictException,
       );
+    });
+  });
+
+  describe("listar", () => {
+    it("filtra por socio cuando recibe socioId", async () => {
+      (cobradorRepo.find as jest.Mock).mockResolvedValue([]);
+
+      await service.listar(7);
+
+      expect((cobradorRepo.find as jest.Mock)).toHaveBeenCalledWith({
+        where: { socio: { id: 7 } },
+        order: { id: "ASC" },
+      });
+    });
+
+    it("devuelve todos cuando no recibe socioId", async () => {
+      (cobradorRepo.find as jest.Mock).mockResolvedValue([]);
+
+      await service.listar();
+
+      expect((cobradorRepo.find as jest.Mock)).toHaveBeenCalledWith({ order: { id: "ASC" } });
+    });
+
+    it("no expone passwordHash en el resultado", async () => {
+      (cobradorRepo.find as jest.Mock).mockResolvedValue([
+        {
+          id: 1,
+          socio: { id: 1 } as Socio,
+          ...baseInput,
+          passwordHash: "hash",
+          createdAt: new Date(),
+        } as Cobrador,
+      ]);
+
+      const result = await service.listar();
+
+      expect(result[0]).toBeDefined();
+      expect(Object.keys(result[0])).not.toContain("passwordHash");
     });
   });
 

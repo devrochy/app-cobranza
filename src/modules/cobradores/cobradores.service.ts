@@ -99,6 +99,17 @@ export class CobradoresService {
     return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
   }
 
+  async listar(socioId?: number): Promise<CobradorPublic[]> {
+    const cobradores =
+      socioId === undefined
+        ? await this.repo.find({ order: { id: "ASC" } })
+        : await this.repo.find({
+            where: { socio: { id: socioId } },
+            order: { id: "ASC" },
+          });
+    return cobradores.map((c) => this.toPublic(c, c.socioId));
+  }
+
   async update(id: number, input: UpdateCobradorInput): Promise<CobradorPublic> {
     const cobrador = await this.repo.findOne({ where: { id } });
     if (!cobrador) {
