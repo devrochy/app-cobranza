@@ -1,10 +1,13 @@
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
+import { Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
 import type { Request } from "express";
+import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { AuthService, AuthTokenPayload } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { PermisoGuard } from "./permiso.guard";
 
 describe("AuthController", () => {
   let controller: AuthController;
@@ -12,6 +15,7 @@ describe("AuthController", () => {
 
   const mockAuthService = {
     login: jest.fn(),
+    loginSocio: jest.fn(),
     refresh: jest.fn(),
   };
 
@@ -22,6 +26,9 @@ describe("AuthController", () => {
       providers: [
         { provide: AuthService, useValue: mockAuthService },
         JwtAuthGuard,
+        PermisoGuard,
+        Reflector,
+        { provide: PermisosSocioService, useValue: { tienePermiso: jest.fn() } },
         { provide: JwtService, useValue: new JwtService() },
         { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
@@ -42,6 +49,19 @@ describe("AuthController", () => {
 
     expect(authService.login).toHaveBeenCalledWith("admin", "s3cret");
     expect(result.accessToken).toBe("a");
+  });
+
+  it("loginSocio delega al servicio", async () => {
+    const pair = { accessToken: "a", refreshToken: "r" };
+    (authService.loginSocio as jest.Mock).mockResolvedValue({
+      ...pair,
+      socio: { id: 10, usuario: "socio1", nombre: "Juan", apellido: "Pérez" },
+    });
+
+    const result = await controller.loginSocio({ usuario: "socio1", password: "s3cret" });
+
+    expect(authService.loginSocio).toHaveBeenCalledWith("socio1", "s3cret");
+    expect(result.socio.usuario).toBe("socio1");
   });
 
   it("refresh delega al servicio", async () => {
