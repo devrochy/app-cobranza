@@ -25,8 +25,8 @@ Capturar y fijar la regla de negocio del código de color de riesgo por cliente 
 - Pregunta: límite del umbral → Respuesta: `>=` → rojo (inclusivo).
 
 ## Resultado final (llenar al completar)
-- Comandos ejecutados para verificar: `scripts/check.sh` (lint+typecheck+185 tests unitarios).
+- Comandos ejecutados para verificar: `scripts/check.sh` (lint+typecheck+186 tests unitarios).
 - Archivos modificados: `src/domain/color-riesgo.ts`, `src/domain/color-riesgo.spec.ts`, `docs/ai/tasks/color-riesgo-cliente.md`.
 - Pendientes/seguimiento (limitación registrada): el wiring (calcular `atraso` desde cuotas y persistir `clientes.color_riesgo` con el umbral de `ruta_config`) se implementa en HU-14/15. `src/domain/` es una nueva área para reglas de negocio puras sin DI.
 - **Revisión independiente (code-reviewer, 2026-08-12):** APROBADO (sin bloqueantes). Correcciones aplicadas: test explícito del borde `atraso=0, umbral=0` → rojo, y JSDoc documentando el contrato de entradas no negativas.
-- **PR:** (a completar al abrirla)
+- **PR:** https://github.com/devrochy/app-cobranza/pull/15 (feature/color-riesgo-cliente → develop).
