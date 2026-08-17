@@ -5,14 +5,9 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
   RelationId,
-  ValueTransformer,
 } from "typeorm";
+import { numericTransformer } from "../../common/numeric-transformer";
 import { Ruta } from "./ruta.entity";
-
-const numericTransformer: ValueTransformer = {
-  to: (value: number): number => value,
-  from: (value: string): number => Number.parseFloat(value),
-};
 
 @Entity("ruta_config")
 export class RutaConfig {

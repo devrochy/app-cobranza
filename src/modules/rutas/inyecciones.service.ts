@@ -1,10 +1,10 @@
 import {
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { assertOwned } from "../../common/ownership";
 import { Ruta } from "./ruta.entity";
 import { Inyeccion, InyeccionEstado } from "./inyeccion.entity";
 
@@ -27,7 +27,7 @@ export interface InyeccionPublic {
   estado: InyeccionEstado;
 }
 
-const ACCESO_DENEGADO = "Acceso denegado";
+
 
 @Injectable()
 export class InyeccionesService {
@@ -47,7 +47,7 @@ export class InyeccionesService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const inyeccion = this.repo.create({
       ruta: { id: rutaId } as Ruta,
@@ -69,7 +69,7 @@ export class InyeccionesService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const inyeccion = await this.repo.findOne({
       where: { id: inyeccionId, ruta: { id: rutaId } },
@@ -83,12 +83,6 @@ export class InyeccionesService {
     inyeccion.estado = "eliminada";
     const saved = await this.repo.save(inyeccion);
     return this.toPublic(saved, rutaId);
-  }
-
-  private assertOwned(ruta: Ruta, requester: RequesterInyeccionContext): void {
-    if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
-      throw new ForbiddenException(ACCESO_DENEGADO);
-    }
   }
 
   private toPublic(inyeccion: Inyeccion, rutaId: number): InyeccionPublic {

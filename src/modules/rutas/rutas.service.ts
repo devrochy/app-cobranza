@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { ACCESO_DENEGADO, assertOwned } from "../../common/ownership";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Ruta, RutaEstatus } from "./ruta.entity";
@@ -39,7 +40,7 @@ export interface RutaPublic {
   createdAt: Date;
 }
 
-const ACCESO_DENEGADO = "Acceso denegado";
+
 
 @Injectable()
 export class RutasService {
@@ -107,7 +108,7 @@ export class RutasService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     // HU-09: solo metadata (nombre/descripción). La configuración operativa
     // (cobrador, tipoInteres, numCuotas, moneda, estatus) queda intacta.
@@ -129,7 +130,7 @@ export class RutasService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     // Reactivación manual intencional: puede activar una ruta cuyo cobrador
     // esté bloqueado (escape hatch decidido con el usuario en HU-08); el
@@ -148,7 +149,7 @@ export class RutasService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const cobrador = await this.cobradorRepo.findOne({ where: { id: nuevoCobradorId } });
     if (!cobrador) {
@@ -168,12 +169,6 @@ export class RutasService {
     return this.toPublic(saved);
   }
 
-  private assertOwned(ruta: Ruta, requester: RequesterContext): void {
-    if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
-      throw new ForbiddenException(ACCESO_DENEGADO);
-    }
-  }
-
   async actualizarConfiguracion(
     id: number,
     input: { tipoInteres?: number; numCuotas?: number },
@@ -187,7 +182,7 @@ export class RutasService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     // 9a: solo configuración de default (tipoInteres/numCuotas). La moneda NO es
     // editable (decisión) y la metadata (nombre/descripción) va por otro endpoint.
