@@ -3,6 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
 import type { Request } from "express";
+import { DataSource } from "typeorm";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
@@ -40,6 +41,7 @@ describe("CarteraController", () => {
         { provide: ClienteService, useValue: mockClienteService },
         { provide: PrestamoService, useValue: mockPrestamoService },
         JwtAuthGuard,
+        { provide: DataSource, useValue: {} },
         PermisoGuard,
         Reflector,
         { provide: PermisosSocioService, useValue: { tienePermiso: jest.fn() } },

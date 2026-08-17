@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "../rutas/ruta.entity";
 import { Cliente, ClienteEstatus } from "./cliente.entity";
 import { ColorRiesgo } from "../../domain/color-riesgo";
@@ -19,7 +20,7 @@ export interface CreateClienteInput {
 }
 
 export interface RequesterCarteraContext {
-  rol: "admin" | "socio";
+  rol: RolUsuario;
   sub: number;
 }
 

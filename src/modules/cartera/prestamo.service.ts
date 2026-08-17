@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
+import { RolUsuario } from "../auth/auth.service";
 import { calcularColorRiesgo } from "../../domain/color-riesgo";
 import { Ruta } from "../rutas/ruta.entity";
 import { RutaConfig } from "../rutas/ruta-config.entity";
@@ -27,7 +28,7 @@ export interface CreatePrestamoInput {
 }
 
 export interface RequesterPrestamoContext {
-  rol: "admin" | "socio";
+  rol: RolUsuario;
   sub: number;
 }
 
