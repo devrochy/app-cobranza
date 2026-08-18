@@ -11,6 +11,7 @@ import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CreateRutaDto } from "./dto/create-ruta.dto";
 import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
+import { CajaService } from "./caja.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -19,6 +20,7 @@ describe("RutasController", () => {
   let service: RutasService;
   let rutaConfigService: RutaConfigService;
   let inyeccionesService: InyeccionesService;
+  let cajaService: CajaService;
 
   const mockService = {
     create: jest.fn(),
@@ -38,6 +40,10 @@ describe("RutasController", () => {
     eliminar: jest.fn(),
   };
 
+  const mockCajaService = {
+    consultar: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -46,6 +52,7 @@ describe("RutasController", () => {
     tipoInteres: 20,
     numCuotas: 8,
     moneda: "BOB",
+    saldoInicial: 1000,
   };
 
   beforeEach(async () => {
@@ -56,6 +63,7 @@ describe("RutasController", () => {
         { provide: RutasService, useValue: mockService },
         { provide: RutaConfigService, useValue: mockRutaConfigService },
         { provide: InyeccionesService, useValue: mockInyeccionesService },
+        { provide: CajaService, useValue: mockCajaService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -70,6 +78,7 @@ describe("RutasController", () => {
     service = module.get(RutasService);
     rutaConfigService = module.get(RutaConfigService);
     inyeccionesService = module.get(InyeccionesService);
+    cajaService = module.get(CajaService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -171,5 +180,20 @@ describe("RutasController", () => {
     await controller.eliminarInyeccion(1, 10, req);
 
     expect(inyeccionesService.eliminar).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al consultar la caja de la ruta", async () => {
+    (cajaService.consultar as jest.Mock).mockResolvedValue({
+      rutaId: 1,
+      saldoInicial: 1000,
+      saldoActual: 1000,
+    });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.getCaja(1, req);
+
+    expect(cajaService.consultar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
   });
 });

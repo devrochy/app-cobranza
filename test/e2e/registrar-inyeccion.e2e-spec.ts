@@ -6,6 +6,7 @@ import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
 import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
+import { Caja } from "../../src/modules/rutas/caja.entity";
 import { Inyeccion } from "../../src/modules/rutas/inyeccion.entity";
 import { Ruta } from "../../src/modules/rutas/ruta.entity";
 import { Socio } from "../../src/modules/socios/socio.entity";
@@ -18,6 +19,7 @@ describe("Registro de inyecciones de capital (e2e)", () => {
   let cobradorRepo: Repository<Cobrador>;
   let rutaRepo: Repository<Ruta>;
   let inyRepo: Repository<Inyeccion>;
+  let cajaRepo: Repository<Caja>;
   let accessTokenAdmin: string;
   let tokenSocio: string;
   let rutaPropiaId: number;
@@ -55,8 +57,14 @@ describe("Registro de inyecciones de capital (e2e)", () => {
     cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
     rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
     inyRepo = moduleFixture.get(getRepositoryToken(Inyeccion));
+    cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
+    await inyRepo.createQueryBuilder().delete().execute();
+    await cobradorRepo.delete({ codigo: "CB-INY-1" });
+    await cobradorRepo.delete({ codigo: "CB-INY-2" });
+    await socioRepo.delete({ codigo: "SC-INY-1" });
+    await socioRepo.delete({ codigo: "SC-INY-2" });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,
       passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 4),
@@ -134,6 +142,12 @@ describe("Registro de inyecciones de capital (e2e)", () => {
       estatus: "activo",
     });
     rutaPropiaId = rutaPropia.id;
+    await cajaRepo.save({
+      ruta: { id: rutaPropiaId },
+      rutaId: rutaPropiaId,
+      saldoInicial: 1000,
+      saldoActual: 1000,
+    });
 
     const rutaAjena = await rutaRepo.save({
       socio: { id: socio2.id },
@@ -146,6 +160,12 @@ describe("Registro de inyecciones de capital (e2e)", () => {
       estatus: "activo",
     });
     rutaAjenaId = rutaAjena.id;
+    await cajaRepo.save({
+      ruta: { id: rutaAjenaId },
+      rutaId: rutaAjenaId,
+      saldoInicial: 500,
+      saldoActual: 500,
+    });
 
     tokenSocio = await loginSocio("socio-iny-1");
   });
@@ -175,6 +195,20 @@ describe("Registro de inyecciones de capital (e2e)", () => {
     expect(res.body.estado).toBe("activa");
     expect(() => new Date(res.body.fechaHora).toISOString()).not.toThrow();
     expect(res.body.rutaId).toBe(rutaPropiaId);
+  });
+
+  it("la inyección aumenta el saldo real de la caja de la ruta (wiring)", async () => {
+    await request(app.getHttpServer())
+      .post(`/rutas/${rutaPropiaId}/inyecciones`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ valor: 300, comentario: "Aporte wiring" });
+
+    const caja = await cajaRepo
+      .createQueryBuilder("c")
+      .where("c.ruta_id = :rutaId", { rutaId: rutaPropiaId })
+      .getOne();
+    // saldo inicial 1000 + 1500 (test anterior) + 300 = 2800
+    expect(caja?.saldoActual).toBe(2800);
   });
 
   it("un socio con configurar_ruta registra en su propia ruta -> 201", async () => {
