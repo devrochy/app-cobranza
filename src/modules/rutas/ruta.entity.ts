@@ -6,18 +6,13 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   RelationId,
-  ValueTransformer,
 } from "typeorm";
+import { numericTransformer } from "../../common/numeric-transformer";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 
 export const RUTA_ESTATUS = ["activo", "bloqueado"] as const;
 export type RutaEstatus = (typeof RUTA_ESTATUS)[number];
-
-const numericTransformer: ValueTransformer = {
-  to: (value: number): number => value,
-  from: (value: string): number => Number.parseFloat(value),
-};
 
 @Entity("rutas")
 export class Ruta {

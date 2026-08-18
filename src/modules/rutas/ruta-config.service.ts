@@ -1,11 +1,11 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "./ruta.entity";
 import { RutaConfig } from "./ruta-config.entity";
@@ -78,7 +78,7 @@ export interface RequesterConfigContext {
   sub: number;
 }
 
-const ACCESO_DENEGADO = "Acceso denegado";
+
 
 @Injectable()
 export class RutaConfigService {
@@ -94,7 +94,7 @@ export class RutaConfigService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const fila = await this.configRepo.findOne({ where: { ruta: { id: rutaId } } });
     if (!fila) {
@@ -112,7 +112,7 @@ export class RutaConfigService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const clavesInvalidas = Object.keys(input ?? {}).filter(
       (key) => !(CAMPO_KEYS as readonly string[]).includes(key),
@@ -141,12 +141,6 @@ export class RutaConfigService {
 
     const saved = await this.configRepo.save(base);
     return this.toPublic(saved, rutaId);
-  }
-
-  private assertOwned(ruta: Ruta, requester: RequesterConfigContext): void {
-    if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
-      throw new ForbiddenException(ACCESO_DENEGADO);
-    }
   }
 
   private toPublic(fila: RutaConfig, rutaId: number): RutaConfigPublic {
