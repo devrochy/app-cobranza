@@ -6,12 +6,13 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { ACCESO_DENEGADO, assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Ruta, RutaEstatus } from "./ruta.entity";
+import { CajaService } from "./caja.service";
 
 export interface CreateRutaInput {
   nombre: string;
@@ -21,6 +22,7 @@ export interface CreateRutaInput {
   tipoInteres: number;
   numCuotas: number;
   moneda: string;
+  saldoInicial: number;
 }
 
 export interface RequesterContext {
@@ -52,6 +54,8 @@ export class RutasService {
     private readonly socioRepo: Repository<Socio>,
     @InjectRepository(Cobrador)
     private readonly cobradorRepo: Repository<Cobrador>,
+    private readonly dataSource: DataSource,
+    private readonly cajaService: CajaService,
   ) {}
 
   async create(input: CreateRutaInput, requester: RequesterContext): Promise<RutaPublic> {
@@ -91,7 +95,13 @@ export class RutasService {
     ruta.socioId = input.socioId;
     ruta.cobradorId = input.cobradorId;
 
-    const saved = await this.repo.save(ruta);
+    // HU-08 ampliada: la ruta y su caja (saldo inicial obligatorio) se crean en
+    // la misma transacción para no dejar una ruta sin caja.
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const savedRuta = await manager.save(ruta);
+      await this.cajaService.crearCaja(savedRuta.id, input.saldoInicial, manager);
+      return savedRuta;
+    });
     return this.toPublic(saved);
   }
 
