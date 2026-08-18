@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AdminUsersModule } from "./modules/admin-users/admin-users.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { CarteraModule } from "./modules/cartera/cartera.module";
 import { CobradoresModule } from "./modules/cobradores/cobradores.module";
 import { HealthModule } from "./modules/health/health.module";
 import { RutasModule } from "./modules/rutas/rutas.module";
@@ -27,6 +28,7 @@ import { SociosModule } from "./modules/socios/socios.module";
     SociosModule,
     CobradoresModule,
     RutasModule,
+    CarteraModule,
     HealthModule,
   ],
 })
