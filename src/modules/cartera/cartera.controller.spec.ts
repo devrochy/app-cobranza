@@ -11,11 +11,15 @@ import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CarteraController } from "./cartera.controller";
 import { ClienteService } from "./cliente.service";
 import { PrestamoService } from "./prestamo.service";
+import { PagosService } from "./pagos.service";
+import { AbonosService } from "./abonos.service";
 
 describe("CarteraController", () => {
   let controller: CarteraController;
   let clienteService: ClienteService;
   let prestamoService: PrestamoService;
+  let pagosService: PagosService;
+  let abonosService: AbonosService;
 
   const mockClienteService = {
     crear: jest.fn(),
@@ -23,6 +27,14 @@ describe("CarteraController", () => {
 
   const mockPrestamoService = {
     crear: jest.fn(),
+  };
+
+  const mockPagosService = {
+    registrarPagoDeCuota: jest.fn(),
+  };
+
+  const mockAbonosService = {
+    registrarAbono: jest.fn(),
   };
 
   const baseDto = {
@@ -40,6 +52,8 @@ describe("CarteraController", () => {
       providers: [
         { provide: ClienteService, useValue: mockClienteService },
         { provide: PrestamoService, useValue: mockPrestamoService },
+        { provide: PagosService, useValue: mockPagosService },
+        { provide: AbonosService, useValue: mockAbonosService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -53,6 +67,8 @@ describe("CarteraController", () => {
     controller = module.get(CarteraController);
     clienteService = module.get(ClienteService);
     prestamoService = module.get(PrestamoService);
+    pagosService = module.get(PagosService);
+    abonosService = module.get(AbonosService);
   });
 
   it("delega al crear un cliente", async () => {
@@ -76,5 +92,32 @@ describe("CarteraController", () => {
     await controller.crearPrestamo(1, dto, req);
 
     expect(prestamoService.crear).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al registrar un pago de cuota", async () => {
+    (pagosService.registrarPagoDeCuota as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { cuotaId: 10, valor: 120, metodoPago: "efectivo" } as const;
+
+    await controller.registrarPago(1, dto, req);
+
+    expect(pagosService.registrarPagoDeCuota).toHaveBeenCalledWith(1, dto, {
+      rol: "admin",
+      sub: 1,
+    });
+  });
+
+  it("delega al registrar un abono", async () => {
+    (abonosService.registrarAbono as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { prestamoId: 20, valor: 30, metodoPago: "transferencia" } as const;
+
+    await controller.registrarAbono(1, dto, req);
+
+    expect(abonosService.registrarAbono).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
   });
 });

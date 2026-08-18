@@ -155,3 +155,21 @@ Formato de cada entrada:
 - Fecha: 2026-08-17
 - Descripción: `InyeccionesService.crear`/`eliminar` persisten la inyección y luego aplican el movimiento de caja en operaciones separadas; si `aplicarMovimiento` falla, la inyección queda persistida sin reflejar el saldo. Alinear con el patrón transaccional usado en la creación de ruta+caja (mismo ítem).
 - Prioridad sugerida: media
+
+## Concurrencia en pagos/abonos y saldo de caja sin lock
+- Detectado en: docs/ai/tasks/registrar-pago-abono.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: el abono calcula la deuda fuera de transacción y el pago chequea `estatus` fuera de transacción; doble POST simultáneo puede duplicar pago/abono y doble crédito de caja. `caja.saldoActual` se actualiza sin `@Version` ni lock (lost update ante pagos concurrentes en la misma ruta; patrón ya existente en inyecciones). Evaluar `@Version` en `Caja` o lock pesimista para el MVP o Fase 2.
+- Prioridad sugerida: media
+
+## Abono que iguala la deuda deja el préstamo vigente con cuotas pendientes
+- Detectado en: docs/ai/tasks/registrar-pago-abono.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: un abono que iguala exactamente la deuda deja el préstamo `vigente` con todas sus cuotas `pendiente` (deudaActual = 0, siguiente abono → 400) y no hay mecanismo que lo pase a `liquidado`. Consecuencia de la decisión "abono acumulado sin tocar estatus de cuotas". Evaluar transición a `liquidado` y el wiring de color de riesgo (HU-13) en HU-46 (ítem 8) o liquidación HU-20.
+- Prioridad sugerida: media
+
+## `esMetodoPagoValido` sin uso en producción
+- Detectado en: docs/ai/tasks/registrar-pago-abono.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: `esMetodoPagoValido` (metodo-pago.ts) está testeado pero sin uso en producción (los DTOs usan `IsIn`). Útil cuando exista validación en service; si no se usa, candidato a limpieza.
+- Prioridad sugerida: baja

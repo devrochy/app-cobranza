@@ -10,6 +10,8 @@ import { Ruta } from "./ruta.entity";
 export enum TipoMovimientoCaja {
   INYECCION = "inyeccion",
   INYECCION_ELIMINADA = "inyeccion_eliminada",
+  PAGO = "pago",
+  ABONO = "abono",
 }
 
 export interface ActorCaja {
@@ -59,18 +61,21 @@ export class CajaService {
     tipo: TipoMovimientoCaja,
     actor: ActorCaja,
     detalle?: string,
+    manager?: EntityManager,
   ): Promise<CajaPublic> {
-    const caja = await this.cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaRepo = manager ? manager.getRepository(Caja) : this.cajaRepo;
+    const logRepo = manager ? manager.getRepository(CajaAjusteLog) : this.logRepo;
+    const caja = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
     if (!caja) {
       throw new NotFoundException("La caja de la ruta no existe");
     }
 
     const valorAnterior = caja.saldoActual;
     caja.saldoActual = valorAnterior + delta;
-    const saved = await this.cajaRepo.save(caja);
+    const saved = await cajaRepo.save(caja);
 
     const motivo = detalle ? `${tipo}: ${detalle}` : tipo;
-    const log = this.logRepo.create({
+    const log = logRepo.create({
       caja: { id: caja.id } as CajaAjusteLog["caja"],
       cajaId: caja.id,
       valorAnterior,
@@ -79,7 +84,7 @@ export class CajaService {
       actorRol: actor.rol,
       actorId: actor.sub,
     });
-    await this.logRepo.save(log);
+    await logRepo.save(log);
 
     return this.toPublic(saved);
   }
