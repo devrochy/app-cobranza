@@ -25,6 +25,7 @@ import { UpdateRutaConfigMatrixDto } from "./dto/update-ruta-config-matrix.dto";
 import { UpdateRutaDto } from "./dto/update-ruta.dto";
 import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
+import { CajaService } from "./caja.service";
 import { RutasService } from "./rutas.service";
 
 @Controller("rutas")
@@ -33,6 +34,7 @@ export class RutasController {
     private readonly rutasService: RutasService,
     private readonly rutaConfigService: RutaConfigService,
     private readonly inyeccionesService: InyeccionesService,
+    private readonly cajaService: CajaService,
   ) {}
 
   @Post()
@@ -92,6 +94,19 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutaConfigService.setMatriz(id, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/caja")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  getCaja(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cajaService.consultar(id, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
