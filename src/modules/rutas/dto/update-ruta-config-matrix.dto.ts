@@ -74,6 +74,10 @@ export class UpdateRutaConfigMatrixDto {
 
   @IsOptional()
   @IsBoolean()
+  registroDocumentoCliente?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   eliminarPagosApk?: boolean;
 
   @IsOptional()

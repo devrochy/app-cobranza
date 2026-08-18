@@ -75,6 +75,15 @@ describe("RutaConfigService", () => {
       expect(matriz.diasNoLaborables).toBe("solo_domingos");
     });
 
+    it("expone registroDocumentoCliente con default false", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (configRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      const matriz = await service.getMatriz(1, adminContext);
+
+      expect(matriz.registroDocumentoCliente).toBe(false);
+    });
+
     it("devuelve la fila persistida si existe", async () => {
       (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
       (configRepo.findOne as jest.Mock).mockResolvedValue({
