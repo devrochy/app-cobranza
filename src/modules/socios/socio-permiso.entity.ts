@@ -23,6 +23,7 @@ export const SOCIO_PERMISOS = [
   "descargar_reporte",
   "bloquear_cobradores",
   "eliminar_gastos",
+  "registrar_gasto",
   "registrar_socio",
   "bloquear_socio",
   "editar_permisos",

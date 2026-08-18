@@ -12,6 +12,8 @@ export enum TipoMovimientoCaja {
   INYECCION_ELIMINADA = "inyeccion_eliminada",
   PAGO = "pago",
   ABONO = "abono",
+  GASTO = "gasto",
+  GASTO_ELIMINADO = "gasto_eliminado",
 }
 
 export interface ActorCaja {

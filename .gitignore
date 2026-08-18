@@ -15,3 +15,6 @@ npm-debug.log*
 # Memoria persistente del MCP "memory" — es estado local del agente,
 # no debe compartirse entre máquinas/desarrolladores sin revisión explícita.
 docs/ai/memory/knowledge-graph.json
+
+# Uploads locales (evidencias, MVP)
+uploads/
