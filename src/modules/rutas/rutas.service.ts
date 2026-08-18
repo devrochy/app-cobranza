@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { RolUsuario } from "../auth/auth.service";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Ruta, RutaEstatus } from "./ruta.entity";
@@ -22,7 +23,7 @@ export interface CreateRutaInput {
 }
 
 export interface RequesterContext {
-  rol: "admin" | "socio";
+  rol: RolUsuario;
   sub: number;
 }
 

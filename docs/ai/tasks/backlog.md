@@ -19,6 +19,7 @@ Formato de cada entrada:
 - Fecha: 2026-08-12
 - Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts`, `cliente.service.ts` y `prestamo.service.ts` ya son 6 usos (rutas, ruta-config, inyecciones, cliente, prestamo). Conviene extraer un helper compartido. También se duplica el `numericTransformer` en 5 entidades (ruta, ruta-config, inyeccion, prestamo, cuota).
 - Prioridad sugerida: media
+- Estado: **programada como Fase 0 del roadmap** (ítem 3).
 
 ## `Repository.delete` con criterio anidado falla en `Prestamo`
 - Detectado en: docs/ai/tasks/registrar-prestamo.md
@@ -47,14 +48,16 @@ Formato de cada entrada:
 ## Cascada de bloqueo de rutas sin transacción
 - Detectado en: docs/ai/tasks/registrar-ruta.md (revisión code-reviewer)
 - Fecha: 2026-08-12
-- Descripción: en `CobradoresService.setEstatus`, el `save` del cobrador y el `update` de rutas (`aplicarCascada`) no comparten transacción; si la cascada falla, el cobrador queda bloqueado con rutas activas sin rollback. Evaluar envolver ambos en una transacción (o al menos loguear el fallo de cascada para reconciliación).
+- Descripción: en `CobradoresService.setEstatus`, el `save` del cobrador y el `update` de rutas (`aplicarCascada`) no comparten transacción; si la cascada falla, el cobrador queda bloqueado con rutas activas sin rollback. Evaluar envolver ambos en una transacción (o al menos loguear el fallo de cascada para reconciliación). Se amplía a la cascada socio → cobradores → rutas (HU-05/HU-61).
 - Prioridad sugerida: media
+- Estado: **programada como Fase 0 del roadmap** (ítem 2).
 
 ## JwtAuthGuard no revalida el estado del admin por request
 - Detectado en: docs/ai/tasks/matriz-permisos-socio.md (revisión code-reviewer)
 - Fecha: 2026-08-11
-- Descripción: `JwtAuthGuard` valida el token (tipo access) pero no consulta si el admin sigue activo por request: un admin bloqueado con access token vigente (15m) puede operar. Es un patrón pre-existente en todo el módulo. Evaluar revalidar `estado` del admin en el guard (o al menos al entrar en HU-07 cuando existan roles).
+- Descripción: `JwtAuthGuard` valida el token (tipo access) pero no consulta si el admin sigue activo por request: un admin bloqueado con access token vigente (15m) puede operar. Es un patrón pre-existente en todo el módulo. Evaluar revalidar `estado` del admin en el guard (o al menos al entrar en HU-07 cuando existan roles). Ahora es requisito de HU-05/HU-61 (bloqueo efectivo inmediato).
 - Prioridad sugerida: media
+- Estado: **programada como Fase 0 del roadmap** (ítem 1).
 
 ## Unicidad de correo case-insensitive
 - Detectado en: docs/ai/tasks/editar-socio-cobrador.md (revisión code-reviewer)
@@ -67,6 +70,7 @@ Formato de cada entrada:
 - Fecha: 2026-08-11
 - Descripción: `isUniqueViolation` + `assertNoConflicts` + `toPublic` (y ahora `setEstatus`) están duplicados entre `socios.service.ts` y `cobradores.service.ts`. Si HU-08 (rutas) u otra HU vuelve a necesitar la misma validación/operación, extraer un servicio/helper común; si no, revisar este ítem cuando se toque socios/cobradores. También se podría mover `UpdateEstatusDto` a una ubicación común (`src/common/`) al hacerlo.
 - Prioridad sugerida: media
+- Estado: **programada como Fase 0 del roadmap** (ítem 3, junto con assertOwned).
 
 ## Blacklist/revocación de refresh tokens
 - Detectado en: docs/ai/tasks/login-administrador.md
@@ -139,3 +143,9 @@ Formato de cada entrada:
 - Fecha: 2026-08-17
 - Descripción: al centralizar `ACCESO_DENEGADO` en `src/common/ownership.ts` queda una constante equivalente preexistente en `permiso.guard.ts`. Unificar en un futuro ítem de limpieza.
 - Prioridad sugerida: baja
+
+## Migración de coordenadas a PostGIS (geography(Point))
+- Detectado en: sesión de revisión de producto (Agosto 2026)
+- Fecha: 2026-08-17
+- Descripción: `clientes` y `prestamos` usan `latitud`/`longitud` planos; para la Épica 7 (segmentación de trayectos, distancias) y la futura georreferenciación del cobrador se recomienda migrar a `geography(Point)` de PostGIS. Requiere ADR y afecta DTOs/servicios existentes. Programada como Fase 0 del roadmap (ítem 4).
+- Prioridad sugerida: media

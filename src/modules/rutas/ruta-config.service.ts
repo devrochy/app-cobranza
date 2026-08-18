@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "./ruta.entity";
 import { RutaConfig } from "./ruta-config.entity";
 
@@ -73,7 +74,7 @@ export const RutaConfigDefaults = RUTA_CONFIG_DEFAULTS;
 const CAMPO_KEYS = Object.keys(RUTA_CONFIG_DEFAULTS);
 
 export interface RequesterConfigContext {
-  rol: "admin" | "socio";
+  rol: RolUsuario;
   sub: number;
 }
 
