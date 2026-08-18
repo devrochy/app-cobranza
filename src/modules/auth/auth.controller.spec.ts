@@ -3,6 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
 import type { Request } from "express";
+import { DataSource } from "typeorm";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { AuthService, AuthTokenPayload } from "./auth.service";
 import { AuthController } from "./auth.controller";
@@ -26,6 +27,7 @@ describe("AuthController", () => {
       providers: [
         { provide: AuthService, useValue: mockAuthService },
         JwtAuthGuard,
+        { provide: DataSource, useValue: {} },
         PermisoGuard,
         Reflector,
         { provide: PermisosSocioService, useValue: { tienePermiso: jest.fn() } },

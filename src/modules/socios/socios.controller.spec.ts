@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
+import { DataSource } from "typeorm";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { CreateSocioDto } from "./dto/create-socio.dto";
@@ -45,6 +46,7 @@ describe("SociosController", () => {
         { provide: SociosService, useValue: mockService },
         { provide: PermisosSocioService, useValue: mockPermisosService },
         JwtAuthGuard,
+        { provide: DataSource, useValue: {} },
         PermisoGuard,
         Reflector,
         { provide: JwtService, useValue: new JwtService() },
