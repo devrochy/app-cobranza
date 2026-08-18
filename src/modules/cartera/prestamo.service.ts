@@ -23,8 +23,6 @@ export interface CreatePrestamoInput {
   numCuotas: number;
   tipoInteres?: number;
   diasEntreCuotas: number;
-  latitud: number;
-  longitud: number;
 }
 
 export interface RequesterPrestamoContext {
@@ -48,8 +46,6 @@ export interface PrestamoPublic {
   tipoInteres: number;
   diasEntreCuotas: number;
   fechaOtorgado: Date;
-  latitud: number;
-  longitud: number;
   estatus: PrestamoEstatus;
   cuotas: CuotaPublic[];
 }
@@ -156,8 +152,6 @@ export class PrestamoService {
         tipoInteres,
         diasEntreCuotas: input.diasEntreCuotas,
         fechaOtorgado,
-        latitud: input.latitud,
-        longitud: input.longitud,
         estatus: "vigente",
       });
       prestamo = await queryRunner.manager.save(prestamo);
@@ -249,8 +243,6 @@ export class PrestamoService {
       tipoInteres,
       diasEntreCuotas: prestamo.diasEntreCuotas,
       fechaOtorgado: prestamo.fechaOtorgado,
-      latitud: prestamo.latitud,
-      longitud: prestamo.longitud,
       estatus: prestamo.estatus,
       cuotas,
     };

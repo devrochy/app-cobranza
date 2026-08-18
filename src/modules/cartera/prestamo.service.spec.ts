@@ -37,8 +37,6 @@ describe("PrestamoService", () => {
     valor: 1000,
     numCuotas: 8,
     diasEntreCuotas: 7,
-    latitud: -17.78,
-    longitud: -63.18,
   };
 
   const adminContext = { rol: "admin" as const, sub: 0 };
@@ -107,8 +105,7 @@ describe("PrestamoService", () => {
       apellido: "Pérez",
       negocio: null,
       telefonoWhatsapp: "+59171111111",
-      latitud: -17.78,
-      longitud: -63.18,
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
       estatus: "activo",
       colorRiesgo: "blanco",
       createdAt: new Date(),

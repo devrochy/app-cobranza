@@ -44,8 +44,6 @@ describe("Registro de préstamos (e2e)", () => {
     valor: 1000,
     numCuotas: 8,
     diasEntreCuotas: 7,
-    latitud: -17.78,
-    longitud: -63.18,
   };
 
   beforeAll(async () => {
@@ -150,6 +148,8 @@ describe("Registro de préstamos (e2e)", () => {
     expect(res.status).toBe(201);
     expect(res.body.nombre).toBe("Juan");
     expect(res.body.colorRiesgo).toBe("blanco");
+    expect(res.body.latitud).toBeCloseTo(-17.78, 5);
+    expect(res.body.longitud).toBeCloseTo(-63.18, 5);
     clienteId = res.body.id as number;
     prestamoDto.clienteId = clienteId;
   });

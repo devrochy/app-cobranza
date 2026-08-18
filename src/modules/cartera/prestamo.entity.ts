@@ -55,12 +55,6 @@ export class Prestamo {
   @Column({ name: "fecha_otorgado", type: "timestamp" })
   fechaOtorgado!: Date;
 
-  @Column({ type: "float" })
-  latitud!: number;
-
-  @Column({ type: "float" })
-  longitud!: number;
-
   @Column({ type: "varchar", default: "vigente" })
   estatus!: PrestamoEstatus;
 
