@@ -16,6 +16,9 @@ import { RutaConfigDefaults } from "../rutas/ruta-config.service";
 import { Cliente } from "./cliente.entity";
 import { Cuota, CuotaEstatus } from "./cuota.entity";
 import { Prestamo, PrestamoEstatus } from "./prestamo.entity";
+import { ajustarDiaHabil } from "../../domain/dias-no-laborables";
+import { DiasNoLaborables } from "../rutas/ruta-config.entity";
+import { formatDate } from "../../common/date";
 
 export interface CreatePrestamoInput {
   clienteId: number;
@@ -51,13 +54,6 @@ export interface PrestamoPublic {
 }
 
 const ACCESO_DENEGADO = "Acceso denegado";
-
-function formatDate(date: Date): string {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date.getTime());
@@ -135,6 +131,7 @@ export class PrestamoService {
       input.numCuotas,
       input.diasEntreCuotas,
       fechaOtorgado,
+      config.diasNoLaborables,
     );
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -203,6 +200,7 @@ export class PrestamoService {
     numCuotas: number,
     diasEntreCuotas: number,
     fechaOtorgado: Date,
+    diasNoLaborables: DiasNoLaborables,
   ): CuotaGenerada[] {
     const valorTotal = valor * (1 + tipoInteres / 100);
     const cuotaBase = Math.round((valorTotal / numCuotas) * 100) / 100;
@@ -215,7 +213,12 @@ export class PrestamoService {
       return {
         numeroCuota: index + 1,
         valorEsperado,
-        fechaVencimiento: formatDate(addDays(fechaOtorgado, (index + 1) * diasEntreCuotas)),
+        fechaVencimiento: formatDate(
+          ajustarDiaHabil(
+            addDays(fechaOtorgado, (index + 1) * diasEntreCuotas),
+            diasNoLaborables,
+          ),
+        ),
         estatus: "pendiente" as const,
       };
     });
