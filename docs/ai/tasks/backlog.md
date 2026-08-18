@@ -17,9 +17,21 @@ Formato de cada entrada:
 ## `assertOwned` duplicado en RutaConfigService (3er uso)
 - Detectado en: docs/ai/tasks/ruta-config.md (revisión code-reviewer)
 - Fecha: 2026-08-12
-- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts` (crear y eliminar) ya son 5 usos (rutas, ruta-config, inyecciones). Conviene extraer un helper compartido. También se duplica el `numericTransformer` (ruta, ruta-config, inyeccion).
+- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts`, `cliente.service.ts` y `prestamo.service.ts` ya son 6 usos (rutas, ruta-config, inyecciones, cliente, prestamo). Conviene extraer un helper compartido. También se duplica el `numericTransformer` en 5 entidades (ruta, ruta-config, inyeccion, prestamo, cuota).
 - Prioridad sugerida: media
 - Estado: **programada como Fase 0 del roadmap** (ítem 3).
+
+## `Repository.delete` con criterio anidado falla en `Prestamo`
+- Detectado en: docs/ai/tasks/registrar-prestamo.md
+- Fecha: 2026-08-12
+- Descripción: `prestamoRepo.delete({ ruta: { id } })` falla ("Cannot find alias for relation") porque Prestamo tiene dos relaciones (cliente y ruta). La limpieza e2e usa query builder con columnas directas. Si el patrón se repite, evaluar un helper de borrado o documentar la limitación.
+- Prioridad sugerida: baja
+
+## Unicidad del teléfono de WhatsApp del cliente
+- Detectado en: docs/ai/tasks/registrar-prestamo.md
+- Fecha: 2026-08-12
+- Descripción: el PRD no define unicidad para `clientes.telefono_whatsapp`. Decisión MVP: NO es único (se documenta); evaluar unicidad si se requiere evitar duplicados de cliente en HU-15/HU-19.
+- Prioridad sugerida: baja
 
 ## `prestamos.tipo_interes` — desviación del PRD 4.2 para HU-14
 - Detectado en: docs/ai/tasks/editar-nombre-ruta.md
@@ -71,6 +83,66 @@ Formato de cada entrada:
 - Fecha: 2026-08-11
 - Descripción: el login no tiene límite de intentos por IP/usuario; riesgo de fuerza bruta. Agregar throttling (ej. @nestjs/throttler) cuando se exponga fuera de local.
 - Prioridad sugerida: alta
+
+## RutasService.aplicarCascada queda como código muerto
+- Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
+- Fecha: 2026-08-17
+- Descripción: al mover la cascada de rutas inline dentro de la transacción en `CobradoresService.setEstatus`, `RutasService.aplicarCascada` (y su spec) quedan sin consumidores. Removerlos o limpiarlos.
+- Prioridad sugerida: baja
+
+## Reactivar un socio reactiva cobradores bloqueados manualmente
+- Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
+- Fecha: 2026-08-17
+- Descripción: `SociosService.setEstatus` reactiva todos los cobradores y rutas del socio; un cobrador bloqueado manualmente (mora individual/desvinculación, HU-05) se desbloquearía al reactivar el socio. Decisión de negocio a definir (registrar qué cobradores reactivar).
+- Prioridad sugerida: media
+
+## Falta e2e de la cascada socio → cobradores → rutas
+- Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
+- Fecha: 2026-08-17
+- Descripción: existe e2e de cascada cobrador→rutas y de estatus de socio, pero no del flujo completo bloquear/reactivar socio → cobradores → rutas vía `PATCH /socios/:id/estatus`.
+- Prioridad sugerida: media
+
+## Falta test de rol desconocido en JwtAuthGuard
+- Detectado en: docs/ai/tasks/revalidar-estado-jwt.md (revisión code-reviewer PR #18)
+- Fecha: 2026-08-17
+- Descripción: el guard es fail-closed ante rol desconocido (401), pero no hay test explícito que lo verifique. Agregar caso "rechaza un access token con rol desconocido".
+- Prioridad sugerida: baja
+
+## refresh no maneja el rol cobrador (futuro)
+- Detectado en: docs/ai/tasks/revalidar-estado-jwt.md (revisión code-reviewer PR #18)
+- Fecha: 2026-08-17
+- Descripción: `AuthService.refresh` solo ramifica socio/admin; un refresh con rol cobrador caería en el bloque admin (401 por accidente, fail-closed). Al implementar el login del cobrador hay que ramificar cobrador aquí.
+- Prioridad sugerida: baja (cuando exista login de cobrador)
+
+## Asegurar que toda ruta con JwtAuthGuard tenga también PermisoGuard
+- Detectado en: docs/ai/tasks/revalidar-estado-jwt.md (revisión code-reviewer PR #18)
+- Fecha: 2026-08-17
+- Descripción: un cobrador (futuro) que pase JwtAuthGuard sería rechazado por PermisoGuard (rol !== socio). Verificar que no exista ninguna ruta protegida solo con JwtAuthGuard sin PermisoGuard antes de habilitar el login del cobrador.
+- Prioridad sugerida: media
+
+## assertOwned del cobrador (por ruta.cobradorId) — futuro
+- Detectado en: docs/ai/tasks/registrar-prestamo.md (revisión code-reviewer PR #17)
+- Fecha: 2026-08-17
+- Descripción: `assertOwned` solo contempla `rol === "socio"`. Al agregar el rol cobrador hay que definir la lógica de ownership del cobrador (validar contra `ruta.cobradorId`).
+- Prioridad sugerida: media (cuando exista rol cobrador)
+
+## Mock de DataSource innecesario en cartera.controller.spec
+- Detectado en: docs/ai/tasks/registrar-prestamo.md (revisión code-reviewer PR #17)
+- Fecha: 2026-08-17
+- Descripción: `cartera.controller.spec.ts` provee `{ provide: DataSource, useValue: {} }` aunque `PrestamoService` se inyecta con useValue (el DataSource no se instancia). Inofensivo pero redundante; eliminarlo o documentarlo.
+- Prioridad sugerida: baja
+
+## ADR-0002 referencia HUs de la PR #19 (orden de merge)
+- Detectado en: docs/ai/tasks/refactor-helpers.md (revisión code-reviewer PR #21)
+- Fecha: 2026-08-17
+- Descripción: el ADR de PostGIS cita HU-49/55/59 que existen en el PRD consolidado (PR #19, sin mergear). Asegurar que la PR #19 (docs) se mergee antes o junto para que las referencias sean válidas.
+- Prioridad sugerida: baja
+
+## ACCESO_DENEGADO duplicado con permiso.guard
+- Detectado en: docs/ai/tasks/refactor-helpers.md (revisión code-reviewer PR #21)
+- Fecha: 2026-08-17
+- Descripción: al centralizar `ACCESO_DENEGADO` en `src/common/ownership.ts` queda una constante equivalente preexistente en `permiso.guard.ts`. Unificar en un futuro ítem de limpieza.
+- Prioridad sugerida: baja
 
 ## Migración de coordenadas a PostGIS (geography(Point))
 - Detectado en: sesión de revisión de producto (Agosto 2026)
