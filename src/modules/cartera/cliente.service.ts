@@ -9,6 +9,7 @@ import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "../rutas/ruta.entity";
 import { Cliente, ClienteEstatus } from "./cliente.entity";
 import { ColorRiesgo } from "../../domain/color-riesgo";
+import { fromPoint, toPoint } from "../../common/geo";
 
 export interface CreateClienteInput {
   nombre: string;
@@ -67,8 +68,7 @@ export class ClienteService {
       apellido: input.apellido,
       negocio: input.negocio ?? null,
       telefonoWhatsapp: input.telefonoWhatsapp,
-      latitud: input.latitud,
-      longitud: input.longitud,
+      ubicacion: toPoint(input.latitud, input.longitud),
       estatus: "activo",
       colorRiesgo: "blanco",
     });
@@ -83,6 +83,7 @@ export class ClienteService {
   }
 
   private toPublic(cliente: Cliente, rutaId: number): ClientePublic {
+    const { latitud, longitud } = fromPoint(cliente.ubicacion);
     return {
       id: cliente.id,
       rutaId,
@@ -90,8 +91,8 @@ export class ClienteService {
       apellido: cliente.apellido,
       negocio: cliente.negocio,
       telefonoWhatsapp: cliente.telefonoWhatsapp,
-      latitud: cliente.latitud,
-      longitud: cliente.longitud,
+      latitud,
+      longitud,
       estatus: cliente.estatus,
       colorRiesgo: cliente.colorRiesgo,
       createdAt: cliente.createdAt,

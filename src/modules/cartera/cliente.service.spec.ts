@@ -74,6 +74,18 @@ describe("ClienteService", () => {
     expect(result.colorRiesgo).toBe("blanco");
     expect(result.estatus).toBe("activo");
     expect(result.rutaId).toBe(1);
+    expect(result.latitud).toBeCloseTo(-17.78, 5);
+    expect(result.longitud).toBeCloseTo(-63.18, 5);
+  });
+
+  it("persiste la ubicación como Point de PostGIS (coordinates = [lng, lat])", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.create as jest.Mock).mockImplementation((e: Partial<Cliente>) => e as Cliente);
+
+    await service.crear(1, baseInput, adminContext);
+
+    const creado = (clienteRepo.create as jest.Mock).mock.results[0].value as Partial<Cliente>;
+    expect(creado.ubicacion).toEqual({ type: "Point", coordinates: [-63.18, -17.78] });
   });
 
   it("lanza NotFoundException si la ruta no existe", async () => {

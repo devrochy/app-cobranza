@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, IsOptional, IsPositive, Max, Min } from "class-validator";
+import { IsInt, IsNumber, IsOptional, IsPositive, Min } from "class-validator";
 
 export class CreatePrestamoDto {
   @IsInt()
@@ -21,14 +21,4 @@ export class CreatePrestamoDto {
   @IsInt()
   @Min(1, { message: "Los días entre cuotas deben ser al menos 1" })
   diasEntreCuotas!: number;
-
-  @IsNumber({}, { message: "La latitud debe ser un número" })
-  @Min(-90, { message: "La latitud no es válida" })
-  @Max(90, { message: "La latitud no es válida" })
-  latitud!: number;
-
-  @IsNumber({}, { message: "La longitud debe ser un número" })
-  @Min(-180, { message: "La longitud no es válida" })
-  @Max(180, { message: "La longitud no es válida" })
-  longitud!: number;
 }

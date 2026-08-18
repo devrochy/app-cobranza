@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -9,11 +10,13 @@ import {
 } from "typeorm";
 import { Ruta } from "../rutas/ruta.entity";
 import { ColorRiesgo } from "../../domain/color-riesgo";
+import { GeoPoint } from "../../common/geo";
 
 export const CLIENTE_ESTATUS = ["activo", "bloqueado"] as const;
 export type ClienteEstatus = (typeof CLIENTE_ESTATUS)[number];
 
 @Entity("clientes")
+@Index("clientes_ubicacion_gist", ["ubicacion"], { spatial: true })
 export class Cliente {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -37,11 +40,8 @@ export class Cliente {
   @Column({ name: "telefono_whatsapp" })
   telefonoWhatsapp!: string;
 
-  @Column({ type: "float" })
-  latitud!: number;
-
-  @Column({ type: "float" })
-  longitud!: number;
+  @Column({ type: "geography", spatialFeatureType: "Point", srid: 4326 })
+  ubicacion!: GeoPoint;
 
   @Column({ type: "varchar", default: "activo" })
   estatus!: ClienteEstatus;
