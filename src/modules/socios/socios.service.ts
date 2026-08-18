@@ -1,7 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
+import { Cobrador } from "../cobradores/cobrador.entity";
+import { Ruta, RutaEstatus } from "../rutas/ruta.entity";
 import { Socio, SocioEstatus } from "./socio.entity";
 
 export interface CreateSocioInput {
@@ -42,6 +44,8 @@ export class SociosService {
   constructor(
     @InjectRepository(Socio)
     private readonly repo: Repository<Socio>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly password: PasswordService,
   ) {}
 
@@ -133,14 +137,35 @@ export class SociosService {
   }
 
   async setEstatus(id: number, estatus: SocioEstatus): Promise<SocioPublic> {
-    const socio = await this.repo.findOne({ where: { id } });
-    if (!socio) {
-      throw new NotFoundException("El socio no existe");
-    }
+    const socio = await this.dataSource.transaction(async (manager) => {
+      const existente = await manager.findOne(Socio, { where: { id } });
+      if (!existente) {
+        throw new NotFoundException("El socio no existe");
+      }
 
-    socio.estatus = estatus;
-    const saved = await this.repo.save(socio);
-    return this.toPublic(saved);
+      // HU-05/HU-61: al bloquear/activar un socio se aplica la cascada a sus
+      // cobradores y a las rutas de estos, todo dentro de la misma transacción.
+      existente.estatus = estatus;
+      await manager.save(existente);
+
+      const cobradores = await manager.find(Cobrador, {
+        where: { socio: { id } },
+      });
+      const rutaEstatus: RutaEstatus = estatus === "bloqueado" ? "bloqueado" : "activo";
+      for (const cobrador of cobradores) {
+        cobrador.estatus = estatus;
+        await manager.save(cobrador);
+        await manager.update(
+          Ruta,
+          { cobrador: { id: cobrador.id } },
+          { estatus: rutaEstatus },
+        );
+      }
+
+      return existente;
+    });
+
+    return this.toPublic(socio);
   }
 
   private assertUpdateNoConflicts(existing: Socio, input: UpdateSocioInput): void {
