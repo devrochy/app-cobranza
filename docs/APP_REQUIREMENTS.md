@@ -282,10 +282,12 @@ erDiagram
 `id (PK), caja_id (FK), valor_anterior, valor_nuevo, motivo, actor_rol, actor_id, created_at`
 
 **clientes**
-`id (PK), ruta_id (FK), nombre, apellido, negocio, telefono_whatsapp, tope_maximo_deuda, latitud, longitud, latitud_domicilio, longitud_domicilio, estatus (activo/bloqueado), color_riesgo (verde/azul/rojo/blanco), created_at`
+`id (PK), ruta_id (FK), nombre, apellido, negocio, telefono_whatsapp, tope_maximo_deuda, ubicacion (geography(Point,4326), negocio), ubicacion_domicilio (geography(Point,4326), opcional), estatus (activo/bloqueado), color_riesgo (verde/azul/rojo/blanco), created_at`
+> Nota: las coordenadas se modelan como `geography(Point)` de PostGIS (ADR-0002) en lugar de `latitud/longitud` planos. La API expone `latitud`/`longitud` y el backend convierte a `Point` al persistir.
 
 **prestamos**
 `id (PK), cliente_id (FK), ruta_id (FK), valor, num_cuotas, tipo_interes (%), dias_entre_cuotas, fecha_otorgado, fiador_nombre, fiador_apellido, fiador_documento, fiador_telefono, estatus (vigente/liquidado/cancelado)`
+> Nota: el préstamo no guarda coordenadas propias; usa la ubicación del negocio del cliente (HU-14, ADR-0002).
 
 **cuotas**
 `id (PK), prestamo_id (FK), numero_cuota, valor_esperado, fecha_vencimiento, estatus (pendiente/pagada/atrasada)`

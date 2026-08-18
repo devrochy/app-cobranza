@@ -26,7 +26,8 @@ Migrar las coordenadas de las entidades geográficas al tipo **`geography(Point)
 ## Consecuencias
 
 - **Entidades afectadas**: `clientes` (lat/lng del negocio y, al agregarse, del domicilio), `prestamos` (se elimina su lat/lng propio al pasar a usar la ubicación del negocio del cliente, HU-14) y futuras tablas de trayectoria (`ruta_optimizada_log.waypoints_geojson`, `visitas`).
+- **Implementado (2026-08-17)**: `clientes` migra sus coordenadas a `ubicacion geography(Point,4326)` con índice GIST (`clientes_ubicacion_gist`); el contrato de API (DTO `latitud`/`longitud` y `ClientePublic`) se conserva y el servicio convierte con el helper `src/common/geo.ts` (`toPoint`/`fromPoint`). `prestamos` ELIMINA `latitud`/`longitud` (entity, DTO, input, public); su ubicación se resuelve desde el cliente. La coordenada de domicilio del cliente y las tablas de trayectoria quedan para Fase 1/3.
 - **TypeORM**: las columnas se modelan como `geography(Point)`; los valores en los DTOs se siguen recibiendo como `{ lat, lng }`/`{ latitud, longitud }` y se convierten a `Point` al persistir.
-- **Migración**: requiere un paso de migración de datos (convertir lat/lng existentes a `geography(Point)`). Se ejecuta en Fase 0 (cimientos) antes de la Épica 7.
-- **Índices espaciales**: crear índices GIST sobre las columnas `geography` para las consultas de distancia.
-- **Actualizar**: `docs/APP_REQUIREMENTS.md` 4.2 (tipos de columnas) y el backlog de PostGIS al implementarse.
+- **Migración**: las tablas de cartera estaban vacías en local (sin datos que migrar); con `synchronize: true` en desarrollo TypeORM regenera el esquema. Para una base con datos reales se requeriría una migración de datos (convertir lat/lng a `geography(Point)`).
+- **Índices espaciales**: `@Index({ spatial: true })` genera `USING gist` sobre la columna `geography` (verificado en BD).
+- **Actualizar**: `docs/APP_REQUIREMENTS.md` 4.2 (tipos de columnas) ya refleja el estado; el backlog de PostGIS se cierra al completar.
