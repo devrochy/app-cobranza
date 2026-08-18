@@ -226,6 +226,33 @@ describe("PrestamoService", () => {
       expect(result.tipoInteres).toBe(20);
     });
 
+    it("atrasa al lunes una cuota cuyo vencimiento cae en domingo (solo_domingos)", async () => {
+      setupFeliz();
+      // fechaOtorgado = 2026-08-12 (miércoles). Con diasEntreCuotas=4, la cuota 1
+      // vence 2026-08-16 (domingo) -> se atrasa a 2026-08-17 (lunes).
+      const result = await service.crear(
+        1,
+        { ...baseInput, diasEntreCuotas: 4 },
+        adminContext,
+        new Date("2026-08-12T00:00:00Z"),
+      );
+
+      expect(result.cuotas[0].fechaVencimiento).toBe("2026-08-17");
+    });
+
+    it("no ajusta si la cuota no cae en domingo", async () => {
+      setupFeliz();
+      // diasEntreCuotas=3: cuota 1 vence 2026-08-15 (sábado) -> sin ajuste.
+      const result = await service.crear(
+        1,
+        { ...baseInput, diasEntreCuotas: 3 },
+        adminContext,
+        new Date("2026-08-12T00:00:00Z"),
+      );
+
+      expect(result.cuotas[0].fechaVencimiento).toBe("2026-08-15");
+    });
+
     it("usa el tipoInteres del préstamo si se especifica (override)", async () => {
       setupFeliz();
 

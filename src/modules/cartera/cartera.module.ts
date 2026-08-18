@@ -11,6 +11,7 @@ import { Cliente } from "./cliente.entity";
 import { Cuota } from "./cuota.entity";
 import { Prestamo } from "./prestamo.entity";
 import { PrestamoService } from "./prestamo.service";
+import { MoraJobService } from "./mora-job.service";
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { PrestamoService } from "./prestamo.service";
     SociosModule,
   ],
   controllers: [CarteraController],
-  providers: [ClienteService, PrestamoService],
+  providers: [ClienteService, PrestamoService, MoraJobService],
   exports: [TypeOrmModule],
 })
 export class CarteraModule {}
