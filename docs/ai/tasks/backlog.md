@@ -221,3 +221,27 @@ Formato de cada entrada:
 - Fecha: 2026-08-17
 - Descripción: las evidencias se persisten (disco + metadata) pero no hay endpoint GET para servir/descargar el archivo. Al implementarlo, controlar mimetype para evitar ejecución arbitraria (stored-XSS) dado el upload sin whitelist de contenido.
 - Prioridad sugerida: media
+
+## Semántica del tope de deuda (mezcla de interés)
+- Detectado en: docs/ai/tasks/ampliar-registro-cliente.md (revisión code-reviewer)
+- Fecha: 2026-08-18
+- Descripción: `saldoVigente` suma `valorEsperado` (con interés) de cuotas pendientes/atrasadas pero se compara contra `input.valor` (principal sin interés). ¿El tope de deuda/cupo debe compararse contra saldo total con interés + valor total con interés, o ser consistente? Decisión de negocio pendiente.
+- Prioridad sugerida: media
+
+## Duplicación del patrón de upload (evidencias/fotos)
+- Detectado en: docs/ai/tasks/ampliar-registro-cliente.md (revisión code-reviewer)
+- Fecha: 2026-08-18
+- Descripción: `cliente-foto-upload.ts` duplica la estructura de `evidencia-upload.ts` (diskStorage + fileFilter + limits). Extraer una fábrica compartida (mimetypes/dir como parámetros) en un ítem de limpieza.
+- Prioridad sugerida: baja
+
+## Endpoint de descarga de foto/evidencia de cliente pendiente
+- Detectado en: docs/ai/tasks/ampliar-registro-cliente.md
+- Fecha: 2026-08-18
+- Descripción: las fotos del cliente se persisten (disco + metadata) pero no hay endpoint GET para servirlas. Controlar mimetype al servir (mismo riesgo que gastos).
+- Prioridad sugerida: media
+
+## Cobertura e2e faltante de autorización/flags en ampliación de cliente
+- Detectado en: docs/ai/tasks/ampliar-registro-cliente.md (revisión code-reviewer)
+- Fecha: 2026-08-18
+- Descripción: sin e2e para 403 socio sin configurar_ruta en clientes/préstamos, flag fecha false → 400, foto documento obligatoria → 400, mimetype inválido → 400. Cubiertos en unitarios; agregar e2e si se refuerza.
+- Prioridad sugerida: baja
