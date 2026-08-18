@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, IsOptional, IsPositive, Min } from "class-validator";
+import { IsDateString, IsInt, IsNumber, IsOptional, IsPositive, IsString, Min } from "class-validator";
 
 export class CreatePrestamoDto {
   @IsInt()
@@ -21,4 +21,24 @@ export class CreatePrestamoDto {
   @IsInt()
   @Min(1, { message: "Los días entre cuotas deben ser al menos 1" })
   diasEntreCuotas!: number;
+
+  @IsOptional()
+  @IsDateString({}, { message: "fechaOtorgado debe ser una fecha válida" })
+  fechaOtorgado?: string;
+
+  @IsOptional()
+  @IsString()
+  fiadorNombre?: string;
+
+  @IsOptional()
+  @IsString()
+  fiadorApellido?: string;
+
+  @IsOptional()
+  @IsString()
+  fiadorDocumento?: string;
+
+  @IsOptional()
+  @IsString()
+  fiadorTelefono?: string;
 }

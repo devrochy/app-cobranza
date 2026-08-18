@@ -6,18 +6,13 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   RelationId,
-  ValueTransformer,
 } from "typeorm";
 import { Ruta } from "../rutas/ruta.entity";
 import { Cliente } from "./cliente.entity";
+import { numericTransformer } from "../../common/numeric-transformer";
 
 export const PRESTAMO_ESTATUS = ["vigente", "liquidado", "cancelado"] as const;
 export type PrestamoEstatus = (typeof PRESTAMO_ESTATUS)[number];
-
-const numericTransformer: ValueTransformer = {
-  to: (value: number): number => value,
-  from: (value: string): number => Number.parseFloat(value),
-};
 
 @Entity("prestamos")
 export class Prestamo {
@@ -54,6 +49,18 @@ export class Prestamo {
 
   @Column({ name: "fecha_otorgado", type: "timestamp" })
   fechaOtorgado!: Date;
+
+  @Column({ name: "fiador_nombre", type: "varchar", nullable: true })
+  fiadorNombre!: string | null;
+
+  @Column({ name: "fiador_apellido", type: "varchar", nullable: true })
+  fiadorApellido!: string | null;
+
+  @Column({ name: "fiador_documento", type: "varchar", nullable: true })
+  fiadorDocumento!: string | null;
+
+  @Column({ name: "fiador_telefono", type: "varchar", nullable: true })
+  fiadorTelefono!: string | null;
 
   @Column({ type: "varchar", default: "vigente" })
   estatus!: PrestamoEstatus;
