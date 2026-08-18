@@ -66,6 +66,15 @@ describe("RutaConfigService", () => {
       expect(matriz.rutaId).toBe(1);
     });
 
+    it("expone diasNoLaborables con default solo_domingos", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (configRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      const matriz = await service.getMatriz(1, adminContext);
+
+      expect(matriz.diasNoLaborables).toBe("solo_domingos");
+    });
+
     it("devuelve la fila persistida si existe", async () => {
       (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
       (configRepo.findOne as jest.Mock).mockResolvedValue({
@@ -113,13 +122,14 @@ describe("RutaConfigService", () => {
 
       const matriz = await service.setMatriz(
         1,
-        { mostrarCaja: true, cupoDefault: 2000 },
+        { mostrarCaja: true, cupoDefault: 2000, diasNoLaborables: "domingos_y_feriados" },
         adminContext,
       );
 
       expect(configRepo.save).toHaveBeenCalled();
       expect(matriz.mostrarCaja).toBe(true);
       expect(matriz.cupoDefault).toBe(2000);
+      expect(matriz.diasNoLaborables).toBe("domingos_y_feriados");
       expect(matriz.mostrarPrestamos).toBe(false);
     });
 

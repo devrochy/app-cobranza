@@ -8,7 +8,7 @@ import { Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "./ruta.entity";
-import { RutaConfig } from "./ruta-config.entity";
+import { DiasNoLaborables, RutaConfig } from "./ruta-config.entity";
 
 export interface RutaConfigPublic {
   rutaId: number;
@@ -37,6 +37,7 @@ export interface RutaConfigPublic {
   bloqueoAutomaticoClientes: boolean;
   permitirCambioFechaPrestamo: boolean;
   borrarClientesSinDeuda: boolean;
+  diasNoLaborables: DiasNoLaborables;
 }
 
 export type RutaConfigInput = Partial<Omit<RutaConfigPublic, "rutaId">>;
@@ -67,6 +68,7 @@ const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   bloqueoAutomaticoClientes: false,
   permitirCambioFechaPrestamo: false,
   borrarClientesSinDeuda: false,
+  diasNoLaborables: "solo_domingos" as const,
 };
 
 export const RutaConfigDefaults = RUTA_CONFIG_DEFAULTS;
@@ -171,6 +173,7 @@ export class RutaConfigService {
       bloqueoAutomaticoClientes: fila.bloqueoAutomaticoClientes,
       permitirCambioFechaPrestamo: fila.permitirCambioFechaPrestamo,
       borrarClientesSinDeuda: fila.borrarClientesSinDeuda,
+      diasNoLaborables: fila.diasNoLaborables,
     };
   }
 }

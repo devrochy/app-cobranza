@@ -9,6 +9,9 @@ import {
 import { numericTransformer } from "../../common/numeric-transformer";
 import { Ruta } from "./ruta.entity";
 
+export const DIAS_NO_LABORABLES = ["solo_domingos", "domingos_y_feriados"] as const;
+export type DiasNoLaborables = (typeof DIAS_NO_LABORABLES)[number];
+
 @Entity("ruta_config")
 export class RutaConfig {
   @PrimaryGeneratedColumn()
@@ -95,4 +98,7 @@ export class RutaConfig {
 
   @Column()
   borrarClientesSinDeuda!: boolean;
+
+  @Column({ name: "dias_no_laborables", type: "varchar", default: "solo_domingos" })
+  diasNoLaborables!: DiasNoLaborables;
 }
