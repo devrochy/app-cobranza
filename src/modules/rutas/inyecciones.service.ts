@@ -8,6 +8,7 @@ import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "./ruta.entity";
 import { Inyeccion, InyeccionEstado } from "./inyeccion.entity";
+import { CajaService, TipoMovimientoCaja } from "./caja.service";
 
 export interface CreateInyeccionInput {
   valor: number;
@@ -37,6 +38,7 @@ export class InyeccionesService {
     private readonly rutaRepo: Repository<Ruta>,
     @InjectRepository(Inyeccion)
     private readonly repo: Repository<Inyeccion>,
+    private readonly cajaService: CajaService,
   ) {}
 
   async crear(
@@ -58,6 +60,14 @@ export class InyeccionesService {
       estado: "activa",
     });
     const saved = await this.repo.save(inyeccion);
+    // Wiring de caja (HU-11 ampliada): una inyección activa aumenta el saldo.
+    await this.cajaService.aplicarMovimiento(
+      rutaId,
+      input.valor,
+      TipoMovimientoCaja.INYECCION,
+      requester,
+      input.comentario,
+    );
     return this.toPublic(saved, rutaId);
   }
 
@@ -81,8 +91,20 @@ export class InyeccionesService {
 
     // HU-12: soft-delete idempotente. Se conserva el registro y su fecha_hora
     // (trazabilidad, PRD 4.3:274); solo cambia la visibilidad via estado.
+    const estabaActiva = inyeccion.estado === "activa";
     inyeccion.estado = "eliminada";
     const saved = await this.repo.save(inyeccion);
+    // Wiring de caja (HU-12 ampliada): si la inyección estaba activa, revierte el
+    // saldo que su creación aportó.
+    if (estabaActiva) {
+      await this.cajaService.aplicarMovimiento(
+        rutaId,
+        -inyeccion.valor,
+        TipoMovimientoCaja.INYECCION_ELIMINADA,
+        requester,
+        inyeccion.comentario,
+      );
+    }
     return this.toPublic(saved, rutaId);
   }
 

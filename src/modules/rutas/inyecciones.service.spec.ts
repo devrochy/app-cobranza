@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 import { Ruta } from "./ruta.entity";
 import { Inyeccion } from "./inyeccion.entity";
 import { CreateInyeccionInput, InyeccionesService } from "./inyecciones.service";
+import { CajaService } from "./caja.service";
 
 describe("InyeccionesService", () => {
   let service: InyeccionesService;
@@ -21,6 +22,13 @@ describe("InyeccionesService", () => {
 
   const mockRutaRepo = { findOne: jest.fn() };
   const mockInyRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockCajaService = {
+    aplicarMovimiento: jest.fn(async () => ({
+      rutaId: 1,
+      saldoInicial: 1000,
+      saldoActual: 2500,
+    })),
+  };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
     return {
@@ -45,6 +53,7 @@ describe("InyeccionesService", () => {
         InyeccionesService,
         { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
         { provide: getRepositoryToken(Inyeccion), useValue: mockInyRepo },
+        { provide: CajaService, useValue: mockCajaService },
       ],
     }).compile();
 
@@ -108,6 +117,27 @@ describe("InyeccionesService", () => {
     expect(result.rutaId).toBe(1);
   });
 
+  it("al crear una inyección aumenta la caja de la ruta (wiring HU-11)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (inyRepo.create as jest.Mock).mockImplementation((e: Partial<Inyeccion>) => e as Inyeccion);
+    (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+      id: 1,
+      rutaId: 1,
+      fechaHora: new Date(),
+      ...e,
+    }) as Inyeccion);
+
+    await service.crear(1, baseInput, adminContext);
+
+    expect(mockCajaService.aplicarMovimiento).toHaveBeenCalledWith(
+      1,
+      1500,
+      "inyeccion",
+      { rol: "admin", sub: 0 },
+      "Aporte semanal",
+    );
+  });
+
   describe("eliminar", () => {
     function inyeccionActual(overrides: Partial<Inyeccion> = {}): Inyeccion {
       return {
@@ -149,6 +179,40 @@ describe("InyeccionesService", () => {
       const result = await service.eliminar(1, 10, adminContext);
 
       expect(result.estado).toBe("eliminada");
+    });
+
+    it("al eliminar una inyección activa disminuye la caja (wiring HU-12)", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      const actual = inyeccionActual({ estado: "activa" });
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+      (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+        ...actual,
+        ...e,
+      }) as Inyeccion);
+
+      await service.eliminar(1, 10, adminContext);
+
+      expect(mockCajaService.aplicarMovimiento).toHaveBeenCalledWith(
+        1,
+        -1500,
+        "inyeccion_eliminada",
+        { rol: "admin", sub: 0 },
+        "Aporte",
+      );
+    });
+
+    it("no revierte la caja si la inyección ya estaba eliminada", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      const actual = inyeccionActual({ estado: "eliminada" });
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+      (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+        ...actual,
+        ...e,
+      }) as Inyeccion);
+
+      await service.eliminar(1, 10, adminContext);
+
+      expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
     });
 
     it("lanza NotFoundException si la ruta no existe", async () => {

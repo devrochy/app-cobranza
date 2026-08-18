@@ -6,6 +6,7 @@ import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
 import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
+import { Caja } from "../../src/modules/rutas/caja.entity";
 import { Inyeccion } from "../../src/modules/rutas/inyeccion.entity";
 import { Ruta } from "../../src/modules/rutas/ruta.entity";
 import { Socio } from "../../src/modules/socios/socio.entity";
@@ -18,6 +19,7 @@ describe("Eliminación de inyecciones (e2e)", () => {
   let cobradorRepo: Repository<Cobrador>;
   let rutaRepo: Repository<Ruta>;
   let inyRepo: Repository<Inyeccion>;
+  let cajaRepo: Repository<Caja>;
   let accessTokenAdmin: string;
   let tokenSocio: string;
   let rutaPropiaId: number;
@@ -57,8 +59,14 @@ describe("Eliminación de inyecciones (e2e)", () => {
     cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
     rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
     inyRepo = moduleFixture.get(getRepositoryToken(Inyeccion));
+    cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
+    await inyRepo.createQueryBuilder().delete().execute();
+    await cobradorRepo.delete({ codigo: "CB-DEL-INY-1" });
+    await cobradorRepo.delete({ codigo: "CB-DEL-INY-2" });
+    await socioRepo.delete({ codigo: "SC-DEL-INY-1" });
+    await socioRepo.delete({ codigo: "SC-DEL-INY-2" });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,
       passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 4),
@@ -136,6 +144,12 @@ describe("Eliminación de inyecciones (e2e)", () => {
       estatus: "activo",
     });
     rutaPropiaId = rutaPropia.id;
+    await cajaRepo.save({
+      ruta: { id: rutaPropiaId },
+      rutaId: rutaPropiaId,
+      saldoInicial: 1000,
+      saldoActual: 1000,
+    });
 
     const rutaAjena = await rutaRepo.save({
       socio: { id: socio2.id },
@@ -148,6 +162,12 @@ describe("Eliminación de inyecciones (e2e)", () => {
       estatus: "activo",
     });
     rutaAjenaId = rutaAjena.id;
+    await cajaRepo.save({
+      ruta: { id: rutaAjenaId },
+      rutaId: rutaAjenaId,
+      saldoInicial: 500,
+      saldoActual: 500,
+    });
 
     const iny = await request(app.getHttpServer())
       .post(`/rutas/${rutaPropiaId}/inyecciones`)
@@ -191,6 +211,16 @@ describe("Eliminación de inyecciones (e2e)", () => {
     expect(persistido).toBeDefined();
     expect(persistido?.estado).toBe("eliminada");
     expect(persistido?.fechaHora).toEqual(antes?.fechaHora);
+  });
+
+  it("al eliminar la inyección revierte el saldo real de la caja (wiring)", async () => {
+    // En beforeAll la caja quedó: 1000 + 1500 + 300 = 2800. Al eliminar la
+    // inyección de 1500 (test anterior), el saldo debe bajar a 1300.
+    const caja = await cajaRepo
+      .createQueryBuilder("c")
+      .where("c.ruta_id = :rutaId", { rutaId: rutaPropiaId })
+      .getOne();
+    expect(caja?.saldoActual).toBe(1300);
   });
 
   // Depende del test anterior: re-elimina la misma inyección ya eliminada.
