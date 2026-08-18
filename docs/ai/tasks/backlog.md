@@ -149,3 +149,9 @@ Formato de cada entrada:
 - Fecha: 2026-08-17
 - Descripción: `clientes` y `prestamos` usan `latitud`/`longitud` planos; para la Épica 7 (segmentación de trayectos, distancias) y la futura georreferenciación del cobrador se recomienda migrar a `geography(Point)` de PostGIS. Requiere ADR y afecta DTOs/servicios existentes. Programada como Fase 0 del roadmap (ítem 4).
 - Prioridad sugerida: media
+
+## Wiring de inyección+caja sin transacción
+- Detectado en: docs/ai/tasks/caja-ruta.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: `InyeccionesService.crear`/`eliminar` persisten la inyección y luego aplican el movimiento de caja en operaciones separadas; si `aplicarMovimiento` falla, la inyección queda persistida sin reflejar el saldo. Alinear con el patrón transaccional usado en la creación de ruta+caja (mismo ítem).
+- Prioridad sugerida: media
