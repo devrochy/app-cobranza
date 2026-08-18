@@ -5,8 +5,11 @@ import {
   ParseIntPipe,
   Post,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileFieldsInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -17,6 +20,8 @@ import { PrestamoService } from "./prestamo.service";
 import { PagosService } from "./pagos.service";
 import { AbonosService } from "./abonos.service";
 import { VisitasService } from "./visitas.service";
+import { ClienteEvidenciaInput } from "./cliente.service";
+import { clienteFotosMulterOptions } from "./cliente-foto-upload";
 import { CreateClienteDto } from "./dto/create-cliente.dto";
 import { CreatePrestamoDto } from "./dto/create-prestamo.dto";
 import { RegistrarPagoDto } from "./dto/registrar-pago.dto";
@@ -33,32 +38,68 @@ export class CarteraController {
     private readonly visitasService: VisitasService,
   ) {}
 
-  // MVP: admin-only (sin @PermisoRequerido). El cobrador vía APK y el socio
-  // quedan diferidos a cuando exista la APK y se definan sus permisos.
   @Post("clientes")
+  @PermisoRequerido("configurar_ruta")
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: "foto_facial", maxCount: 1 },
+        { name: "documento_frente", maxCount: 1 },
+        { name: "documento_reverso", maxCount: 1 },
+      ],
+      clienteFotosMulterOptions,
+    ),
+  )
   @UseGuards(JwtAuthGuard, PermisoGuard)
   crearCliente(
     @Param("rutaId", ParseIntPipe) rutaId: number,
     @Body() dto: CreateClienteDto,
+    @UploadedFiles() files: {
+      foto_facial?: Express.Multer.File[];
+      documento_frente?: Express.Multer.File[];
+      documento_reverso?: Express.Multer.File[];
+    },
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
-    return this.clienteService.crear(rutaId, dto, {
+    const evidencias: ClienteEvidenciaInput[] = [];
+    const mapa: Array<{
+      campo: "foto_facial" | "documento_frente" | "documento_reverso";
+      tipo: "foto_facial" | "documento_frente" | "documento_reverso";
+    }> = [
+      { campo: "foto_facial", tipo: "foto_facial" },
+      { campo: "documento_frente", tipo: "documento_frente" },
+      { campo: "documento_reverso", tipo: "documento_reverso" },
+    ];
+    for (const { campo, tipo } of mapa) {
+      const lista = files?.[campo];
+      if (lista && lista.length > 0) {
+        evidencias.push({ tipo, archivo: lista[0] });
+      }
+    }
+    return this.clienteService.crear(rutaId, dto, evidencias, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
   }
 
   @Post("prestamos")
+  @PermisoRequerido("configurar_ruta")
   @UseGuards(JwtAuthGuard, PermisoGuard)
   crearPrestamo(
     @Param("rutaId", ParseIntPipe) rutaId: number,
     @Body() dto: CreatePrestamoDto,
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
-    return this.prestamoService.crear(rutaId, dto, {
-      rol: req.user.rol,
-      sub: req.user.sub,
-    });
+    const { fechaOtorgado, ...resto } = dto;
+    return this.prestamoService.crear(
+      rutaId,
+      resto,
+      {
+        rol: req.user.rol,
+        sub: req.user.sub,
+      },
+      fechaOtorgado ? new Date(fechaOtorgado) : undefined,
+    );
   }
 
   @Post("pagos")

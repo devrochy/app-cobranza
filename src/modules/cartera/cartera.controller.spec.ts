@@ -85,9 +85,18 @@ describe("CarteraController", () => {
       user: AuthTokenPayload;
     };
 
-    await controller.crearCliente(1, baseDto, req);
+    await controller.crearCliente(
+      1,
+      baseDto,
+      undefined as unknown as {
+        foto_facial?: Express.Multer.File[];
+        documento_frente?: Express.Multer.File[];
+        documento_reverso?: Express.Multer.File[];
+      },
+      req,
+    );
 
-    expect(clienteService.crear).toHaveBeenCalledWith(1, baseDto, { rol: "admin", sub: 1 });
+    expect(clienteService.crear).toHaveBeenCalledWith(1, baseDto, [], { rol: "admin", sub: 1 });
   });
 
   it("delega al crear un préstamo", async () => {
@@ -99,7 +108,12 @@ describe("CarteraController", () => {
 
     await controller.crearPrestamo(1, dto, req);
 
-    expect(prestamoService.crear).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+    expect(prestamoService.crear).toHaveBeenCalledWith(
+      1,
+      { clienteId: 1, valor: 1000, numCuotas: 8, diasEntreCuotas: 7 },
+      { rol: "admin", sub: 1 },
+      undefined,
+    );
   });
 
   it("delega al registrar un pago de cuota", async () => {
