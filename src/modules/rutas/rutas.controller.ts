@@ -9,9 +9,13 @@ import {
   Post,
   Put,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
+import { evidenciasMulterOptions } from "./evidencia-upload";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
@@ -26,7 +30,9 @@ import { UpdateRutaDto } from "./dto/update-ruta.dto";
 import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
 import { CajaService } from "./caja.service";
+import { GastosService } from "./gastos.service";
 import { RutasService } from "./rutas.service";
+import { RegistrarGastoDto } from "./dto/registrar-gasto.dto";
 
 @Controller("rutas")
 export class RutasController {
@@ -35,6 +41,7 @@ export class RutasController {
     private readonly rutaConfigService: RutaConfigService,
     private readonly inyeccionesService: InyeccionesService,
     private readonly cajaService: CajaService,
+    private readonly gastosService: GastosService,
   ) {}
 
   @Post()
@@ -163,6 +170,50 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasService.reasignarCobrador(id, dto.cobradorId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post(":id/gastos")
+  @PermisoRequerido("registrar_gasto")
+  @UseInterceptors(FilesInterceptor("evidencias", 5, evidenciasMulterOptions))
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  registrarGasto(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: RegistrarGastoDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.gastosService.registrar(id, dto, files ?? [], {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch(":id/gastos/:gastoId/aprobar")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  aprobarGasto(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("gastoId", ParseIntPipe) gastoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.gastosService.aprobar(id, gastoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Delete(":id/gastos/:gastoId")
+  @PermisoRequerido("eliminar_gastos")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  eliminarGasto(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("gastoId", ParseIntPipe) gastoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.gastosService.eliminar(id, gastoId, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

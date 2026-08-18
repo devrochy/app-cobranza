@@ -12,6 +12,7 @@ import { CreateRutaDto } from "./dto/create-ruta.dto";
 import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
 import { CajaService } from "./caja.service";
+import { GastosService } from "./gastos.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -21,6 +22,7 @@ describe("RutasController", () => {
   let rutaConfigService: RutaConfigService;
   let inyeccionesService: InyeccionesService;
   let cajaService: CajaService;
+  let gastosService: GastosService;
 
   const mockService = {
     create: jest.fn(),
@@ -44,6 +46,12 @@ describe("RutasController", () => {
     consultar: jest.fn(),
   };
 
+  const mockGastosService = {
+    registrar: jest.fn(),
+    aprobar: jest.fn(),
+    eliminar: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -64,6 +72,7 @@ describe("RutasController", () => {
         { provide: RutaConfigService, useValue: mockRutaConfigService },
         { provide: InyeccionesService, useValue: mockInyeccionesService },
         { provide: CajaService, useValue: mockCajaService },
+        { provide: GastosService, useValue: mockGastosService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -79,6 +88,7 @@ describe("RutasController", () => {
     rutaConfigService = module.get(RutaConfigService);
     inyeccionesService = module.get(InyeccionesService);
     cajaService = module.get(CajaService);
+    gastosService = module.get(GastosService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -195,5 +205,45 @@ describe("RutasController", () => {
     await controller.getCaja(1, req);
 
     expect(cajaService.consultar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al registrar un gasto", async () => {
+    (gastosService.registrar as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { descripcion: "Combustible", valor: 50 };
+    const files = [{ originalname: "f.pdf", path: "/uploads/x.pdf" }] as unknown as Express.Multer.File[];
+
+    await controller.registrarGasto(1, dto, files, req);
+
+    expect(gastosService.registrar).toHaveBeenCalledWith(
+      1,
+      dto,
+      files,
+      { rol: "admin", sub: 1 },
+    );
+  });
+
+  it("delega al aprobar un gasto", async () => {
+    (gastosService.aprobar as jest.Mock).mockResolvedValue({ id: 1, aprobado: true });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.aprobarGasto(1, 5, req);
+
+    expect(gastosService.aprobar).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al eliminar un gasto", async () => {
+    (gastosService.eliminar as jest.Mock).mockResolvedValue({ id: 1, estado: "eliminado" });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.eliminarGasto(1, 5, req);
+
+    expect(gastosService.eliminar).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
   });
 });
