@@ -13,18 +13,21 @@ import { InyeccionesService } from "./inyecciones.service";
 import { Caja } from "./caja.entity";
 import { CajaAjusteLog } from "./caja-ajuste-log.entity";
 import { CajaService } from "./caja.service";
+import { Gasto } from "./gasto.entity";
+import { GastoEvidencia } from "./gasto-evidencia.entity";
+import { GastosService } from "./gastos.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Ruta, RutaConfig, Inyeccion, Caja, CajaAjusteLog, Socio, Cobrador]),
+    TypeOrmModule.forFeature([Ruta, RutaConfig, Inyeccion, Caja, CajaAjusteLog, Gasto, GastoEvidencia, Socio, Cobrador]),
     SecurityModule,
     JwtModule.register({}),
     SociosModule,
   ],
   controllers: [RutasController],
-  providers: [RutasService, RutaConfigService, InyeccionesService, CajaService],
+  providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService],
   exports: [RutasService, CajaService],
 })
 export class RutasModule {}
