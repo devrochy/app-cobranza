@@ -197,3 +197,27 @@ Formato de cada entrada:
 - Fecha: 2026-08-17
 - Descripción: `esMotivoNoPagoValido` solo se usa en su spec; la validación real pasa por `@IsIn` del DTO. Útil para Fase 4 (IA); si no se usa, candidato a limpieza.
 - Prioridad sugerida: baja
+
+## Archivos huérfanos de evidencias ante fallo posterior al upload
+- Detectado en: docs/ai/tasks/registrar-gasto.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: multer escribe los archivos antes de la validación de pipes y la transacción; si el DTO es inválido, la ruta no existe (404) o la transacción falla, los archivos quedan en `uploads/gastos` sin referencia ni limpieza. Evaluar `unlink` en catch o validación en el interceptor.
+- Prioridad sugerida: media
+
+## Actor Cobrador no alcanza gastos por API (HU-17)
+- Detectado en: docs/ai/tasks/registrar-gasto.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: `PermisoGuard` rechaza rol ≠ admin/socio; el Cobrador (nombrado en HU-17) no puede registrar/eliminar gastos por API. Consistente con el MVP (no hay login de cobrador), pero debe documentarse como limitación hasta el login del cobrador.
+- Prioridad sugerida: baja
+
+## Concurrencia sin lock en inyecciones y caja (patrón de gastos aplicado)
+- Detectado en: docs/ai/tasks/registrar-gasto.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: `inyecciones.service` (crear/eliminar) mantiene el patrón de lectura+escritura sin UPDATE condicional ni transacción para caja (mismo riesgo de doble descuento que tenían los gastos, ya corregido con UPDATE condicional). Aplicar el mismo patrón condicional a inyecciones.
+- Prioridad sugerida: media
+
+## Endpoint de descarga de evidencia de gasto pendiente
+- Detectado en: docs/ai/tasks/registrar-gasto.md
+- Fecha: 2026-08-17
+- Descripción: las evidencias se persisten (disco + metadata) pero no hay endpoint GET para servir/descargar el archivo. Al implementarlo, controlar mimetype para evitar ejecución arbitraria (stored-XSS) dado el upload sin whitelist de contenido.
+- Prioridad sugerida: media
