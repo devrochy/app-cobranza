@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, In, Repository } from "typeorm";
+import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { MetodoPago } from "../../domain/metodo-pago";
 import { Ruta } from "../rutas/ruta.entity";
@@ -18,6 +18,11 @@ export interface RegistrarAbonoInput {
   prestamoId: number;
   valor: number;
   metodoPago: MetodoPago;
+}
+
+export interface RegistrarAbonoOptions {
+  manager?: EntityManager;
+  visitaId?: number | null;
 }
 
 export interface RequesterAbonoContext {
@@ -53,6 +58,7 @@ export class AbonosService {
     rutaId: number,
     input: RegistrarAbonoInput,
     requester: RequesterAbonoContext,
+    options: RegistrarAbonoOptions = {},
   ): Promise<AbonoPublic> {
     const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
     if (!ruta) {
@@ -79,14 +85,16 @@ export class AbonosService {
     }
 
     const clienteId = prestamo.cliente.id;
-    const abono = await this.dataSource.transaction(async (manager) => {
+    const visitaId = options.visitaId ?? null;
+
+    const ejecutar = async (manager: EntityManager): Promise<Abono> => {
       const abonoRepo = manager.getRepository(Abono);
       const abonoNuevo = abonoRepo.create({
         prestamo: { id: prestamo.id } as Abono["prestamo"],
         prestamoId: prestamo.id,
         cliente: { id: clienteId } as Abono["cliente"],
         clienteId,
-        visitaId: null,
+        visitaId,
         valor: input.valor,
         metodoPago: input.metodoPago,
         registradoPor: requester.sub,
@@ -102,7 +110,11 @@ export class AbonosService {
         manager,
       );
       return saved;
-    });
+    };
+
+    const abono = options.manager
+      ? await ejecutar(options.manager)
+      : await this.dataSource.transaction(ejecutar);
 
     return this.toPublic(abono, clienteId);
   }

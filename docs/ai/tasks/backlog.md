@@ -173,3 +173,27 @@ Formato de cada entrada:
 - Fecha: 2026-08-17
 - Descripción: `esMetodoPagoValido` (metodo-pago.ts) está testeado pero sin uso en producción (los DTOs usan `IsIn`). Útil cuando exista validación en service; si no se usa, candidato a limpieza.
 - Prioridad sugerida: baja
+
+## `promesas_pago.conversacion_id` no modelado
+- Detectado en: docs/ai/tasks/registrar-visita.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: la entidad `PromesaPago` no incluye `conversacion_id` (FK nullable) que el PRD 4.2:337-338 define. Coherente con promesas por IA fuera de alcance; se modelará cuando existan conversaciones de IA (HU-28/34, Fase 4).
+- Prioridad sugerida: baja
+
+## `tipoPago` default a abono cuando resultado=pago sin tipoPago
+- Detectado en: docs/ai/tasks/registrar-visita.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: `VisitasService` trata `resultado=pago` sin `tipoPago` como abono por defecto. Decisión a confirmar si es intencional o se exige `tipoPago` en el DTO.
+- Prioridad sugerida: media
+
+## `fechaPrometida` no valida que sea futura
+- Detectado en: docs/ai/tasks/registrar-visita.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: una promesa con `fechaPrometida` en el pasado se registra como "pendiente" sin control. Decisión de negocio: rechazarla o permitir promesas ya vencidas.
+- Prioridad sugerida: media
+
+## `esMotivoNoPagoValido` sin uso en producción
+- Detectado en: docs/ai/tasks/registrar-visita.md (revisión code-reviewer)
+- Fecha: 2026-08-17
+- Descripción: `esMotivoNoPagoValido` solo se usa en su spec; la validación real pasa por `@IsIn` del DTO. Útil para Fase 4 (IA); si no se usa, candidato a limpieza.
+- Prioridad sugerida: baja
