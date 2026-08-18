@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, EntityManager, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { MetodoPago } from "../../domain/metodo-pago";
 import { Ruta } from "../rutas/ruta.entity";
@@ -17,6 +17,11 @@ export interface RegistrarPagoCuotaInput {
   cuotaId: number;
   valor: number;
   metodoPago: MetodoPago;
+}
+
+export interface RegistrarPagoCuotaOptions {
+  manager?: EntityManager;
+  visitaId?: number | null;
 }
 
 export interface RequesterPagoContext {
@@ -50,6 +55,7 @@ export class PagosService {
     rutaId: number,
     input: RegistrarPagoCuotaInput,
     requester: RequesterPagoContext,
+    options: RegistrarPagoCuotaOptions = {},
   ): Promise<PagoPublic> {
     const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
     if (!ruta) {
@@ -75,8 +81,9 @@ export class PagosService {
 
     const clienteId = cuota.prestamo.cliente.id;
     const prestamoId = cuota.prestamoId;
+    const visitaId = options.visitaId ?? null;
 
-    const pago = await this.dataSource.transaction(async (manager) => {
+    const ejecutar = async (manager: EntityManager): Promise<Pago> => {
       const cuotaRepo = manager.getRepository(Cuota);
       const pagoRepo = manager.getRepository(Pago);
 
@@ -88,7 +95,7 @@ export class PagosService {
         cuotaId: cuota.id,
         cliente: { id: clienteId } as Pago["cliente"],
         clienteId,
-        visitaId: null,
+        visitaId,
         valor: input.valor,
         metodoPago: input.metodoPago,
         registradoPor: requester.sub,
@@ -104,7 +111,11 @@ export class PagosService {
         manager,
       );
       return saved;
-    });
+    };
+
+    const pago = options.manager
+      ? await ejecutar(options.manager)
+      : await this.dataSource.transaction(ejecutar);
 
     return this.toPublic(pago, clienteId);
   }

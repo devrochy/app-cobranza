@@ -26,6 +26,17 @@ describe("AbonosService", () => {
   const mockAbonoRepo = { find: jest.fn() };
   const mockClienteRepo = { findOne: jest.fn() };
   const mockCajaService = { aplicarMovimiento: jest.fn() };
+  const mockDataSource = {
+    transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
+      fn({
+        save: jest.fn(async (e: unknown) => e),
+        getRepository: jest.fn(() => ({
+          create: jest.fn((e: unknown) => e),
+          save: jest.fn(async (e: unknown) => e),
+        })),
+      }),
+    ),
+  };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
     return {
@@ -54,20 +65,7 @@ describe("AbonosService", () => {
         { provide: getRepositoryToken(Abono), useValue: mockAbonoRepo },
         { provide: getRepositoryToken(Cliente), useValue: mockClienteRepo },
         { provide: CajaService, useValue: mockCajaService },
-        {
-          provide: DataSource,
-          useValue: {
-            transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
-              fn({
-                save: jest.fn(async (e: unknown) => e),
-                getRepository: jest.fn(() => ({
-                  create: jest.fn((e: unknown) => e),
-                  save: jest.fn(async (e: unknown) => e),
-                })),
-              }),
-            ),
-          },
-        },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -145,5 +143,30 @@ describe("AbonosService", () => {
       "abono prestamo 20",
       expect.anything(),
     );
+  });
+
+  it("registra el abono con visitaId y manager externo cuando se componen (no abre transacción propia)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue({ id: 20, estatus: "vigente", cliente: { id: 5 } } as Prestamo);
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([{ valorEsperado: 100 }]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([{ valor: 40 }]);
+
+    const managerExterno = {
+      getRepository: jest.fn(() => ({
+        create: jest.fn((e: unknown) => e),
+        save: jest.fn(async (e: unknown) => e),
+      })),
+    };
+
+    const result = await service.registrarAbono(
+      1,
+      { prestamoId: 20, valor: 30, metodoPago: "qr" },
+      adminContext,
+      { manager: managerExterno as never, visitaId: 99 },
+    );
+
+    expect(result).toMatchObject({ prestamoId: 20, valor: 30, metodoPago: "qr" });
+    expect(mockDataSource.transaction).not.toHaveBeenCalled();
+    expect(managerExterno.getRepository).toHaveBeenCalled();
   });
 });

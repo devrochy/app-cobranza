@@ -22,6 +22,17 @@ describe("PagosService", () => {
   const mockCuotaRepo = { findOne: jest.fn(), save: jest.fn() };
   const mockClienteRepo = { findOne: jest.fn() };
   const mockCajaService = { aplicarMovimiento: jest.fn() };
+  const mockDataSource = {
+    transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
+      fn({
+        save: jest.fn(async (e: unknown) => e),
+        getRepository: jest.fn(() => ({
+          create: jest.fn((e: unknown) => e),
+          save: jest.fn(async (e: unknown) => e),
+        })),
+      }),
+    ),
+  };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
     return {
@@ -67,20 +78,7 @@ describe("PagosService", () => {
         { provide: getRepositoryToken(Prestamo), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(Pago), useValue: { create: jest.fn(), save: jest.fn() } },
         { provide: CajaService, useValue: mockCajaService },
-        {
-          provide: DataSource,
-          useValue: {
-            transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
-              fn({
-                save: jest.fn(async (e: unknown) => e),
-                getRepository: jest.fn(() => ({
-                  create: jest.fn((e: unknown) => e),
-                  save: jest.fn(async (e: unknown) => e),
-                })),
-              }),
-            ),
-          },
-        },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -154,5 +152,30 @@ describe("PagosService", () => {
       "cuota 1 (prestamo 20)",
       expect.anything(),
     );
+  });
+
+  it("registra el pago con visitaId y manager externo cuando se componen (no abre transacción propia)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    const cuota = cuotaFixture();
+    (cuotaRepo.findOne as jest.Mock).mockResolvedValue(cuota);
+
+    const managerExterno = {
+      getRepository: jest.fn(() => ({
+        create: jest.fn((e: unknown) => e),
+        save: jest.fn(async (e: unknown) => e),
+      })),
+    };
+
+    const result = await service.registrarPagoDeCuota(
+      1,
+      { cuotaId: 10, valor: 120, metodoPago: "qr" },
+      adminContext,
+      { manager: managerExterno as never, visitaId: 99 },
+    );
+
+    expect(result).toMatchObject({ cuotaId: 10, valor: 120, metodoPago: "qr" });
+    // No debe abrir transacción propia cuando se compone con manager externo.
+    expect(mockDataSource.transaction).not.toHaveBeenCalled();
+    expect(managerExterno.getRepository).toHaveBeenCalled();
   });
 });
