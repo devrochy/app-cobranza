@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
-import { RutasService } from "../rutas/rutas.service";
+import { Ruta, RutaEstatus } from "../rutas/ruta.entity";
 import { Socio } from "../socios/socio.entity";
 import { Cobrador, CobradorEstatus } from "./cobrador.entity";
 
@@ -46,8 +46,9 @@ export class CobradoresService {
     private readonly repo: Repository<Cobrador>,
     @InjectRepository(Socio)
     private readonly socioRepo: Repository<Socio>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly password: PasswordService,
-    private readonly rutasService: RutasService,
   ) {}
 
   async create(input: CreateCobradorInput): Promise<CobradorPublic> {
@@ -157,24 +158,27 @@ export class CobradoresService {
   }
 
   async setEstatus(id: number, estatus: CobradorEstatus): Promise<CobradorPublic> {
-    const cobrador = await this.repo.findOne({ where: { id } });
-    if (!cobrador) {
-      throw new NotFoundException("El cobrador no existe");
-    }
+    const cobrador = await this.dataSource.transaction(async (manager) => {
+      const existente = await manager.findOne(Cobrador, { where: { id } });
+      if (!existente) {
+        throw new NotFoundException("El cobrador no existe");
+      }
 
-    cobrador.estatus = estatus;
-    const saved = await this.repo.save(cobrador);
-    await this.bloquearRutasEnCascada(id, estatus);
-    return this.toPublic(saved, cobrador.socioId);
-  }
+      // HU-05: al bloquear/activar el cobrador se bloquean/reactivan sus rutas,
+      // todo dentro de la misma transacción (rollback si la cascada falla).
+      existente.estatus = estatus;
+      await manager.save(existente);
+      const rutaEstatus: RutaEstatus = estatus === "bloqueado" ? "bloqueado" : "activo";
+      await manager.update(
+        Ruta,
+        { cobrador: { id } },
+        { estatus: rutaEstatus },
+      );
 
-  private async bloquearRutasEnCascada(
-    cobradorId: number,
-    estatus: CobradorEstatus,
-  ): Promise<void> {
-    // Cascada de HU-05 → HU-08: al bloquear el cobrador se bloquean sus rutas
-    // y al reactivarlo se reactivan.
-    await this.rutasService.aplicarCascada(cobradorId, estatus === "bloqueado");
+      return existente;
+    });
+
+    return this.toPublic(cobrador, cobrador.socioId);
   }
 
   private assertUpdateNoConflicts(existing: Cobrador, input: UpdateCobradorInput): void {

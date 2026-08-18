@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "./ruta.entity";
 import { RutaConfig } from "./ruta-config.entity";
 
@@ -42,7 +43,7 @@ export type RutaConfigInput = Partial<Omit<RutaConfigPublic, "rutaId">>;
 
 const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   cuotasMinimasPrestamo: 0,
-  cuotasAtrasoUmbral: 0,
+  cuotasAtrasoUmbral: 1,
   manejoCupoActivo: false,
   cupoDefault: 0,
   recargoActivo: false,
@@ -73,7 +74,7 @@ export const RutaConfigDefaults = RUTA_CONFIG_DEFAULTS;
 const CAMPO_KEYS = Object.keys(RUTA_CONFIG_DEFAULTS);
 
 export interface RequesterConfigContext {
-  rol: "admin" | "socio";
+  rol: RolUsuario;
   sub: number;
 }
 

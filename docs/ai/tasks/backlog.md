@@ -17,8 +17,21 @@ Formato de cada entrada:
 ## `assertOwned` duplicado en RutaConfigService (3er uso)
 - Detectado en: docs/ai/tasks/ruta-config.md (revisión code-reviewer)
 - Fecha: 2026-08-12
-- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts` (crear y eliminar) ya son 5 usos (rutas, ruta-config, inyecciones). Conviene extraer un helper compartido. También se duplica el `numericTransformer` (ruta, ruta-config, inyeccion).
+- Descripción: `ruta-config.service.ts` replica el `assertOwned` de `rutas.service.ts` (misma lógica socio-sobre-sus-rutas). Con `inyecciones.service.ts`, `cliente.service.ts` y `prestamo.service.ts` ya son 6 usos (rutas, ruta-config, inyecciones, cliente, prestamo). Conviene extraer un helper compartido. También se duplica el `numericTransformer` en 5 entidades (ruta, ruta-config, inyeccion, prestamo, cuota).
 - Prioridad sugerida: media
+- Estado: **programada como Fase 0 del roadmap** (ítem 3).
+
+## `Repository.delete` con criterio anidado falla en `Prestamo`
+- Detectado en: docs/ai/tasks/registrar-prestamo.md
+- Fecha: 2026-08-12
+- Descripción: `prestamoRepo.delete({ ruta: { id } })` falla ("Cannot find alias for relation") porque Prestamo tiene dos relaciones (cliente y ruta). La limpieza e2e usa query builder con columnas directas. Si el patrón se repite, evaluar un helper de borrado o documentar la limitación.
+- Prioridad sugerida: baja
+
+## Unicidad del teléfono de WhatsApp del cliente
+- Detectado en: docs/ai/tasks/registrar-prestamo.md
+- Fecha: 2026-08-12
+- Descripción: el PRD no define unicidad para `clientes.telefono_whatsapp`. Decisión MVP: NO es único (se documenta); evaluar unicidad si se requiere evitar duplicados de cliente en HU-15/HU-19.
+- Prioridad sugerida: baja
 
 ## `prestamos.tipo_interes` — desviación del PRD 4.2 para HU-14
 - Detectado en: docs/ai/tasks/editar-nombre-ruta.md
@@ -35,14 +48,16 @@ Formato de cada entrada:
 ## Cascada de bloqueo de rutas sin transacción
 - Detectado en: docs/ai/tasks/registrar-ruta.md (revisión code-reviewer)
 - Fecha: 2026-08-12
-- Descripción: en `CobradoresService.setEstatus`, el `save` del cobrador y el `update` de rutas (`aplicarCascada`) no comparten transacción; si la cascada falla, el cobrador queda bloqueado con rutas activas sin rollback. Evaluar envolver ambos en una transacción (o al menos loguear el fallo de cascada para reconciliación).
+- Descripción: en `CobradoresService.setEstatus`, el `save` del cobrador y el `update` de rutas (`aplicarCascada`) no comparten transacción; si la cascada falla, el cobrador queda bloqueado con rutas activas sin rollback. Evaluar envolver ambos en una transacción (o al menos loguear el fallo de cascada para reconciliación). Se amplía a la cascada socio → cobradores → rutas (HU-05/HU-61).
 - Prioridad sugerida: media
+- Estado: **programada como Fase 0 del roadmap** (ítem 2).
 
 ## JwtAuthGuard no revalida el estado del admin por request
 - Detectado en: docs/ai/tasks/matriz-permisos-socio.md (revisión code-reviewer)
 - Fecha: 2026-08-11
-- Descripción: `JwtAuthGuard` valida el token (tipo access) pero no consulta si el admin sigue activo por request: un admin bloqueado con access token vigente (15m) puede operar. Es un patrón pre-existente en todo el módulo. Evaluar revalidar `estado` del admin en el guard (o al menos al entrar en HU-07 cuando existan roles).
+- Descripción: `JwtAuthGuard` valida el token (tipo access) pero no consulta si el admin sigue activo por request: un admin bloqueado con access token vigente (15m) puede operar. Es un patrón pre-existente en todo el módulo. Evaluar revalidar `estado` del admin en el guard (o al menos al entrar en HU-07 cuando existan roles). Ahora es requisito de HU-05/HU-61 (bloqueo efectivo inmediato).
 - Prioridad sugerida: media
+- Estado: **programada como Fase 0 del roadmap** (ítem 1).
 
 ## Unicidad de correo case-insensitive
 - Detectado en: docs/ai/tasks/editar-socio-cobrador.md (revisión code-reviewer)
@@ -55,6 +70,7 @@ Formato de cada entrada:
 - Fecha: 2026-08-11
 - Descripción: `isUniqueViolation` + `assertNoConflicts` + `toPublic` (y ahora `setEstatus`) están duplicados entre `socios.service.ts` y `cobradores.service.ts`. Si HU-08 (rutas) u otra HU vuelve a necesitar la misma validación/operación, extraer un servicio/helper común; si no, revisar este ítem cuando se toque socios/cobradores. También se podría mover `UpdateEstatusDto` a una ubicación común (`src/common/`) al hacerlo.
 - Prioridad sugerida: media
+- Estado: **programada como Fase 0 del roadmap** (ítem 3, junto con assertOwned).
 
 ## Blacklist/revocación de refresh tokens
 - Detectado en: docs/ai/tasks/login-administrador.md
@@ -67,3 +83,69 @@ Formato de cada entrada:
 - Fecha: 2026-08-11
 - Descripción: el login no tiene límite de intentos por IP/usuario; riesgo de fuerza bruta. Agregar throttling (ej. @nestjs/throttler) cuando se exponga fuera de local.
 - Prioridad sugerida: alta
+
+## RutasService.aplicarCascada queda como código muerto
+- Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
+- Fecha: 2026-08-17
+- Descripción: al mover la cascada de rutas inline dentro de la transacción en `CobradoresService.setEstatus`, `RutasService.aplicarCascada` (y su spec) quedan sin consumidores. Removerlos o limpiarlos.
+- Prioridad sugerida: baja
+
+## Reactivar un socio reactiva cobradores bloqueados manualmente
+- Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
+- Fecha: 2026-08-17
+- Descripción: `SociosService.setEstatus` reactiva todos los cobradores y rutas del socio; un cobrador bloqueado manualmente (mora individual/desvinculación, HU-05) se desbloquearía al reactivar el socio. Decisión de negocio a definir (registrar qué cobradores reactivar).
+- Prioridad sugerida: media
+
+## Falta e2e de la cascada socio → cobradores → rutas
+- Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
+- Fecha: 2026-08-17
+- Descripción: existe e2e de cascada cobrador→rutas y de estatus de socio, pero no del flujo completo bloquear/reactivar socio → cobradores → rutas vía `PATCH /socios/:id/estatus`.
+- Prioridad sugerida: media
+
+## Falta test de rol desconocido en JwtAuthGuard
+- Detectado en: docs/ai/tasks/revalidar-estado-jwt.md (revisión code-reviewer PR #18)
+- Fecha: 2026-08-17
+- Descripción: el guard es fail-closed ante rol desconocido (401), pero no hay test explícito que lo verifique. Agregar caso "rechaza un access token con rol desconocido".
+- Prioridad sugerida: baja
+
+## refresh no maneja el rol cobrador (futuro)
+- Detectado en: docs/ai/tasks/revalidar-estado-jwt.md (revisión code-reviewer PR #18)
+- Fecha: 2026-08-17
+- Descripción: `AuthService.refresh` solo ramifica socio/admin; un refresh con rol cobrador caería en el bloque admin (401 por accidente, fail-closed). Al implementar el login del cobrador hay que ramificar cobrador aquí.
+- Prioridad sugerida: baja (cuando exista login de cobrador)
+
+## Asegurar que toda ruta con JwtAuthGuard tenga también PermisoGuard
+- Detectado en: docs/ai/tasks/revalidar-estado-jwt.md (revisión code-reviewer PR #18)
+- Fecha: 2026-08-17
+- Descripción: un cobrador (futuro) que pase JwtAuthGuard sería rechazado por PermisoGuard (rol !== socio). Verificar que no exista ninguna ruta protegida solo con JwtAuthGuard sin PermisoGuard antes de habilitar el login del cobrador.
+- Prioridad sugerida: media
+
+## assertOwned del cobrador (por ruta.cobradorId) — futuro
+- Detectado en: docs/ai/tasks/registrar-prestamo.md (revisión code-reviewer PR #17)
+- Fecha: 2026-08-17
+- Descripción: `assertOwned` solo contempla `rol === "socio"`. Al agregar el rol cobrador hay que definir la lógica de ownership del cobrador (validar contra `ruta.cobradorId`).
+- Prioridad sugerida: media (cuando exista rol cobrador)
+
+## Mock de DataSource innecesario en cartera.controller.spec
+- Detectado en: docs/ai/tasks/registrar-prestamo.md (revisión code-reviewer PR #17)
+- Fecha: 2026-08-17
+- Descripción: `cartera.controller.spec.ts` provee `{ provide: DataSource, useValue: {} }` aunque `PrestamoService` se inyecta con useValue (el DataSource no se instancia). Inofensivo pero redundante; eliminarlo o documentarlo.
+- Prioridad sugerida: baja
+
+## ADR-0002 referencia HUs de la PR #19 (orden de merge)
+- Detectado en: docs/ai/tasks/refactor-helpers.md (revisión code-reviewer PR #21)
+- Fecha: 2026-08-17
+- Descripción: el ADR de PostGIS cita HU-49/55/59 que existen en el PRD consolidado (PR #19, sin mergear). Asegurar que la PR #19 (docs) se mergee antes o junto para que las referencias sean válidas.
+- Prioridad sugerida: baja
+
+## ACCESO_DENEGADO duplicado con permiso.guard
+- Detectado en: docs/ai/tasks/refactor-helpers.md (revisión code-reviewer PR #21)
+- Fecha: 2026-08-17
+- Descripción: al centralizar `ACCESO_DENEGADO` en `src/common/ownership.ts` queda una constante equivalente preexistente en `permiso.guard.ts`. Unificar en un futuro ítem de limpieza.
+- Prioridad sugerida: baja
+
+## Migración de coordenadas a PostGIS (geography(Point))
+- Detectado en: sesión de revisión de producto (Agosto 2026)
+- Fecha: 2026-08-17
+- Descripción: `clientes` y `prestamos` usan `latitud`/`longitud` planos; para la Épica 7 (segmentación de trayectos, distancias) y la futura georreferenciación del cobrador se recomienda migrar a `geography(Point)` de PostGIS. Requiere ADR y afecta DTOs/servicios existentes. Programada como Fase 0 del roadmap (ítem 4).
+- Prioridad sugerida: media

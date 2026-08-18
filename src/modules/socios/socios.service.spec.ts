@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
 import { Socio } from "./socio.entity";
 import { CreateSocioInput, SociosService, UpdateSocioInput } from "./socios.service";
@@ -9,6 +9,18 @@ import { CreateSocioInput, SociosService, UpdateSocioInput } from "./socios.serv
 describe("SociosService", () => {
   let service: SociosService;
   let repo: Repository<Socio>;
+
+  const mockManager = {
+    findOne: jest.fn(),
+    save: jest.fn(async (entity: Partial<unknown>) => entity),
+    find: jest.fn(),
+    update: jest.fn(),
+  };
+  const mockDataSource = {
+    transaction: jest.fn(
+      async (cb: (m: typeof mockManager) => Promise<unknown>) => cb(mockManager),
+    ),
+  };
 
   const baseInput: CreateSocioInput = {
     usuario: "socio1",
@@ -34,6 +46,7 @@ describe("SociosService", () => {
       providers: [
         SociosService,
         { provide: getRepositoryToken(Socio), useValue: mockRepo },
+        { provide: DataSource, useValue: mockDataSource },
         PasswordService,
       ],
     }).compile();
@@ -274,44 +287,62 @@ describe("SociosService", () => {
       } as Socio;
     }
 
-    it("bloquea al socio y devuelve sin passwordHash", async () => {
-      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
-      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
-        ...socioActual(),
-        ...e,
-      }));
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("bloquea al socio y en cascada a sus cobradores y rutas", async () => {
+      (mockManager.findOne as jest.Mock).mockResolvedValue(socioActual());
+      (mockManager.find as jest.Mock).mockResolvedValue([
+        { id: 10, estatus: "activo" },
+        { id: 11, estatus: "activo" },
+      ]);
+      (mockManager.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => e);
+      (mockManager.update as jest.Mock).mockResolvedValue({ affected: 2 });
 
       const result = await service.setEstatus(1, "bloqueado");
 
-      expect(repo.save).toHaveBeenCalled();
       expect(result.estatus).toBe("bloqueado");
       expect(Object.keys(result)).not.toContain("passwordHash");
+      // 1 socio + 2 cobradores guardados, todos en bloqueado
+      const savedBloqueados = (mockManager.save as jest.Mock).mock.calls
+        .map((c: unknown[]) => c[0] as { estatus?: string })
+        .filter((e: { estatus?: string }) => e && e.estatus === "bloqueado");
+      expect(savedBloqueados.length).toBe(3);
+      // las rutas de cada cobrador se bloquean
+      expect(mockManager.update).toHaveBeenCalledTimes(2);
+      const routePatches = (mockManager.update as jest.Mock).mock.calls.map(
+        (c: unknown[]) => c[2] as { estatus?: string },
+      );
+      expect(routePatches.every((p: { estatus?: string }) => p.estatus === "bloqueado")).toBe(true);
     });
 
-    it("reactiva al socio", async () => {
-      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
-      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
-        ...socioActual(),
-        ...e,
-      }));
+    it("reactiva al socio y en cascada a sus cobradores y rutas", async () => {
+      (mockManager.findOne as jest.Mock).mockResolvedValue({ ...socioActual(), estatus: "bloqueado" });
+      (mockManager.find as jest.Mock).mockResolvedValue([{ id: 10, estatus: "bloqueado" }]);
+      (mockManager.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => e);
+      (mockManager.update as jest.Mock).mockResolvedValue({ affected: 1 });
 
       const result = await service.setEstatus(1, "activo");
 
       expect(result.estatus).toBe("activo");
+      const routePatches = (mockManager.update as jest.Mock).mock.calls.map(
+        (c: unknown[]) => c[2] as { estatus?: string },
+      );
+      expect(routePatches.every((p: { estatus?: string }) => p.estatus === "activo")).toBe(true);
     });
 
-    it("es idempotente: aplicar el mismo estatus no falla", async () => {
-      (repo.findOne as jest.Mock).mockResolvedValue(socioActual());
-      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
-        ...socioActual(),
-        ...e,
-      }));
+    it("revierte (rollback) si falla la cascada de rutas", async () => {
+      (mockManager.findOne as jest.Mock).mockResolvedValue(socioActual());
+      (mockManager.find as jest.Mock).mockResolvedValue([{ id: 10, estatus: "activo" }]);
+      (mockManager.save as jest.Mock).mockResolvedValue({});
+      (mockManager.update as jest.Mock).mockRejectedValue(new Error("db down"));
 
-      await expect(service.setEstatus(1, "activo")).resolves.toBeDefined();
+      await expect(service.setEstatus(1, "bloqueado")).rejects.toThrow("db down");
     });
 
     it("lanza NotFoundException si el socio no existe", async () => {
-      (repo.findOne as jest.Mock).mockResolvedValue(null);
+      (mockManager.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(service.setEstatus(999, "bloqueado")).rejects.toThrow(
         NotFoundException,

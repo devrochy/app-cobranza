@@ -5,6 +5,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "./ruta.entity";
 import { Inyeccion, InyeccionEstado } from "./inyeccion.entity";
 
@@ -14,7 +15,7 @@ export interface CreateInyeccionInput {
 }
 
 export interface RequesterInyeccionContext {
-  rol: "admin" | "socio";
+  rol: RolUsuario;
   sub: number;
 }
 
