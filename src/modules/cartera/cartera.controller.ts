@@ -16,10 +16,12 @@ import { ClienteService } from "./cliente.service";
 import { PrestamoService } from "./prestamo.service";
 import { PagosService } from "./pagos.service";
 import { AbonosService } from "./abonos.service";
+import { VisitasService } from "./visitas.service";
 import { CreateClienteDto } from "./dto/create-cliente.dto";
 import { CreatePrestamoDto } from "./dto/create-prestamo.dto";
 import { RegistrarPagoDto } from "./dto/registrar-pago.dto";
 import { RegistrarAbonoDto } from "./dto/registrar-abono.dto";
+import { RegistrarVisitaDto } from "./dto/registrar-visita.dto";
 
 @Controller("rutas/:rutaId")
 export class CarteraController {
@@ -28,6 +30,7 @@ export class CarteraController {
     private readonly prestamoService: PrestamoService,
     private readonly pagosService: PagosService,
     private readonly abonosService: AbonosService,
+    private readonly visitasService: VisitasService,
   ) {}
 
   // MVP: admin-only (sin @PermisoRequerido). El cobrador vía APK y el socio
@@ -81,6 +84,20 @@ export class CarteraController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.abonosService.registrarAbono(rutaId, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post("visitas")
+  @PermisoRequerido("configurar_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  registrarVisita(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: RegistrarVisitaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.visitasService.registrar(rutaId, dto, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

@@ -17,17 +17,20 @@ import { Pago } from "./pago.entity";
 import { Abono } from "./abono.entity";
 import { PagosService } from "./pagos.service";
 import { AbonosService } from "./abonos.service";
+import { Visita } from "./visita.entity";
+import { PromesaPago } from "./promesa-pago.entity";
+import { VisitasService } from "./visitas.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Ruta, RutaConfig]),
+    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, Ruta, RutaConfig]),
     SecurityModule,
     JwtModule.register({}),
     SociosModule,
     RutasModule,
   ],
   controllers: [CarteraController],
-  providers: [ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService],
+  providers: [ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService],
   exports: [TypeOrmModule],
 })
 export class CarteraModule {}

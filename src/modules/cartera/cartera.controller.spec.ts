@@ -13,6 +13,7 @@ import { ClienteService } from "./cliente.service";
 import { PrestamoService } from "./prestamo.service";
 import { PagosService } from "./pagos.service";
 import { AbonosService } from "./abonos.service";
+import { VisitasService } from "./visitas.service";
 
 describe("CarteraController", () => {
   let controller: CarteraController;
@@ -20,6 +21,7 @@ describe("CarteraController", () => {
   let prestamoService: PrestamoService;
   let pagosService: PagosService;
   let abonosService: AbonosService;
+  let visitasService: VisitasService;
 
   const mockClienteService = {
     crear: jest.fn(),
@@ -35,6 +37,10 @@ describe("CarteraController", () => {
 
   const mockAbonosService = {
     registrarAbono: jest.fn(),
+  };
+
+  const mockVisitasService = {
+    registrar: jest.fn(),
   };
 
   const baseDto = {
@@ -54,6 +60,7 @@ describe("CarteraController", () => {
         { provide: PrestamoService, useValue: mockPrestamoService },
         { provide: PagosService, useValue: mockPagosService },
         { provide: AbonosService, useValue: mockAbonosService },
+        { provide: VisitasService, useValue: mockVisitasService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -69,6 +76,7 @@ describe("CarteraController", () => {
     prestamoService = module.get(PrestamoService);
     pagosService = module.get(PagosService);
     abonosService = module.get(AbonosService);
+    visitasService = module.get(VisitasService);
   });
 
   it("delega al crear un cliente", async () => {
@@ -119,5 +127,17 @@ describe("CarteraController", () => {
     await controller.registrarAbono(1, dto, req);
 
     expect(abonosService.registrarAbono).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al registrar una visita", async () => {
+    (visitasService.registrar as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { prestamoId: 20, clienteId: 5, resultado: "no_pago", motivoNoPago: "no_esta" } as const;
+
+    await controller.registrarVisita(1, dto, req);
+
+    expect(visitasService.registrar).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
   });
 });
