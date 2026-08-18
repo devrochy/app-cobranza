@@ -71,7 +71,7 @@ describe("CarteraController", () => {
     const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
       user: AuthTokenPayload;
     };
-    const dto = { clienteId: 1, valor: 1000, numCuotas: 8, diasEntreCuotas: 7, latitud: -17.78, longitud: -63.18 };
+    const dto = { clienteId: 1, valor: 1000, numCuotas: 8, diasEntreCuotas: 7 };
 
     await controller.crearPrestamo(1, dto, req);
 
