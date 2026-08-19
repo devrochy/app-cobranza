@@ -272,3 +272,8 @@ Formato de cada entrada:
 - Fecha: 2026-08-19
 - Descripción: `ver_cartera` solo existe en `COBRADOR_PERMISOS` (PRD:264); HU-51 actores son Admin/Socio y el endpoint `GET /rutas/:id/resumen` queda gated por `ver_reportes`. Cuando exista login de cobrador, evaluar si `ver_cartera` debe controlar la visibilidad restringida de cartera para el cobrador.
 - Prioridad sugerida: baja (hasta login de cobrador)
+## Extraer helper compartido de coordenadas geography (ST_Y/ST_X con ::geometry)
+- Detectado en: docs/ai/tasks/mapa-clientes-dia.md (revisión code-reviewer HU-57)
+- Fecha: 2026-08-19
+- Descripción: el patrón `ST_Y(c.ubicacion::geometry)`/`ST_X(c.ubicacion::geometry)` se repite en `ruta-optimizacion.service.ts` (clientes del día) y `lista-clientes-dia.service.ts` (coordenadas de markers). Evaluar un helper compartido en `src/common/geo.ts` para centralizar la extracción de coordenadas desde geography.
+- Prioridad sugerida: baja

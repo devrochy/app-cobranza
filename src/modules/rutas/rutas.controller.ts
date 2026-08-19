@@ -384,4 +384,17 @@ export class RutasController {
       sub: req.user.sub,
     });
   }
+
+  @Get(":id/dia/mapa")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  mapaClientesDelDia(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.listaClientesDelDiaService.obtenerMapa(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
 }

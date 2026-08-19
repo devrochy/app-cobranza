@@ -152,4 +152,49 @@ describe("ListaClientesDelDiaService", () => {
     expect(result[0].enTrayecto).toBe(false);
     expect(result[0].color).toBe("verde");
   });
+
+  it("obtenerMapa devuelve markers de negocio y domicilio por cliente", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (service as unknown as { obtener: jest.Mock }).obtener = jest.fn().mockResolvedValue([
+      { clienteId: 1, nombre: "Juan Perez", enTrayecto: true, color: "rojo" },
+    ]);
+    (service as unknown as { coordenadasDeClientes: jest.Mock }).coordenadasDeClientes = jest
+      .fn()
+      .mockResolvedValue([
+        {
+          clienteId: 1,
+          negocio: { latitud: -17.7, longitud: -63.1 },
+          domicilio: { latitud: -17.71, longitud: -63.11 },
+        },
+      ]);
+
+    const result = await service.obtenerMapa(1, adminContext);
+
+    expect(result).toHaveLength(2);
+    const negocio = result.find((m) => m.tipo === "negocio");
+    const domicilio = result.find((m) => m.tipo === "domicilio");
+    expect(negocio).toMatchObject({ clienteId: 1, latitud: -17.7, longitud: -63.1, color: "rojo" });
+    expect(domicilio).toMatchObject({ clienteId: 1, latitud: -17.71, longitud: -63.11 });
+  });
+
+  it("obtenerMapa no genera marker de domicilio si el cliente no tiene domicilio", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (service as unknown as { obtener: jest.Mock }).obtener = jest.fn().mockResolvedValue([
+      { clienteId: 2, nombre: "Sin Domicilio", enTrayecto: false, color: "blanco" },
+    ]);
+    (service as unknown as { coordenadasDeClientes: jest.Mock }).coordenadasDeClientes = jest
+      .fn()
+      .mockResolvedValue([
+        {
+          clienteId: 2,
+          negocio: { latitud: -17.7, longitud: -63.1 },
+          domicilio: null,
+        },
+      ]);
+
+    const result = await service.obtenerMapa(1, adminContext);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].tipo).toBe("negocio");
+  });
 });

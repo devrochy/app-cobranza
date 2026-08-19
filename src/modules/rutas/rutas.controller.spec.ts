@@ -86,6 +86,7 @@ describe("RutasController", () => {
 
   const mockListaClientesDelDiaService = {
     obtener: jest.fn(),
+    obtenerMapa: jest.fn(),
   };
 
   const baseDto: CreateRutaDto = {
@@ -427,5 +428,16 @@ describe("RutasController", () => {
     await controller.listaClientesDelDia(1, req);
 
     expect(listaClientesDelDiaService.obtener).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al obtener el mapa de clientes del día", async () => {
+    (listaClientesDelDiaService.obtenerMapa as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.mapaClientesDelDia(1, req);
+
+    expect(listaClientesDelDiaService.obtenerMapa).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
   });
 });
