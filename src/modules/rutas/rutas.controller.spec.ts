@@ -14,6 +14,7 @@ import { RutaConfigService } from "./ruta-config.service";
 import { CajaService } from "./caja.service";
 import { GastosService } from "./gastos.service";
 import { RutasNotasService } from "./rutas-notas.service";
+import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -25,6 +26,7 @@ describe("RutasController", () => {
   let cajaService: CajaService;
   let gastosService: GastosService;
   let rutasNotasService: RutasNotasService;
+  let liquidacionesService: LiquidacionesService;
 
   const mockService = {
     create: jest.fn(),
@@ -61,6 +63,10 @@ describe("RutasController", () => {
     eliminar: jest.fn(),
   };
 
+  const mockLiquidacionesService = {
+    generar: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -83,6 +89,7 @@ describe("RutasController", () => {
         { provide: CajaService, useValue: mockCajaService },
         { provide: GastosService, useValue: mockGastosService },
         { provide: RutasNotasService, useValue: mockRutasNotasService },
+        { provide: LiquidacionesService, useValue: mockLiquidacionesService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -100,6 +107,7 @@ describe("RutasController", () => {
     cajaService = module.get(CajaService);
     gastosService = module.get(GastosService);
     rutasNotasService = module.get(RutasNotasService);
+    liquidacionesService = module.get(LiquidacionesService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -302,5 +310,17 @@ describe("RutasController", () => {
     await controller.eliminarNota(1, 10, req);
 
     expect(rutasNotasService.eliminar).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al generar la liquidación de la ruta", async () => {
+    (liquidacionesService.generar as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { comentario: "cierre" };
+
+    await controller.generarLiquidacion(1, dto, req);
+
+    expect(liquidacionesService.generar).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
   });
 });
