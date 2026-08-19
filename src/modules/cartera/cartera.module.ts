@@ -21,10 +21,11 @@ import { Visita } from "./visita.entity";
 import { PromesaPago } from "./promesa-pago.entity";
 import { VisitasService } from "./visitas.service";
 import { ClienteEvidencia } from "./cliente-evidencia.entity";
+import { CambioClientePendiente } from "./cambio-cliente-pendiente.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, ClienteEvidencia, Ruta, RutaConfig]),
+    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, ClienteEvidencia, CambioClientePendiente, Ruta, RutaConfig]),
     SecurityModule,
     JwtModule.register({}),
     SociosModule,

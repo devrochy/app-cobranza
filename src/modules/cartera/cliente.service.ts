@@ -1,13 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
+import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { Ruta } from "../rutas/ruta.entity";
 import { RutaConfig } from "../rutas/ruta-config.entity";
 import { RutaConfigDefaults } from "../rutas/ruta-config.service";
 import { Cliente, ClienteEstatus } from "./cliente.entity";
 import { ClienteEvidencia, ClienteEvidenciaTipo } from "./cliente-evidencia.entity";
+import { CambioClientePendiente, CambioClienteEstado } from "./cambio-cliente-pendiente.entity";
 import { ColorRiesgo } from "../../domain/color-riesgo";
 import { fromPoint, toPoint } from "../../common/geo";
 
@@ -58,6 +60,30 @@ export interface ClientePublic {
   createdAt: Date;
 }
 
+export interface ActualizarClienteInput {
+  nombre?: string;
+  apellido?: string;
+  negocio?: string | null;
+  telefonoWhatsapp?: string;
+  latitud?: number;
+  longitud?: number;
+  latitudDomicilio?: number;
+  longitudDomicilio?: number;
+}
+
+export interface ClienteCambioPublic {
+  id: number;
+  clienteId: number;
+  camposPropuestos: Record<string, unknown>;
+  estado: CambioClienteEstado;
+  solicitadoPorRol: string;
+  solicitadoPorId: number;
+  revisadoPor: number | null;
+  revisadoEn: Date | null;
+  motivoRechazo: string | null;
+  createdAt: Date;
+}
+
 @Injectable()
 export class ClienteService {
   constructor(
@@ -69,7 +95,10 @@ export class ClienteService {
     private readonly repo: Repository<Cliente>,
     @InjectRepository(ClienteEvidencia)
     private readonly evidenciaRepo: Repository<ClienteEvidencia>,
+    @InjectRepository(CambioClientePendiente)
+    private readonly cambioRepo: Repository<CambioClientePendiente>,
     private readonly dataSource: DataSource,
+    private readonly permisosSocio: PermisosSocioService,
   ) {}
 
   async crear(
@@ -136,6 +165,173 @@ export class ClienteService {
     });
 
     return this.toPublic(saved, rutaId);
+  }
+
+  async actualizar(
+    rutaId: number,
+    clienteId: number,
+    input: ActualizarClienteInput,
+    requester: RequesterCarteraContext,
+  ): Promise<ClientePublic | ClienteCambioPublic> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const cliente = await this.repo.findOne({ where: { id: clienteId, ruta: { id: rutaId } } });
+    if (!cliente) {
+      throw new NotFoundException("El cliente no existe en esta ruta");
+    }
+
+    const tieneCampos = Object.values(input).some((v) => v !== undefined);
+    if (!tieneCampos) {
+      throw new BadRequestException("No hay campos para actualizar");
+    }
+
+    const puedeEditar = await this.puedeEditar(requester);
+    if (puedeEditar) {
+      this.aplicarCambios(cliente, input);
+      const saved = await this.repo.save(cliente);
+      return this.toPublic(saved, rutaId);
+    }
+
+    // Sin permiso: se crea una propuesta pendiente para aprobación posterior.
+    const cambio = this.cambioRepo.create({
+      cliente: { id: cliente.id } as CambioClientePendiente["cliente"],
+      clienteId: cliente.id,
+      camposPropuestos: this.camposPropuestos(input),
+      estado: "pendiente",
+      solicitadoPorRol: requester.rol,
+      solicitadoPorId: requester.sub,
+      revisadoPor: null,
+      revisadoEn: null,
+      motivoRechazo: null,
+    });
+    const saved = await this.cambioRepo.save(cambio);
+    return this.toCambioPublic(saved);
+  }
+
+  async decidirPropuesta(
+    rutaId: number,
+    cambioId: number,
+    decision: "aprobar" | "rechazar",
+    requester: RequesterCarteraContext,
+    motivoRechazo?: string,
+  ): Promise<ClienteCambioPublic> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+    const puedeEditar = await this.puedeEditar(requester);
+    if (!puedeEditar) {
+      throw new ForbiddenException("Acceso denegado");
+    }
+
+    const cambio = await this.cambioRepo.findOne({
+      where: { id: cambioId, cliente: { ruta: { id: rutaId } } },
+      relations: { cliente: true },
+    });
+    if (!cambio) {
+      throw new NotFoundException("La propuesta no existe en esta ruta");
+    }
+    if (cambio.estado !== "pendiente") {
+      throw new BadRequestException("La propuesta ya fue decidida");
+    }
+    if (decision === "rechazar" && !motivoRechazo) {
+      throw new BadRequestException("El rechazo requiere un motivo");
+    }
+
+    const resuelto = await this.dataSource.transaction(async (manager) => {
+      const cambioRepo = manager.getRepository(CambioClientePendiente);
+      const clienteRepo = manager.getRepository(Cliente);
+
+      cambio.revisadoPor = requester.sub;
+      cambio.revisadoEn = new Date();
+      if (decision === "aprobar") {
+        cambio.estado = "aprobado";
+        const clienteActualizado = cambio.cliente;
+        this.aplicarCamposPropuestos(clienteActualizado, cambio.camposPropuestos);
+        await clienteRepo.save(clienteActualizado);
+      } else {
+        cambio.estado = "rechazado";
+        cambio.motivoRechazo = motivoRechazo ?? null;
+      }
+      return cambioRepo.save(cambio);
+    });
+
+    return this.toCambioPublic(resuelto);
+  }
+
+  private async puedeEditar(requester: RequesterCarteraContext): Promise<boolean> {
+    if (requester.rol === "admin") {
+      return true;
+    }
+    if (requester.rol !== "socio") {
+      return false;
+    }
+    return this.permisosSocio.tienePermiso(requester.sub, "actualizar_cliente");
+  }
+
+  private aplicarCambios(cliente: Cliente, input: ActualizarClienteInput): void {
+    if (input.nombre !== undefined) cliente.nombre = input.nombre;
+    if (input.apellido !== undefined) cliente.apellido = input.apellido;
+    if (input.negocio !== undefined) cliente.negocio = input.negocio;
+    if (input.telefonoWhatsapp !== undefined) cliente.telefonoWhatsapp = input.telefonoWhatsapp;
+    if (input.latitud !== undefined && input.longitud !== undefined) {
+      cliente.ubicacion = toPoint(input.latitud, input.longitud);
+    }
+    if (input.latitudDomicilio !== undefined && input.longitudDomicilio !== undefined) {
+      cliente.ubicacionDomicilio = toPoint(input.latitudDomicilio, input.longitudDomicilio);
+    } else if (input.latitudDomicilio === null || input.longitudDomicilio === null) {
+      cliente.ubicacionDomicilio = null;
+    }
+  }
+
+  private camposPropuestos(input: ActualizarClienteInput): Record<string, unknown> {
+    const campos: Record<string, unknown> = {};
+    if (input.nombre !== undefined) campos.nombre = input.nombre;
+    if (input.apellido !== undefined) campos.apellido = input.apellido;
+    if (input.negocio !== undefined) campos.negocio = input.negocio;
+    if (input.telefonoWhatsapp !== undefined) campos.telefonoWhatsapp = input.telefonoWhatsapp;
+    if (input.latitud !== undefined) campos.latitud = input.latitud;
+    if (input.longitud !== undefined) campos.longitud = input.longitud;
+    if (input.latitudDomicilio !== undefined) campos.latitudDomicilio = input.latitudDomicilio;
+    if (input.longitudDomicilio !== undefined) campos.longitudDomicilio = input.longitudDomicilio;
+    return campos;
+  }
+
+  private aplicarCamposPropuestos(cliente: Cliente, campos: Record<string, unknown>): void {
+    if (campos.nombre !== undefined) cliente.nombre = String(campos.nombre);
+    if (campos.apellido !== undefined) cliente.apellido = String(campos.apellido);
+    if (campos.negocio !== undefined) cliente.negocio = campos.negocio === null ? null : String(campos.negocio);
+    if (campos.telefonoWhatsapp !== undefined) cliente.telefonoWhatsapp = String(campos.telefonoWhatsapp);
+    if (campos.latitud !== undefined && campos.longitud !== undefined) {
+      cliente.ubicacion = toPoint(Number(campos.latitud), Number(campos.longitud));
+    }
+    if (campos.latitudDomicilio !== undefined || campos.longitudDomicilio !== undefined) {
+      if (campos.latitudDomicilio !== null && campos.longitudDomicilio !== null) {
+        cliente.ubicacionDomicilio = toPoint(Number(campos.latitudDomicilio), Number(campos.longitudDomicilio));
+      } else {
+        cliente.ubicacionDomicilio = null;
+      }
+    }
+  }
+
+  private toCambioPublic(cambio: CambioClientePendiente): ClienteCambioPublic {
+    return {
+      id: cambio.id,
+      clienteId: cambio.clienteId,
+      camposPropuestos: cambio.camposPropuestos,
+      estado: cambio.estado,
+      solicitadoPorRol: cambio.solicitadoPorRol,
+      solicitadoPorId: cambio.solicitadoPorId,
+      revisadoPor: cambio.revisadoPor,
+      revisadoEn: cambio.revisadoEn,
+      motivoRechazo: cambio.motivoRechazo,
+      createdAt: cambio.createdAt,
+    };
   }
 
   private toPublic(cliente: Cliente, rutaId: number): ClientePublic {
