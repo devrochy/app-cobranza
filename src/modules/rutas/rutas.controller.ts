@@ -40,6 +40,7 @@ import { GenerarLiquidacionDto } from "./dto/generar-liquidacion.dto";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
+import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 
 @Controller("rutas")
 export class RutasController {
@@ -53,6 +54,7 @@ export class RutasController {
     private readonly liquidacionesService: LiquidacionesService,
     private readonly rutasResumenService: RutasResumenService,
     private readonly rutaOptimizacionService: RutaOptimizacionService,
+    private readonly listaClientesDelDiaService: ListaClientesDelDiaService,
   ) {}
 
   @Post()
@@ -365,6 +367,19 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutaOptimizacionService.consultar(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/dia/clientes")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listaClientesDelDia(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.listaClientesDelDiaService.obtener(id, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

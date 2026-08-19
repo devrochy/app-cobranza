@@ -17,6 +17,7 @@ import { RutasNotasService } from "./rutas-notas.service";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
+import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -31,6 +32,7 @@ describe("RutasController", () => {
   let liquidacionesService: LiquidacionesService;
   let rutasResumenService: RutasResumenService;
   let rutaOptimizacionService: RutaOptimizacionService;
+  let listaClientesDelDiaService: ListaClientesDelDiaService;
 
   const mockService = {
     create: jest.fn(),
@@ -82,6 +84,10 @@ describe("RutasController", () => {
     consultar: jest.fn(),
   };
 
+  const mockListaClientesDelDiaService = {
+    obtener: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -107,6 +113,7 @@ describe("RutasController", () => {
         { provide: LiquidacionesService, useValue: mockLiquidacionesService },
         { provide: RutasResumenService, useValue: mockRutasResumenService },
         { provide: RutaOptimizacionService, useValue: mockRutaOptimizacionService },
+        { provide: ListaClientesDelDiaService, useValue: mockListaClientesDelDiaService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -127,6 +134,7 @@ describe("RutasController", () => {
     liquidacionesService = module.get(LiquidacionesService);
     rutasResumenService = module.get(RutasResumenService);
     rutaOptimizacionService = module.get(RutaOptimizacionService);
+    listaClientesDelDiaService = module.get(ListaClientesDelDiaService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -408,5 +416,16 @@ describe("RutasController", () => {
     await controller.consultarTrayectos(1, req);
 
     expect(rutaOptimizacionService.consultar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al obtener la lista de clientes del día", async () => {
+    (listaClientesDelDiaService.obtener as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listaClientesDelDia(1, req);
+
+    expect(listaClientesDelDiaService.obtener).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
   });
 });
