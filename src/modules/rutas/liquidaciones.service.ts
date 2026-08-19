@@ -101,14 +101,16 @@ export class LiquidacionesService {
       const cajaActual = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
       const cajaAnterior = ultima?.cajaActual ?? caja.saldoInicial;
 
-      const estimadoACobrar = await this.sumaCuotasPendientes(manager, rutaId, inicio, fin);
-      const sumaAbonos = await this.sumaAbonos(manager, rutaId);
-      const sumaCartera = Math.max(0, estimadoACobrar - sumaAbonos);
-      const totalCobradoPeriodo = await this.sumaPagos(manager, rutaId, inicio, fin);
-      const totalCobradoDia = await this.sumaPagos(manager, rutaId, this.inicioDelDia(fin), this.finDelDia(fin));
-      const totalPrestado = await this.sumaPrestamos(manager, rutaId, inicio, fin);
-      const totalGastos = await this.sumaGastosAprobados(manager, rutaId, inicio, fin);
-      const totalInyeccion = await this.sumaInyeccionesActivas(manager, rutaId, inicio, fin);
+      const totales = await this.calcularTotales(rutaId, inicio, fin, manager);
+      const {
+        estimadoACobrar,
+        sumaCartera,
+        totalCobradoPeriodo,
+        totalCobradoDia,
+        totalPrestado,
+        totalGastos,
+        totalInyeccion,
+      } = totales;
 
       const comisionPorcentaje = config?.comisionActiva ? config.comisionPorcentaje : 0;
       const comisionValor = calcularComision(
@@ -233,14 +235,17 @@ export class LiquidacionesService {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
+  private qb(manager?: EntityManager) {
+    return manager ? manager.createQueryBuilder() : this.liquidacionRepo.createQueryBuilder();
+  }
+
   private async sumaCuotasPendientes(
-    manager: EntityManager,
     rutaId: number,
     inicio: Date,
     fin: Date,
+    manager?: EntityManager,
   ): Promise<number> {
-    const row = await manager
-      .createQueryBuilder()
+    const row = await this.qb(manager)
       .select("COALESCE(SUM(c.valor_esperado), 0)", "total")
       .from("cuotas", "c")
       .innerJoin("prestamos", "p", "p.id = c.prestamo_id")
@@ -253,9 +258,8 @@ export class LiquidacionesService {
     return Number(row?.total ?? 0);
   }
 
-  private async sumaAbonos(manager: EntityManager, rutaId: number): Promise<number> {
-    const row = await manager
-      .createQueryBuilder()
+  private async sumaAbonos(rutaId: number, manager?: EntityManager): Promise<number> {
+    const row = await this.qb(manager)
       .select("COALESCE(SUM(a.valor), 0)", "total")
       .from("abonos", "a")
       .innerJoin("prestamos", "p", "p.id = a.prestamo_id")
@@ -265,11 +269,10 @@ export class LiquidacionesService {
     return Number(row?.total ?? 0);
   }
 
-  private async sumaPagos(manager: EntityManager, rutaId: number, inicio: Date, fin: Date): Promise<number> {
+  private async sumaPagos(rutaId: number, inicio: Date, fin: Date, manager?: EntityManager): Promise<number> {
     // Solo pagos de cuotas atribuibles a la ruta (vía cuota → préstamo).
     // Los pagos con cuota_id NULL (huérfanos tras HU-48) no se atribuyen aquí.
-    const row = await manager
-      .createQueryBuilder()
+    const row = await this.qb(manager)
       .select("COALESCE(SUM(pa.valor), 0)", "total")
       .from("pagos", "pa")
       .innerJoin("cuotas", "c", "c.id = pa.cuota_id")
@@ -282,9 +285,8 @@ export class LiquidacionesService {
     return Number(row?.total ?? 0);
   }
 
-  private async sumaPrestamos(manager: EntityManager, rutaId: number, inicio: Date, fin: Date): Promise<number> {
-    const row = await manager
-      .createQueryBuilder()
+  private async sumaPrestamos(rutaId: number, inicio: Date, fin: Date, manager?: EntityManager): Promise<number> {
+    const row = await this.qb(manager)
       .select("COALESCE(SUM(pr.valor), 0)", "total")
       .from("prestamos", "pr")
       .where("pr.ruta_id = :rutaId", { rutaId })
@@ -294,9 +296,8 @@ export class LiquidacionesService {
     return Number(row?.total ?? 0);
   }
 
-  private async sumaGastosAprobados(manager: EntityManager, rutaId: number, inicio: Date, fin: Date): Promise<number> {
-    const row = await manager
-      .createQueryBuilder()
+  private async sumaGastosAprobados(rutaId: number, inicio: Date, fin: Date, manager?: EntityManager): Promise<number> {
+    const row = await this.qb(manager)
       .select("COALESCE(SUM(g.valor), 0)", "total")
       .from("gastos", "g")
       .where("g.ruta_id = :rutaId", { rutaId })
@@ -308,9 +309,8 @@ export class LiquidacionesService {
     return Number(row?.total ?? 0);
   }
 
-  private async sumaInyeccionesActivas(manager: EntityManager, rutaId: number, inicio: Date, fin: Date): Promise<number> {
-    const row = await manager
-      .createQueryBuilder()
+  private async sumaInyeccionesActivas(rutaId: number, inicio: Date, fin: Date, manager?: EntityManager): Promise<number> {
+    const row = await this.qb(manager)
       .select("COALESCE(SUM(i.valor), 0)", "total")
       .from("inyecciones", "i")
       .where("i.ruta_id = :rutaId", { rutaId })
@@ -319,6 +319,39 @@ export class LiquidacionesService {
       .andWhere("i.fecha_hora <= :fin", { fin })
       .getRawOne<{ total: string }>();
     return Number(row?.total ?? 0);
+  }
+
+  async calcularTotales(
+    rutaId: number,
+    inicio: Date,
+    fin: Date,
+    manager?: EntityManager,
+  ): Promise<{
+    estimadoACobrar: number;
+    sumaCartera: number;
+    totalCobradoPeriodo: number;
+    totalCobradoDia: number;
+    totalPrestado: number;
+    totalGastos: number;
+    totalInyeccion: number;
+  }> {
+    const estimadoACobrar = await this.sumaCuotasPendientes(rutaId, inicio, fin, manager);
+    const sumaAbonos = await this.sumaAbonos(rutaId, manager);
+    const sumaCartera = Math.max(0, estimadoACobrar - sumaAbonos);
+    const totalCobradoPeriodo = await this.sumaPagos(rutaId, inicio, fin, manager);
+    const totalCobradoDia = await this.sumaPagos(rutaId, this.inicioDelDia(fin), this.finDelDia(fin), manager);
+    const totalPrestado = await this.sumaPrestamos(rutaId, inicio, fin, manager);
+    const totalGastos = await this.sumaGastosAprobados(rutaId, inicio, fin, manager);
+    const totalInyeccion = await this.sumaInyeccionesActivas(rutaId, inicio, fin, manager);
+    return {
+      estimadoACobrar,
+      sumaCartera,
+      totalCobradoPeriodo,
+      totalCobradoDia,
+      totalPrestado,
+      totalGastos,
+      totalInyeccion,
+    };
   }
 
   private toPublic(l: Liquidacion): LiquidacionPublic {

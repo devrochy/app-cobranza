@@ -38,6 +38,7 @@ import { CrearNotaDto } from "./dto/crear-nota.dto";
 import { RutasNotasService } from "./rutas-notas.service";
 import { GenerarLiquidacionDto } from "./dto/generar-liquidacion.dto";
 import { LiquidacionesService } from "./liquidaciones.service";
+import { RutasResumenService } from "./rutas-resumen.service";
 
 @Controller("rutas")
 export class RutasController {
@@ -49,6 +50,7 @@ export class RutasController {
     private readonly gastosService: GastosService,
     private readonly rutasNotasService: RutasNotasService,
     private readonly liquidacionesService: LiquidacionesService,
+    private readonly rutasResumenService: RutasResumenService,
   ) {}
 
   @Post()
@@ -325,5 +327,18 @@ export class RutasController {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(buffer);
+  }
+
+  @Get(":id/resumen")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  resumenRuta(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasResumenService.obtener(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
   }
 }
