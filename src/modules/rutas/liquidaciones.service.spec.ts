@@ -362,3 +362,138 @@ describe("LiquidacionesService", () => {
     expect(createdPayload).toMatchObject({ cajaAnterior: 1000, cajaActual: 1500 });
   });
 });
+
+describe("LiquidacionesService - historial y exportación", () => {
+  let service: LiquidacionesService;
+  let rutaRepo: Repository<Ruta>;
+  let liquidacionRepo: Repository<Liquidacion>;
+
+  const adminContext = { rol: "admin" as const, sub: 0 };
+  const socioContext = { rol: "socio" as const, sub: 1 };
+
+  const mockRutaRepo = { findOne: jest.fn() };
+  const mockConfigRepo = { findOne: jest.fn() };
+  const mockCajaRepo = { findOne: jest.fn() };
+  const mockLiquidacionRepo = { findOne: jest.fn(), find: jest.fn() };
+
+  function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
+    return {
+      id: 1,
+      socioId: 1,
+      cobradorId: 1,
+      nombre: "Ruta Centro",
+      descripcion: null,
+      tipoInteres: 20,
+      numCuotas: 8,
+      moneda: "BOB",
+      estatus: "activo",
+      createdAt: new Date(),
+      ...overrides,
+    } as Ruta;
+  }
+
+  function liquidacionFixture(overrides: Partial<Liquidacion> = {}): Liquidacion {
+    return {
+      id: 10,
+      rutaId: 1,
+      fecha: "2026-08-19",
+      periodo: "diario",
+      cajaAnterior: 1000,
+      cajaActual: 1500,
+      estimadoACobrar: 2000,
+      totalInyeccion: 300,
+      totalCobradoPeriodo: 200,
+      totalCobradoDia: 200,
+      totalPrestado: 500,
+      totalGastos: 50,
+      sumaCartera: 1000,
+      comisionPorcentaje: 10,
+      comisionValor: 20,
+      comentario: "cierre",
+      createdAt: new Date(),
+      ...overrides,
+    } as Liquidacion;
+  }
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LiquidacionesService,
+        { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
+        { provide: getRepositoryToken(RutaConfig), useValue: mockConfigRepo },
+        { provide: getRepositoryToken(Caja), useValue: mockCajaRepo },
+        { provide: getRepositoryToken(Liquidacion), useValue: mockLiquidacionRepo },
+        { provide: DataSource, useValue: { transaction: jest.fn() } },
+      ],
+    }).compile();
+
+    service = module.get(LiquidacionesService);
+    rutaRepo = module.get(getRepositoryToken(Ruta));
+    liquidacionRepo = module.get(getRepositoryToken(Liquidacion));
+  });
+
+  it("listar lanza NotFoundException si la ruta no existe", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.listar(999, adminContext)).rejects.toThrow(NotFoundException);
+  });
+
+  it("listar devuelve las liquidaciones de la ruta ordenadas por fecha DESC", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (liquidacionRepo.find as jest.Mock).mockResolvedValue([
+      liquidacionFixture({ id: 2, fecha: "2026-08-20" }),
+      liquidacionFixture({ id: 1, fecha: "2026-08-19" }),
+    ]);
+
+    const result = await service.listar(1, adminContext);
+
+    expect(liquidacionRepo.find).toHaveBeenCalledWith({
+      where: { ruta: { id: 1 } },
+      order: { fecha: "DESC" },
+    });
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe(2);
+  });
+
+  it("un socio no puede listar una ruta ajena -> 403", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
+
+    await expect(service.listar(1, socioContext)).rejects.toThrow(ForbiddenException);
+  });
+
+  it("exportar lanza NotFoundException si la liquidación no existe en la ruta", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (liquidacionRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.exportar(1, 999, adminContext)).rejects.toThrow(NotFoundException);
+  });
+
+  it("exportar genera un buffer xlsx a partir de la liquidación", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (liquidacionRepo.findOne as jest.Mock).mockResolvedValue(liquidacionFixture());
+
+    const { buffer, filename } = await service.exportar(1, 10, adminContext);
+
+    expect(filename).toBe("liquidacion-2026-08-19.xlsx");
+    expect(Buffer.isBuffer(buffer)).toBe(true);
+    // El buffer xlsx debe iniciar con la firma PK (ZIP de OOXML).
+    expect(buffer.length).toBeGreaterThan(0);
+    expect(buffer.subarray(0, 2).toString()).toBe("PK");
+
+    // Valida el contenido del xlsx parseándolo con el propio exceljs.
+    const ExcelJS = await import("exceljs");
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as never);
+    const hoja = workbook.getWorksheet("Liquidación");
+    expect(hoja).toBeDefined();
+    const filaComision = hoja?.getRow(15).getCell(1).value;
+    expect(String(filaComision)).toContain("Comisión valor");
+  });
+
+  it("un socio no puede exportar una liquidación de ruta ajena -> 403", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
+
+    await expect(service.exportar(1, 10, socioContext)).rejects.toThrow(ForbiddenException);
+  });
+});

@@ -2,7 +2,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { DataSource } from "typeorm";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -65,6 +65,8 @@ describe("RutasController", () => {
 
   const mockLiquidacionesService = {
     generar: jest.fn(),
+    listar: jest.fn(),
+    exportar: jest.fn(),
   };
 
   const baseDto: CreateRutaDto = {
@@ -322,5 +324,39 @@ describe("RutasController", () => {
     await controller.generarLiquidacion(1, dto, req);
 
     expect(liquidacionesService.generar).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al listar las liquidaciones de la ruta", async () => {
+    (liquidacionesService.listar as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarLiquidaciones(1, req);
+
+    expect(liquidacionesService.listar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al exportar una liquidación y envía el buffer", async () => {
+    (liquidacionesService.exportar as jest.Mock).mockResolvedValue({
+      buffer: Buffer.from("PK..."),
+      filename: "liquidacion-2026-08-19.xlsx",
+    });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const res = {
+      setHeader: jest.fn(),
+      send: jest.fn(),
+    } as unknown as Response;
+
+    await controller.exportarLiquidacion(1, 10, req, res);
+
+    expect(liquidacionesService.exportar).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(res.send).toHaveBeenCalled();
   });
 });
