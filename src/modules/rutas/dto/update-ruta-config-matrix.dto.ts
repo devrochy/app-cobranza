@@ -9,6 +9,7 @@ import {
   Min,
 } from "class-validator";
 import { DIAS_NO_LABORABLES } from "../ruta-config.entity";
+import { PERIODO_LIQUIDACION, PeriodoLiquidacion } from "../../../domain/liquidacion";
 
 export class UpdateRutaConfigMatrixDto {
   @IsOptional()
@@ -125,4 +126,10 @@ export class UpdateRutaConfigMatrixDto {
     message: "diasNoLaborables debe ser solo_domingos o domingos_y_feriados",
   })
   diasNoLaborables?: (typeof DIAS_NO_LABORABLES)[number];
+
+  @IsOptional()
+  @IsIn(PERIODO_LIQUIDACION, {
+    message: "periodoLiquidacion debe ser diario, semanal, quincenal o mensual",
+  })
+  periodoLiquidacion?: PeriodoLiquidacion;
 }

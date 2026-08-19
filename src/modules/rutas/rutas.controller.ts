@@ -9,12 +9,13 @@ import {
   Post,
   Put,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { evidenciasMulterOptions } from "./evidencia-upload";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -35,6 +36,9 @@ import { RutasService } from "./rutas.service";
 import { RegistrarGastoDto } from "./dto/registrar-gasto.dto";
 import { CrearNotaDto } from "./dto/crear-nota.dto";
 import { RutasNotasService } from "./rutas-notas.service";
+import { GenerarLiquidacionDto } from "./dto/generar-liquidacion.dto";
+import { LiquidacionesService } from "./liquidaciones.service";
+import { RutasResumenService } from "./rutas-resumen.service";
 
 @Controller("rutas")
 export class RutasController {
@@ -45,6 +49,8 @@ export class RutasController {
     private readonly cajaService: CajaService,
     private readonly gastosService: GastosService,
     private readonly rutasNotasService: RutasNotasService,
+    private readonly liquidacionesService: LiquidacionesService,
+    private readonly rutasResumenService: RutasResumenService,
   ) {}
 
   @Post()
@@ -273,6 +279,64 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasNotasService.eliminar(id, notaId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post(":id/liquidaciones")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  generarLiquidacion(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: GenerarLiquidacionDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.liquidacionesService.generar(id, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/liquidaciones")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarLiquidaciones(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.liquidacionesService.listar(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/liquidaciones/:liquidacionId/export")
+  @PermisoRequerido("descargar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  async exportarLiquidacion(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("liquidacionId", ParseIntPipe) liquidacionId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.liquidacionesService.exportar(id, liquidacionId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  @Get(":id/resumen")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  resumenRuta(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasResumenService.obtener(id, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

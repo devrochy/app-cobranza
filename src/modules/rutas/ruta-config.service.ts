@@ -7,6 +7,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
+import { PeriodoLiquidacion } from "../../domain/liquidacion";
 import { Ruta } from "./ruta.entity";
 import { DiasNoLaborables, RutaConfig } from "./ruta-config.entity";
 
@@ -39,6 +40,7 @@ export interface RutaConfigPublic {
   permitirCambioFechaPrestamo: boolean;
   borrarClientesSinDeuda: boolean;
   diasNoLaborables: DiasNoLaborables;
+  periodoLiquidacion: PeriodoLiquidacion;
 }
 
 export type RutaConfigInput = Partial<Omit<RutaConfigPublic, "rutaId">>;
@@ -71,6 +73,7 @@ const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   permitirCambioFechaPrestamo: false,
   borrarClientesSinDeuda: false,
   diasNoLaborables: "solo_domingos" as const,
+  periodoLiquidacion: "diario" as const,
 };
 
 export const RutaConfigDefaults = RUTA_CONFIG_DEFAULTS;
@@ -177,6 +180,7 @@ export class RutaConfigService {
       permitirCambioFechaPrestamo: fila.permitirCambioFechaPrestamo,
       borrarClientesSinDeuda: fila.borrarClientesSinDeuda,
       diasNoLaborables: fila.diasNoLaborables,
+      periodoLiquidacion: fila.periodoLiquidacion,
     };
   }
 }

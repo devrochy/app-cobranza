@@ -2,7 +2,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { DataSource } from "typeorm";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -14,6 +14,8 @@ import { RutaConfigService } from "./ruta-config.service";
 import { CajaService } from "./caja.service";
 import { GastosService } from "./gastos.service";
 import { RutasNotasService } from "./rutas-notas.service";
+import { LiquidacionesService } from "./liquidaciones.service";
+import { RutasResumenService } from "./rutas-resumen.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -25,6 +27,8 @@ describe("RutasController", () => {
   let cajaService: CajaService;
   let gastosService: GastosService;
   let rutasNotasService: RutasNotasService;
+  let liquidacionesService: LiquidacionesService;
+  let rutasResumenService: RutasResumenService;
 
   const mockService = {
     create: jest.fn(),
@@ -61,6 +65,16 @@ describe("RutasController", () => {
     eliminar: jest.fn(),
   };
 
+  const mockLiquidacionesService = {
+    generar: jest.fn(),
+    listar: jest.fn(),
+    exportar: jest.fn(),
+  };
+
+  const mockRutasResumenService = {
+    obtener: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -83,6 +97,8 @@ describe("RutasController", () => {
         { provide: CajaService, useValue: mockCajaService },
         { provide: GastosService, useValue: mockGastosService },
         { provide: RutasNotasService, useValue: mockRutasNotasService },
+        { provide: LiquidacionesService, useValue: mockLiquidacionesService },
+        { provide: RutasResumenService, useValue: mockRutasResumenService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -100,6 +116,8 @@ describe("RutasController", () => {
     cajaService = module.get(CajaService);
     gastosService = module.get(GastosService);
     rutasNotasService = module.get(RutasNotasService);
+    liquidacionesService = module.get(LiquidacionesService);
+    rutasResumenService = module.get(RutasResumenService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -302,5 +320,62 @@ describe("RutasController", () => {
     await controller.eliminarNota(1, 10, req);
 
     expect(rutasNotasService.eliminar).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al generar la liquidación de la ruta", async () => {
+    (liquidacionesService.generar as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { comentario: "cierre" };
+
+    await controller.generarLiquidacion(1, dto, req);
+
+    expect(liquidacionesService.generar).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al listar las liquidaciones de la ruta", async () => {
+    (liquidacionesService.listar as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarLiquidaciones(1, req);
+
+    expect(liquidacionesService.listar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al exportar una liquidación y envía el buffer", async () => {
+    (liquidacionesService.exportar as jest.Mock).mockResolvedValue({
+      buffer: Buffer.from("PK..."),
+      filename: "liquidacion-2026-08-19.xlsx",
+    });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const res = {
+      setHeader: jest.fn(),
+      send: jest.fn(),
+    } as unknown as Response;
+
+    await controller.exportarLiquidacion(1, 10, req, res);
+
+    expect(liquidacionesService.exportar).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(res.send).toHaveBeenCalled();
+  });
+
+  it("delega al obtener el resumen de la ruta", async () => {
+    (rutasResumenService.obtener as jest.Mock).mockResolvedValue({ rutaId: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.resumenRuta(1, req);
+
+    expect(rutasResumenService.obtener).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
   });
 });
