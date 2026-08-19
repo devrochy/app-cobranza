@@ -3,6 +3,7 @@ import {
   Controller,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Req,
   UploadedFiles,
@@ -27,6 +28,8 @@ import { CreatePrestamoDto } from "./dto/create-prestamo.dto";
 import { RegistrarPagoDto } from "./dto/registrar-pago.dto";
 import { RegistrarAbonoDto } from "./dto/registrar-abono.dto";
 import { RegistrarVisitaDto } from "./dto/registrar-visita.dto";
+import { ActualizarClienteDto } from "./dto/actualizar-cliente.dto";
+import { DecisionCambioDto } from "./dto/decision-cambio.dto";
 
 @Controller("rutas/:rutaId")
 export class CarteraController {
@@ -142,5 +145,41 @@ export class CarteraController {
       rol: req.user.rol,
       sub: req.user.sub,
     });
+  }
+
+  @Patch("clientes/:clienteId")
+  @PermisoRequerido("configurar_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  actualizarCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Body() dto: ActualizarClienteDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.clienteService.actualizar(rutaId, clienteId, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch("cambios-cliente/:cambioId/decision")
+  @PermisoRequerido("configurar_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  decidirCambioCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("cambioId", ParseIntPipe) cambioId: number,
+    @Body() dto: DecisionCambioDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.clienteService.decidirPropuesta(
+      rutaId,
+      cambioId,
+      dto.decision,
+      {
+        rol: req.user.rol,
+        sub: req.user.sub,
+      },
+      dto.motivoRechazo,
+    );
   }
 }
