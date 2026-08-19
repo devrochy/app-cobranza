@@ -26,6 +26,7 @@ export interface RutaConfigPublic {
   mostrarPrestamos: boolean;
   eliminarPrestamosApk: boolean;
   reconocimientoFacialActivo: boolean;
+  registroDocumentoCliente: boolean;
   eliminarPagosApk: boolean;
   eliminarGastosApk: boolean;
   eliminarInyeccionApk: boolean;
@@ -57,6 +58,7 @@ const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   mostrarPrestamos: false,
   eliminarPrestamosApk: false,
   reconocimientoFacialActivo: false,
+  registroDocumentoCliente: false,
   eliminarPagosApk: false,
   eliminarGastosApk: false,
   eliminarInyeccionApk: false,
@@ -162,6 +164,7 @@ export class RutaConfigService {
       mostrarPrestamos: fila.mostrarPrestamos,
       eliminarPrestamosApk: fila.eliminarPrestamosApk,
       reconocimientoFacialActivo: fila.reconocimientoFacialActivo,
+      registroDocumentoCliente: fila.registroDocumentoCliente,
       eliminarPagosApk: fila.eliminarPagosApk,
       eliminarGastosApk: fila.eliminarGastosApk,
       eliminarInyeccionApk: fila.eliminarInyeccionApk,

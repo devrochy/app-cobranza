@@ -66,6 +66,9 @@ export class RutaConfig {
   @Column()
   reconocimientoFacialActivo!: boolean;
 
+  @Column({ name: "registro_documento_cliente" })
+  registroDocumentoCliente!: boolean;
+
   @Column()
   eliminarPagosApk!: boolean;
 

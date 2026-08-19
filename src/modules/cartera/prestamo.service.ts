@@ -1,13 +1,13 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
+import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import { calcularColorRiesgo } from "../../domain/color-riesgo";
 import { Ruta } from "../rutas/ruta.entity";
@@ -26,6 +26,10 @@ export interface CreatePrestamoInput {
   numCuotas: number;
   tipoInteres?: number;
   diasEntreCuotas: number;
+  fiadorNombre?: string;
+  fiadorApellido?: string;
+  fiadorDocumento?: string;
+  fiadorTelefono?: string;
 }
 
 export interface RequesterPrestamoContext {
@@ -52,8 +56,6 @@ export interface PrestamoPublic {
   estatus: PrestamoEstatus;
   cuotas: CuotaPublic[];
 }
-
-const ACCESO_DENEGADO = "Acceso denegado";
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date.getTime());
@@ -97,7 +99,7 @@ export class PrestamoService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const cliente = await this.clienteRepo.findOne({
       where: { id: input.clienteId, ruta: { id: rutaId } },
@@ -118,11 +120,34 @@ export class PrestamoService {
       );
     }
 
+    const saldoVigenteCliente = await this.saldoVigente(cliente.id);
+
     if (config.manejoCupoActivo) {
-      const saldoVigente = await this.saldoVigente(cliente.id);
-      if (saldoVigente + input.valor > config.cupoDefault) {
+      if (saldoVigenteCliente + input.valor > config.cupoDefault) {
         throw new ConflictException("El préstamo excede el cupo de la ruta");
       }
+    }
+
+    // HU-14: tope de deuda del cliente (saldo vigente + valor).
+    if (cliente.topeMaximoDeuda !== null && cliente.topeMaximoDeuda !== undefined) {
+      if (saldoVigenteCliente + input.valor > cliente.topeMaximoDeuda) {
+        throw new ConflictException("El préstamo excede el tope de deuda del cliente");
+      }
+    }
+
+    // HU-14: fecha del préstamo editable ±30 días, gateada por flag de ruta.
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaInicio = new Date(fechaOtorgado);
+    fechaInicio.setHours(0, 0, 0, 0);
+    const dias = Math.round(
+      (fechaInicio.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (Math.abs(dias) > 30) {
+      throw new BadRequestException("La fecha del préstamo no puede diferir más de 30 días de hoy");
+    }
+    if (!config.permitirCambioFechaPrestamo && dias !== 0) {
+      throw new BadRequestException("No está permitido cambiar la fecha del préstamo");
     }
 
     const cuotas = this.generarCuotas(
@@ -149,6 +174,10 @@ export class PrestamoService {
         tipoInteres,
         diasEntreCuotas: input.diasEntreCuotas,
         fechaOtorgado,
+        fiadorNombre: input.fiadorNombre ?? null,
+        fiadorApellido: input.fiadorApellido ?? null,
+        fiadorDocumento: input.fiadorDocumento ?? null,
+        fiadorTelefono: input.fiadorTelefono ?? null,
         estatus: "vigente",
       });
       prestamo = await queryRunner.manager.save(prestamo);
@@ -222,12 +251,6 @@ export class PrestamoService {
         estatus: "pendiente" as const,
       };
     });
-  }
-
-  private assertOwned(ruta: Ruta, requester: RequesterPrestamoContext): void {
-    if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
-      throw new ForbiddenException(ACCESO_DENEGADO);
-    }
   }
 
   private toPublic(

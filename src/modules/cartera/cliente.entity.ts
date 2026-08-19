@@ -11,6 +11,7 @@ import {
 import { Ruta } from "../rutas/ruta.entity";
 import { ColorRiesgo } from "../../domain/color-riesgo";
 import { GeoPoint } from "../../common/geo";
+import { numericTransformer } from "../../common/numeric-transformer";
 
 export const CLIENTE_ESTATUS = ["activo", "bloqueado"] as const;
 export type ClienteEstatus = (typeof CLIENTE_ESTATUS)[number];
@@ -42,6 +43,12 @@ export class Cliente {
 
   @Column({ type: "geography", spatialFeatureType: "Point", srid: 4326 })
   ubicacion!: GeoPoint;
+
+  @Column({ name: "ubicacion_domicilio", type: "geography", spatialFeatureType: "Point", srid: 4326, nullable: true })
+  ubicacionDomicilio!: GeoPoint | null;
+
+  @Column({ name: "tope_maximo_deuda", type: "numeric", precision: 10, scale: 2, nullable: true, transformer: numericTransformer })
+  topeMaximoDeuda!: number | null;
 
   @Column({ type: "varchar", default: "activo" })
   estatus!: ClienteEstatus;

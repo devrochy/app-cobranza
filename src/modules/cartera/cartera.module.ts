@@ -20,10 +20,11 @@ import { AbonosService } from "./abonos.service";
 import { Visita } from "./visita.entity";
 import { PromesaPago } from "./promesa-pago.entity";
 import { VisitasService } from "./visitas.service";
+import { ClienteEvidencia } from "./cliente-evidencia.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, Ruta, RutaConfig]),
+    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, ClienteEvidencia, Ruta, RutaConfig]),
     SecurityModule,
     JwtModule.register({}),
     SociosModule,

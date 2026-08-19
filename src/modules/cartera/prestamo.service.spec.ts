@@ -41,7 +41,10 @@ describe("PrestamoService", () => {
 
   const adminContext = { rol: "admin" as const, sub: 0 };
   const socioContext = { rol: "socio" as const, sub: 1 };
-  const fechaOtorgado = new Date("2026-08-12T00:00:00Z");
+  // Fecha relativa a hoy (medianoche UTC) para no depender de una fecha absoluta
+  // (la validación ±30 días) y para que las diferencias de vencimiento sean exactas.
+  const fechaOtorgado = new Date();
+  fechaOtorgado.setUTCHours(0, 0, 0, 0);
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
     return {
@@ -116,7 +119,9 @@ describe("PrestamoService", () => {
   function setupFeliz() {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture());
-    (configRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (configRepo.findOne as jest.Mock).mockResolvedValue(
+      configFixture({ permitirCambioFechaPrestamo: true }),
+    );
     (cuotaRepo.find as jest.Mock).mockResolvedValue([]);
     (cuotaRepo.count as jest.Mock).mockResolvedValue(0);
     prestamoRepo.create.mockImplementation((e: Partial<Prestamo>) => e as Prestamo);
@@ -156,13 +161,85 @@ describe("PrestamoService", () => {
         ForbiddenException,
       );
     });
+
+    it("rechaza con 409 si el préstamo excede el tope de deuda del cliente", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture({ topeMaximoDeuda: 100 }));
+      (configRepo.findOne as jest.Mock).mockResolvedValue(
+        configFixture({ permitirCambioFechaPrestamo: true }),
+      );
+      (cuotaRepo.find as jest.Mock).mockResolvedValue([{ valorEsperado: 400 }, { valorEsperado: 400 }]);
+
+      await expect(service.crear(1, baseInput, adminContext, fechaOtorgado)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it("permite el préstamo si el valor + saldo vigente no excede el tope de deuda del cliente", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture({ topeMaximoDeuda: 10000 }));
+      (configRepo.findOne as jest.Mock).mockResolvedValue(
+        configFixture({ permitirCambioFechaPrestamo: true }),
+      );
+      (cuotaRepo.find as jest.Mock).mockResolvedValue([]);
+      (cuotaRepo.count as jest.Mock).mockResolvedValue(0);
+      prestamoRepo.create.mockImplementation((e: Partial<Prestamo>) => e as Prestamo);
+
+      const result = await service.crear(1, baseInput, adminContext, fechaOtorgado);
+      expect(result.valor).toBe(1000);
+    });
+
+    it("rechaza con 400 si la fecha del préstamo difiere más de 30 días de hoy", async () => {
+      setupFeliz();
+      const fechaLejana = new Date();
+      fechaLejana.setDate(fechaLejana.getDate() + 60);
+
+      await expect(service.crear(1, baseInput, adminContext, fechaLejana)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("rechaza con 400 si la fecha difiere de hoy y permitir_cambio_fecha_prestamo es false", async () => {
+      setupFeliz();
+      (configRepo.findOne as jest.Mock).mockResolvedValue(
+        configFixture({ permitirCambioFechaPrestamo: false }),
+      );
+      const fechaDiferente = new Date();
+      fechaDiferente.setDate(fechaDiferente.getDate() + 1);
+
+      await expect(service.crear(1, baseInput, adminContext, fechaDiferente)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("persiste el fiador cuando se envía", async () => {
+      setupFeliz();
+      const inputConFiador = {
+        ...baseInput,
+        fiadorNombre: "Ana",
+        fiadorApellido: "López",
+        fiadorDocumento: "12345",
+        fiadorTelefono: "+59170000000",
+      };
+
+      await service.crear(1, inputConFiador, adminContext, fechaOtorgado);
+
+      expect(prestamoRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fiadorNombre: "Ana",
+          fiadorApellido: "López",
+          fiadorDocumento: "12345",
+          fiadorTelefono: "+59170000000",
+        }),
+      );
+    });
   });
 
   describe("cupo", () => {
     it("rechaza con 409 si manejo_cupo_activo y valor + saldo vigente exceden el cupo", async () => {
       setupFeliz();
       (configRepo.findOne as jest.Mock).mockResolvedValue(
-        configFixture({ manejoCupoActivo: true, cupoDefault: 1200 }),
+        configFixture({ manejoCupoActivo: true, cupoDefault: 1200, permitirCambioFechaPrestamo: true }),
       );
       (cuotaRepo.find as jest.Mock).mockResolvedValue([
         { valorEsperado: 500 },
@@ -177,7 +254,7 @@ describe("PrestamoService", () => {
     it("permite el préstamo si valor + saldo vigente están dentro del cupo", async () => {
       setupFeliz();
       (configRepo.findOne as jest.Mock).mockResolvedValue(
-        configFixture({ manejoCupoActivo: true, cupoDefault: 1500 }),
+        configFixture({ manejoCupoActivo: true, cupoDefault: 1500, permitirCambioFechaPrestamo: true }),
       );
       (cuotaRepo.find as jest.Mock).mockResolvedValue([
         { valorEsperado: 100 },
@@ -192,7 +269,7 @@ describe("PrestamoService", () => {
 
     it("no aplica cupo si manejo_cupo_activo es false", async () => {
       setupFeliz();
-      (configRepo.findOne as jest.Mock).mockResolvedValue(configFixture({ manejoCupoActivo: false }));
+      (configRepo.findOne as jest.Mock).mockResolvedValue(configFixture({ manejoCupoActivo: false, permitirCambioFechaPrestamo: true }));
 
       const result = await service.crear(1, { ...baseInput, valor: 999999 }, adminContext, fechaOtorgado);
 
@@ -314,7 +391,7 @@ describe("PrestamoService", () => {
       setupFeliz();
       const cliente = clienteFixture({ colorRiesgo: "azul" });
       (clienteRepo.findOne as jest.Mock).mockResolvedValue(cliente);
-      (configRepo.findOne as jest.Mock).mockResolvedValue(configFixture({ cuotasAtrasoUmbral: 2 }));
+      (configRepo.findOne as jest.Mock).mockResolvedValue(configFixture({ cuotasAtrasoUmbral: 2, permitirCambioFechaPrestamo: true }));
       (cuotaRepo.count as jest.Mock).mockResolvedValue(3);
 
       await service.crear(1, baseInput, adminContext, fechaOtorgado);
