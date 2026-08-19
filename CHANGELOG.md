@@ -4,6 +4,24 @@ Formato basado en [Conventional Commits](https://www.conventionalcommits.org/) y
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-19
+
+### Added
+
+- **Fase 2 — Reportes y liquidaciones (Épica 4)**:
+  - **HU-20 — Generación de liquidación de ruta**: `POST /rutas/:id/liquidaciones` (gated por `generar_reporte`) que persiste un snapshot inmutable en `liquidaciones` (PRD 4.2:317, 17 campos) según el `periodo_liquidacion` configurado (diario/semanal/quincenal/mensual, agregado a `ruta_config` con default `diario`), con caja anterior/actual, estimado a cobrar, inyecciones activas, cobrado/prestado del periodo y del día, gastos aprobados, suma de cartera (cuotas pendientes/atrasadas − abonos) y comisión calculada sobre el total cobrado del periodo. Una por periodo (409 si ya existe la del vigente, respaldado por `Unique(ruta, periodo, fecha)`), transaccional y sin modificar la caja.
+  - **HU-22/HU-50 — Historial de liquidaciones consultable y exportable**: `GET /rutas/:id/liquidaciones` (gated por `ver_reportes`) lista el historial de liquidaciones de la ruta (la liquidación diaria es el reporte diario); `GET /rutas/:id/liquidaciones/:id/export` (gated por `descargar_reporte`) descarga un `.xlsx` real generado con `exceljs` (nueva dependencia, MIT) con los campos de negocio de la liquidación.
+  - **HU-51 — Detalle/resumen de ruta**: `GET /rutas/:id/resumen` (gated por `ver_reportes`) consolida el estado de la ruta (caja actual/anterior, fecha de última liquidación, gastos, cobrado/prestado del periodo, inyecciones, cartera vigente, préstamos activos, comisión y clientes), con visibilidad de campos sensibles controlada por los flags de `ruta_config` (`mostrarCaja`, `mostrarPrestamos`, `ocultarCartera`, `mostrarCobroEstimado`, `mostrarFechaUltimaLiquidada`) vía la función pura `aplicarVisibilidad` (`src/domain/resumen-ruta.ts`).
+  - **Refactor**: `LiquidacionesService.calcularTotales(rutaId, inicio, fin, manager?)` centraliza las agregaciones (manager opcional) reutilizadas por la generación de liquidación y por el resumen de ruta, evitando duplicación.
+
+### Tests
+
+- Suite unitaria ampliada (42 suites / 386 tests) y e2e (27 suites / 209 tests sobre Postgres real), incluyendo e2e nuevos de liquidación (6), historial/exportación a Excel (5) y detalle de ruta (4). Dependencia nueva `exceljs` (^4.4.0).
+
+### Docs
+
+- Archivos de tarea en `docs/ai/tasks/` (liquidacion-ruta, historial-liquidaciones, detalle-ruta) y backlog ampliado (pagos huérfanos en liquidación, `ver_cartera` del cobrador).
+
 ## [0.4.0] - 2026-08-19
 
 ### Added
