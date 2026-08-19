@@ -15,6 +15,7 @@ import { CajaService } from "./caja.service";
 import { GastosService } from "./gastos.service";
 import { RutasNotasService } from "./rutas-notas.service";
 import { LiquidacionesService } from "./liquidaciones.service";
+import { RutasResumenService } from "./rutas-resumen.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -27,6 +28,7 @@ describe("RutasController", () => {
   let gastosService: GastosService;
   let rutasNotasService: RutasNotasService;
   let liquidacionesService: LiquidacionesService;
+  let rutasResumenService: RutasResumenService;
 
   const mockService = {
     create: jest.fn(),
@@ -69,6 +71,10 @@ describe("RutasController", () => {
     exportar: jest.fn(),
   };
 
+  const mockRutasResumenService = {
+    obtener: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -92,6 +98,7 @@ describe("RutasController", () => {
         { provide: GastosService, useValue: mockGastosService },
         { provide: RutasNotasService, useValue: mockRutasNotasService },
         { provide: LiquidacionesService, useValue: mockLiquidacionesService },
+        { provide: RutasResumenService, useValue: mockRutasResumenService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -110,6 +117,7 @@ describe("RutasController", () => {
     gastosService = module.get(GastosService);
     rutasNotasService = module.get(RutasNotasService);
     liquidacionesService = module.get(LiquidacionesService);
+    rutasResumenService = module.get(RutasResumenService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -358,5 +366,16 @@ describe("RutasController", () => {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     expect(res.send).toHaveBeenCalled();
+  });
+
+  it("delega al obtener el resumen de la ruta", async () => {
+    (rutasResumenService.obtener as jest.Mock).mockResolvedValue({ rutaId: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.resumenRuta(1, req);
+
+    expect(rutasResumenService.obtener).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
   });
 });

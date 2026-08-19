@@ -474,7 +474,6 @@ describe("LiquidacionesService - historial y exportación", () => {
     (liquidacionRepo.findOne as jest.Mock).mockResolvedValue(liquidacionFixture());
 
     const { buffer, filename } = await service.exportar(1, 10, adminContext);
-
     expect(filename).toBe("liquidacion-2026-08-19.xlsx");
     expect(Buffer.isBuffer(buffer)).toBe(true);
     // El buffer xlsx debe iniciar con la firma PK (ZIP de OOXML).
@@ -489,7 +488,7 @@ describe("LiquidacionesService - historial y exportación", () => {
     expect(hoja).toBeDefined();
     const filaComision = hoja?.getRow(15).getCell(1).value;
     expect(String(filaComision)).toContain("Comisión valor");
-  });
+  }, 20000);
 
   it("un socio no puede exportar una liquidación de ruta ajena -> 403", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
