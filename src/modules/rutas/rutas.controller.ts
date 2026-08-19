@@ -39,6 +39,7 @@ import { RutasNotasService } from "./rutas-notas.service";
 import { GenerarLiquidacionDto } from "./dto/generar-liquidacion.dto";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
+import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 
 @Controller("rutas")
 export class RutasController {
@@ -51,6 +52,7 @@ export class RutasController {
     private readonly rutasNotasService: RutasNotasService,
     private readonly liquidacionesService: LiquidacionesService,
     private readonly rutasResumenService: RutasResumenService,
+    private readonly rutaOptimizacionService: RutaOptimizacionService,
   ) {}
 
   @Post()
@@ -337,6 +339,32 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasResumenService.obtener(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post(":id/dia/trayectos")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  generarTrayectos(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutaOptimizacionService.generar(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/dia/trayectos")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  consultarTrayectos(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutaOptimizacionService.consultar(id, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

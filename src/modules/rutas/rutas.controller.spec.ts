@@ -16,6 +16,7 @@ import { GastosService } from "./gastos.service";
 import { RutasNotasService } from "./rutas-notas.service";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
+import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -29,6 +30,7 @@ describe("RutasController", () => {
   let rutasNotasService: RutasNotasService;
   let liquidacionesService: LiquidacionesService;
   let rutasResumenService: RutasResumenService;
+  let rutaOptimizacionService: RutaOptimizacionService;
 
   const mockService = {
     create: jest.fn(),
@@ -75,6 +77,11 @@ describe("RutasController", () => {
     obtener: jest.fn(),
   };
 
+  const mockRutaOptimizacionService = {
+    generar: jest.fn(),
+    consultar: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -99,6 +106,7 @@ describe("RutasController", () => {
         { provide: RutasNotasService, useValue: mockRutasNotasService },
         { provide: LiquidacionesService, useValue: mockLiquidacionesService },
         { provide: RutasResumenService, useValue: mockRutasResumenService },
+        { provide: RutaOptimizacionService, useValue: mockRutaOptimizacionService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -118,6 +126,7 @@ describe("RutasController", () => {
     rutasNotasService = module.get(RutasNotasService);
     liquidacionesService = module.get(LiquidacionesService);
     rutasResumenService = module.get(RutasResumenService);
+    rutaOptimizacionService = module.get(RutaOptimizacionService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -377,5 +386,27 @@ describe("RutasController", () => {
     await controller.resumenRuta(1, req);
 
     expect(rutasResumenService.obtener).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al generar los trayectos del día", async () => {
+    (rutaOptimizacionService.generar as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.generarTrayectos(1, req);
+
+    expect(rutaOptimizacionService.generar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al consultar los trayectos del día", async () => {
+    (rutaOptimizacionService.consultar as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.consultarTrayectos(1, req);
+
+    expect(rutaOptimizacionService.consultar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
   });
 });
