@@ -8,6 +8,7 @@ import {
 } from "typeorm";
 import { numericTransformer } from "../../common/numeric-transformer";
 import { Ruta } from "./ruta.entity";
+import { PeriodoLiquidacion } from "../../domain/liquidacion";
 
 export const DIAS_NO_LABORABLES = ["solo_domingos", "domingos_y_feriados"] as const;
 export type DiasNoLaborables = (typeof DIAS_NO_LABORABLES)[number];
@@ -104,4 +105,7 @@ export class RutaConfig {
 
   @Column({ name: "dias_no_laborables", type: "varchar", default: "solo_domingos" })
   diasNoLaborables!: DiasNoLaborables;
+
+  @Column({ name: "periodo_liquidacion", type: "varchar", default: "diario" })
+  periodoLiquidacion!: PeriodoLiquidacion;
 }

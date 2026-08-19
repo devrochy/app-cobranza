@@ -35,6 +35,8 @@ import { RutasService } from "./rutas.service";
 import { RegistrarGastoDto } from "./dto/registrar-gasto.dto";
 import { CrearNotaDto } from "./dto/crear-nota.dto";
 import { RutasNotasService } from "./rutas-notas.service";
+import { GenerarLiquidacionDto } from "./dto/generar-liquidacion.dto";
+import { LiquidacionesService } from "./liquidaciones.service";
 
 @Controller("rutas")
 export class RutasController {
@@ -45,6 +47,7 @@ export class RutasController {
     private readonly cajaService: CajaService,
     private readonly gastosService: GastosService,
     private readonly rutasNotasService: RutasNotasService,
+    private readonly liquidacionesService: LiquidacionesService,
   ) {}
 
   @Post()
@@ -273,6 +276,20 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasNotasService.eliminar(id, notaId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post(":id/liquidaciones")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  generarLiquidacion(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: GenerarLiquidacionDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.liquidacionesService.generar(id, dto, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
