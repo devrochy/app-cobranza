@@ -20,6 +20,7 @@ import { RutaNota } from "./ruta-nota.entity";
 import { RutasNotasService } from "./rutas-notas.service";
 import { Liquidacion } from "./liquidacion.entity";
 import { LiquidacionesService } from "./liquidaciones.service";
+import { RutasResumenService } from "./rutas-resumen.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -31,7 +32,7 @@ import { RutasService } from "./rutas.service";
     SociosModule,
   ],
   controllers: [RutasController],
-  providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService, RutasNotasService, LiquidacionesService],
+  providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService, RutasNotasService, LiquidacionesService, RutasResumenService],
   exports: [RutasService, CajaService],
 })
 export class RutasModule {}
