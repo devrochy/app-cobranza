@@ -17,12 +17,13 @@ export class Pago {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @ManyToOne(() => Cuota, { onDelete: "RESTRICT", nullable: false })
+  // HU-48: nullable para conservar trazabilidad del pago si se elimina su cuota.
+  @ManyToOne(() => Cuota, { onDelete: "SET NULL", nullable: true })
   @JoinColumn({ name: "cuota_id" })
-  cuota!: Cuota;
+  cuota!: Cuota | null;
 
   @RelationId((pago: Pago) => pago.cuota)
-  cuotaId!: number;
+  cuotaId!: number | null;
 
   @ManyToOne(() => Cliente, { onDelete: "RESTRICT", nullable: false })
   @JoinColumn({ name: "cliente_id" })

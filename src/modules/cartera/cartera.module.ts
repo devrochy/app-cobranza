@@ -22,17 +22,19 @@ import { PromesaPago } from "./promesa-pago.entity";
 import { VisitasService } from "./visitas.service";
 import { ClienteEvidencia } from "./cliente-evidencia.entity";
 import { CambioClientePendiente } from "./cambio-cliente-pendiente.entity";
+import { AuditoriaCartera } from "./auditoria-cartera.entity";
+import { CuotaService } from "./cuota.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, ClienteEvidencia, CambioClientePendiente, Ruta, RutaConfig]),
+    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, ClienteEvidencia, CambioClientePendiente, AuditoriaCartera, Ruta, RutaConfig]),
     SecurityModule,
     JwtModule.register({}),
     SociosModule,
     RutasModule,
   ],
   controllers: [CarteraController],
-  providers: [ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService],
+  providers: [ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService],
   exports: [TypeOrmModule],
 })
 export class CarteraModule {}
