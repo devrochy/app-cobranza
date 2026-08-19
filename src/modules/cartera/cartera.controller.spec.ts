@@ -15,6 +15,7 @@ import { PagosService } from "./pagos.service";
 import { AbonosService } from "./abonos.service";
 import { VisitasService } from "./visitas.service";
 import { CuotaService } from "./cuota.service";
+import { ClienteTarjetaService } from "./cliente-tarjeta.service";
 
 describe("CarteraController", () => {
   let controller: CarteraController;
@@ -24,6 +25,7 @@ describe("CarteraController", () => {
   let abonosService: AbonosService;
   let visitasService: VisitasService;
   let cuotaService: CuotaService;
+  let clienteTarjetaService: ClienteTarjetaService;
 
   const mockClienteService = {
     crear: jest.fn(),
@@ -53,6 +55,10 @@ describe("CarteraController", () => {
     eliminarCuota: jest.fn(),
   };
 
+  const mockClienteTarjetaService = {
+    obtener: jest.fn(),
+  };
+
   const baseDto = {
     nombre: "Juan",
     apellido: "Pérez",
@@ -72,6 +78,7 @@ describe("CarteraController", () => {
         { provide: AbonosService, useValue: mockAbonosService },
         { provide: VisitasService, useValue: mockVisitasService },
         { provide: CuotaService, useValue: mockCuotaService },
+        { provide: ClienteTarjetaService, useValue: mockClienteTarjetaService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -89,6 +96,7 @@ describe("CarteraController", () => {
     abonosService = module.get(AbonosService);
     visitasService = module.get(VisitasService);
     cuotaService = module.get(CuotaService);
+    clienteTarjetaService = module.get(ClienteTarjetaService);
   });
 
   it("delega al crear un cliente", async () => {
@@ -250,5 +258,16 @@ describe("CarteraController", () => {
       { password: "s3creta", motivo: "error de captura" },
       { rol: "admin", sub: 1 },
     );
+  });
+
+  it("delega al obtener la tarjeta del cliente", async () => {
+    (clienteTarjetaService.obtener as jest.Mock).mockResolvedValue({ clienteId: 10 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.tarjetaCliente(1, 10, req);
+
+    expect(clienteTarjetaService.obtener).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
   });
 });
