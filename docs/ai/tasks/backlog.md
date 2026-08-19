@@ -251,3 +251,14 @@ Formato de cada entrada:
 - Fecha: 2026-08-18
 - Descripción: `decidirPropuesta` valida `cambio.estado !== "pendiente"` fuera de la transacción y sin bloqueo; dos decisiones concurrentes sobre la misma propuesta podrían aprobar/rechazar dos veces. Mitigar con UPDATE condicional `WHERE estado='pendiente'` o versión.
 - Prioridad sugerida: media
+## Visita queda como "pago" tras eliminar el abono (HU-48)
+- Detectado en: docs/ai/tasks/gestion-cuotas-abonos.md (revisión code-reviewer)
+- Fecha: 2026-08-18
+- Descripción: `AbonosService.eliminarAbono` elimina el abono físicamente (con auditoría y reversión de caja) pero no toca la `visita` asociada (via `abonos.visita_id`), que conserva `resultado: "pago"` y `valorPagado`. Un reporte de visitas mostraría un pago que ya no existe. Decidir si la visita debe reflejar la reversión o documentar que conserva el dato histórico.
+- Prioridad sugerida: baja
+
+## Pago conserva valor histórico tras editar cuota pagada (HU-48)
+- Detectado en: docs/ai/tasks/gestion-cuotas-abonos.md (revisión code-reviewer)
+- Fecha: 2026-08-18
+- Descripción: resuelto en la implementación — al editar una cuota pagada, `CuotaService.editarCuota` actualiza `pago.valor` junto con el ajuste de caja, manteniendo la coherencia caja/pago. Queda documentado como decisión: el pago refleja el valor corregido, no el histórico.
+- Prioridad sugerida: n/a (resuelto)
