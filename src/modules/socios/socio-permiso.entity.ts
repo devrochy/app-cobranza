@@ -13,6 +13,7 @@ export const SOCIO_PERMISOS = [
   "borrar_clientes",
   "eliminar_rutas",
   "actualizar_cliente",
+  "anotar_notas_ruta",
   "eliminar_prestamos",
   "borrar_ultima_cuota",
   "configurar_ruta",

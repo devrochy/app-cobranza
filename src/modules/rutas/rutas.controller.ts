@@ -33,6 +33,8 @@ import { CajaService } from "./caja.service";
 import { GastosService } from "./gastos.service";
 import { RutasService } from "./rutas.service";
 import { RegistrarGastoDto } from "./dto/registrar-gasto.dto";
+import { CrearNotaDto } from "./dto/crear-nota.dto";
+import { RutasNotasService } from "./rutas-notas.service";
 
 @Controller("rutas")
 export class RutasController {
@@ -42,6 +44,7 @@ export class RutasController {
     private readonly inyeccionesService: InyeccionesService,
     private readonly cajaService: CajaService,
     private readonly gastosService: GastosService,
+    private readonly rutasNotasService: RutasNotasService,
   ) {}
 
   @Post()
@@ -214,6 +217,62 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.gastosService.eliminar(id, gastoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post(":id/notas")
+  @PermisoRequerido("anotar_notas_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  crearNota(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: CrearNotaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasNotasService.crear(id, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/notas")
+  @PermisoRequerido("anotar_notas_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarNotas(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasNotasService.listar(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch(":id/notas/:notaId")
+  @PermisoRequerido("anotar_notas_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  editarNota(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("notaId", ParseIntPipe) notaId: number,
+    @Body() dto: CrearNotaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasNotasService.editar(id, notaId, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Delete(":id/notas/:notaId")
+  @PermisoRequerido("anotar_notas_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  eliminarNota(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("notaId", ParseIntPipe) notaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasNotasService.eliminar(id, notaId, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
