@@ -25,6 +25,8 @@ describe("CarteraController", () => {
 
   const mockClienteService = {
     crear: jest.fn(),
+    actualizar: jest.fn(),
+    decidirPropuesta: jest.fn(),
   };
 
   const mockPrestamoService = {
@@ -153,5 +155,38 @@ describe("CarteraController", () => {
     await controller.registrarVisita(1, dto, req);
 
     expect(visitasService.registrar).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al actualizar un cliente", async () => {
+    (clienteService.actualizar as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { nombre: "Nuevo" };
+
+    await controller.actualizarCliente(1, 5, dto, req);
+
+    expect(clienteService.actualizar).toHaveBeenCalledWith(1, 5, dto, {
+      rol: "admin",
+      sub: 1,
+    });
+  });
+
+  it("delega al decidir una propuesta de cambio de cliente", async () => {
+    (clienteService.decidirPropuesta as jest.Mock).mockResolvedValue({ id: 1, estado: "aprobado" });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { decision: "aprobar" } as const;
+
+    await controller.decidirCambioCliente(1, 5, dto, req);
+
+    expect(clienteService.decidirPropuesta).toHaveBeenCalledWith(
+      1,
+      5,
+      "aprobar",
+      { rol: "admin", sub: 1 },
+      undefined,
+    );
   });
 });

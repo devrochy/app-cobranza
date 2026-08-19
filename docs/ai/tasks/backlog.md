@@ -245,3 +245,9 @@ Formato de cada entrada:
 - Fecha: 2026-08-18
 - Descripción: sin e2e para 403 socio sin configurar_ruta en clientes/préstamos, flag fecha false → 400, foto documento obligatoria → 400, mimetype inválido → 400. Cubiertos en unitarios; agregar e2e si se refuerza.
 - Prioridad sugerida: baja
+
+## Race condition TOCTOU en decidirPropuesta (HU-47)
+- Detectado en: docs/ai/tasks/actualizar-cliente-aprobacion.md (revisión code-reviewer)
+- Fecha: 2026-08-18
+- Descripción: `decidirPropuesta` valida `cambio.estado !== "pendiente"` fuera de la transacción y sin bloqueo; dos decisiones concurrentes sobre la misma propuesta podrían aprobar/rechazar dos veces. Mitigar con UPDATE condicional `WHERE estado='pendiente'` o versión.
+- Prioridad sugerida: media
