@@ -14,6 +14,7 @@ import { PrestamoService } from "./prestamo.service";
 import { PagosService } from "./pagos.service";
 import { AbonosService } from "./abonos.service";
 import { VisitasService } from "./visitas.service";
+import { CuotaService } from "./cuota.service";
 
 describe("CarteraController", () => {
   let controller: CarteraController;
@@ -22,6 +23,7 @@ describe("CarteraController", () => {
   let pagosService: PagosService;
   let abonosService: AbonosService;
   let visitasService: VisitasService;
+  let cuotaService: CuotaService;
 
   const mockClienteService = {
     crear: jest.fn(),
@@ -39,10 +41,16 @@ describe("CarteraController", () => {
 
   const mockAbonosService = {
     registrarAbono: jest.fn(),
+    eliminarAbono: jest.fn(),
   };
 
   const mockVisitasService = {
     registrar: jest.fn(),
+  };
+
+  const mockCuotaService = {
+    editarCuota: jest.fn(),
+    eliminarCuota: jest.fn(),
   };
 
   const baseDto = {
@@ -63,6 +71,7 @@ describe("CarteraController", () => {
         { provide: PagosService, useValue: mockPagosService },
         { provide: AbonosService, useValue: mockAbonosService },
         { provide: VisitasService, useValue: mockVisitasService },
+        { provide: CuotaService, useValue: mockCuotaService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -79,6 +88,7 @@ describe("CarteraController", () => {
     pagosService = module.get(PagosService);
     abonosService = module.get(AbonosService);
     visitasService = module.get(VisitasService);
+    cuotaService = module.get(CuotaService);
   });
 
   it("delega al crear un cliente", async () => {
@@ -187,6 +197,58 @@ describe("CarteraController", () => {
       "aprobar",
       { rol: "admin", sub: 1 },
       undefined,
+    );
+  });
+
+  it("delega al editar una cuota con re-autenticación", async () => {
+    (cuotaService.editarCuota as jest.Mock).mockResolvedValue({ id: 10 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { valorEsperado: 100, password: "s3creta", motivo: "corrección" };
+
+    await controller.editarCuota(1, 10, dto, req);
+
+    expect(cuotaService.editarCuota).toHaveBeenCalledWith(
+      1,
+      10,
+      { valorEsperado: 100, fechaVencimiento: undefined },
+      { password: "s3creta", motivo: "corrección" },
+      { rol: "admin", sub: 1 },
+    );
+  });
+
+  it("delega al eliminar una cuota con re-autenticación", async () => {
+    (cuotaService.eliminarCuota as jest.Mock).mockResolvedValue({ id: 10 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { password: "s3creta", motivo: "error de captura" };
+
+    await controller.eliminarCuota(1, 10, dto, req);
+
+    expect(cuotaService.eliminarCuota).toHaveBeenCalledWith(
+      1,
+      10,
+      { password: "s3creta", motivo: "error de captura" },
+      { rol: "admin", sub: 1 },
+    );
+  });
+
+  it("delega al eliminar un abono con re-autenticación", async () => {
+    (abonosService.eliminarAbono as jest.Mock).mockResolvedValue({ id: 30 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { password: "s3creta", motivo: "error de captura" };
+
+    await controller.eliminarAbono(1, 30, dto, req);
+
+    expect(abonosService.eliminarAbono).toHaveBeenCalledWith(
+      1,
+      30,
+      { password: "s3creta", motivo: "error de captura" },
+      { rol: "admin", sub: 1 },
     );
   });
 });
