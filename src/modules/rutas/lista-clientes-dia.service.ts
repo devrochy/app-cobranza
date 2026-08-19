@@ -21,6 +21,16 @@ export interface ClienteDiaPublic {
   color: ColorListaDelDia;
 }
 
+export interface MarkerClientePublic {
+  clienteId: number;
+  nombre: string;
+  tipo: "negocio" | "domicilio";
+  latitud: number;
+  longitud: number;
+  color: ColorListaDelDia;
+  enTrayecto: boolean;
+}
+
 @Injectable()
 export class ListaClientesDelDiaService {
   constructor(
@@ -66,6 +76,73 @@ export class ListaClientesDelDiaService {
         c.esNuevo,
         pagaronHoy.has(c.clienteId),
       ),
+    }));
+  }
+
+  async obtenerMapa(rutaId: number, requester: RequesterListaDiaContext): Promise<MarkerClientePublic[]> {
+    const clientes = await this.obtener(rutaId, requester);
+    const coords = await this.coordenadasDeClientes(rutaId);
+
+    const markers: MarkerClientePublic[] = [];
+    for (const cliente of clientes) {
+      const c = coords.find((x) => x.clienteId === cliente.clienteId);
+      if (!c) continue;
+      markers.push({
+        clienteId: cliente.clienteId,
+        nombre: cliente.nombre,
+        tipo: "negocio",
+        latitud: c.negocio.latitud,
+        longitud: c.negocio.longitud,
+        color: cliente.color,
+        enTrayecto: cliente.enTrayecto,
+      });
+      if (c.domicilio) {
+        markers.push({
+          clienteId: cliente.clienteId,
+          nombre: cliente.nombre,
+          tipo: "domicilio",
+          latitud: c.domicilio.latitud,
+          longitud: c.domicilio.longitud,
+          color: cliente.color,
+          enTrayecto: cliente.enTrayecto,
+        });
+      }
+    }
+    return markers;
+  }
+
+  private async coordenadasDeClientes(
+    rutaId: number,
+  ): Promise<Array<{
+    clienteId: number;
+    negocio: { latitud: number; longitud: number };
+    domicilio: { latitud: number; longitud: number } | null;
+  }>> {
+    const filas = await this.logRepo.manager
+      .createQueryBuilder()
+      .select("c.id", "clienteId")
+      .addSelect("ST_Y(c.ubicacion::geometry)", "latNegocio")
+      .addSelect("ST_X(c.ubicacion::geometry)", "lngNegocio")
+      .addSelect("ST_Y(c.ubicacion_domicilio::geometry)", "latDomicilio")
+      .addSelect("ST_X(c.ubicacion_domicilio::geometry)", "lngDomicilio")
+      .from("clientes", "c")
+      .where("c.ruta_id = :rutaId", { rutaId })
+      .andWhere("c.estatus = 'activo'")
+      .getRawMany<{
+        clienteId: string;
+        latNegocio: string;
+        lngNegocio: string;
+        latDomicilio: string | null;
+        lngDomicilio: string | null;
+      }>();
+
+    return filas.map((f) => ({
+      clienteId: Number(f.clienteId),
+      negocio: { latitud: Number(f.latNegocio), longitud: Number(f.lngNegocio) },
+      domicilio:
+        f.latDomicilio !== null && f.lngDomicilio !== null
+          ? { latitud: Number(f.latDomicilio), longitud: Number(f.lngDomicilio) }
+          : null,
     }));
   }
 
