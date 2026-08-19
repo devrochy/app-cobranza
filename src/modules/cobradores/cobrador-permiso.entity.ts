@@ -15,6 +15,7 @@ export const COBRADOR_PERMISOS = [
   "registrar_abono",
   "registrar_gasto",
   "registrar_no_pago",
+  "actualizar_cliente",
   "eliminar_prestamo",
   "eliminar_pago",
   "eliminar_abono",
