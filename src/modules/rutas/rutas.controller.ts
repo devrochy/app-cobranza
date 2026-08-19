@@ -9,12 +9,13 @@ import {
   Post,
   Put,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { evidenciasMulterOptions } from "./evidencia-upload";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -293,5 +294,36 @@ export class RutasController {
       rol: req.user.rol,
       sub: req.user.sub,
     });
+  }
+
+  @Get(":id/liquidaciones")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarLiquidaciones(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.liquidacionesService.listar(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/liquidaciones/:liquidacionId/export")
+  @PermisoRequerido("descargar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  async exportarLiquidacion(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("liquidacionId", ParseIntPipe) liquidacionId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.liquidacionesService.exportar(id, liquidacionId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 }

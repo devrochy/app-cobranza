@@ -46,6 +46,11 @@ export interface LiquidacionPublic {
   createdAt: Date;
 }
 
+export interface LiquidacionExport {
+  buffer: Buffer;
+  filename: string;
+}
+
 @Injectable()
 export class LiquidacionesService {
   constructor(
@@ -134,6 +139,72 @@ export class LiquidacionesService {
     });
 
     return this.toPublic(saved);
+  }
+
+  async listar(
+    rutaId: number,
+    requester: RequesterLiquidacionContext,
+  ): Promise<LiquidacionPublic[]> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const filas = await this.liquidacionRepo.find({
+      where: { ruta: { id: rutaId } },
+      order: { fecha: "DESC" },
+    });
+    return filas.map((l) => this.toPublic(l));
+  }
+
+  async exportar(
+    rutaId: number,
+    liquidacionId: number,
+    requester: RequesterLiquidacionContext,
+  ): Promise<LiquidacionExport> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const l = await this.liquidacionRepo.findOne({
+      where: { id: liquidacionId, ruta: { id: rutaId } },
+    });
+    if (!l) {
+      throw new NotFoundException("La liquidación no existe en esta ruta");
+    }
+
+    const ExcelJS = await import("exceljs");
+    const workbook = new ExcelJS.Workbook();
+    const hoja = workbook.addWorksheet("Liquidación");
+    hoja.columns = [
+      { header: "Campo", key: "campo", width: 30 },
+      { header: "Valor", key: "valor", width: 30 },
+    ];
+    const filas: Array<[string, string | number]> = [
+      ["Ruta", ruta.nombre],
+      ["Fecha", l.fecha],
+      ["Periodo", l.periodo],
+      ["Caja anterior", l.cajaAnterior],
+      ["Caja actual", l.cajaActual],
+      ["Estimado a cobrar", l.estimadoACobrar],
+      ["Total inyección", l.totalInyeccion],
+      ["Total cobrado periodo", l.totalCobradoPeriodo],
+      ["Total cobrado día", l.totalCobradoDia],
+      ["Total prestado", l.totalPrestado],
+      ["Total gastos", l.totalGastos],
+      ["Suma cartera", l.sumaCartera],
+      ["Comisión %", l.comisionPorcentaje],
+      ["Comisión valor", l.comisionValor],
+      ["Comentario", l.comentario ?? ""],
+    ];
+    filas.forEach(([campo, valor]) => hoja.addRow({ campo, valor }));
+    hoja.getRow(1).font = { bold: true };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return { buffer: Buffer.from(buffer), filename: `liquidacion-${l.fecha}.xlsx` };
   }
 
   private estaEnVentana(fecha: string, inicio: Date, fin: Date): boolean {
