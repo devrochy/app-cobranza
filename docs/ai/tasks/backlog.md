@@ -267,3 +267,8 @@ Formato de cada entrada:
 - Fecha: 2026-08-19
 - Descripción: `sumaPagos` de la liquidación suma solo pagos con `cuota_id` (vía cuota→préstamo→ruta). Los pagos con `cuota_id` NULL (huérfanos tras HU-48 al eliminar una cuota pagada) no son atribuibles a la ruta y quedan fuera de `total_cobrado_periodo`/`total_cobrado_dia`. Evaluar cómo atribuirlos (p. ej. persistir `prestamo_id` en `pagos` al crear).
 - Prioridad sugerida: media
+## ver_cartera en catálogo del cobrador vs. ver_reportes en resumen de ruta (HU-51)
+- Detectado en: docs/ai/tasks/detalle-ruta.md (implementación HU-51)
+- Fecha: 2026-08-19
+- Descripción: `ver_cartera` solo existe en `COBRADOR_PERMISOS` (PRD:264); HU-51 actores son Admin/Socio y el endpoint `GET /rutas/:id/resumen` queda gated por `ver_reportes`. Cuando exista login de cobrador, evaluar si `ver_cartera` debe controlar la visibilidad restringida de cartera para el cobrador.
+- Prioridad sugerida: baja (hasta login de cobrador)
