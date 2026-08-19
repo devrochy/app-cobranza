@@ -7,11 +7,13 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { MetodoPago } from "../../domain/metodo-pago";
+import { ReautenticacionService } from "../security/reautenticacion.service";
 import { Ruta } from "../rutas/ruta.entity";
 import { CajaService, TipoMovimientoCaja } from "../rutas/caja.service";
 import { Cuota } from "./cuota.entity";
 import { Prestamo } from "./prestamo.entity";
 import { Abono } from "./abono.entity";
+import { AuditoriaCartera } from "./auditoria-cartera.entity";
 import { RolUsuario } from "../auth/auth.service";
 
 export interface RegistrarAbonoInput {
@@ -28,6 +30,11 @@ export interface RegistrarAbonoOptions {
 export interface RequesterAbonoContext {
   rol: RolUsuario;
   sub: number;
+}
+
+export interface OperacionAbonoContext {
+  password: string;
+  motivo: string;
 }
 
 export interface AbonoPublic {
@@ -50,8 +57,11 @@ export class AbonosService {
     private readonly cuotaRepo: Repository<Cuota>,
     @InjectRepository(Abono)
     private readonly abonoRepo: Repository<Abono>,
+    @InjectRepository(AuditoriaCartera)
+    private readonly auditoriaRepo: Repository<AuditoriaCartera>,
     private readonly dataSource: DataSource,
     private readonly cajaService: CajaService,
+    private readonly reautenticacion: ReautenticacionService,
   ) {}
 
   async registrarAbono(
@@ -117,6 +127,57 @@ export class AbonosService {
       : await this.dataSource.transaction(ejecutar);
 
     return this.toPublic(abono, clienteId);
+  }
+
+  async eliminarAbono(
+    rutaId: number,
+    abonoId: number,
+    ctx: OperacionAbonoContext,
+    requester: RequesterAbonoContext,
+  ): Promise<{ id: number }> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+    await this.reautenticacion.validar(requester, ctx.password);
+    if (!ctx.motivo?.trim()) {
+      throw new BadRequestException("El motivo es obligatorio");
+    }
+
+    const abono = await this.abonoRepo.findOne({ where: { id: abonoId, prestamo: { ruta: { id: rutaId } } } });
+    if (!abono) {
+      throw new NotFoundException("El abono no existe en esta ruta");
+    }
+
+    const antes = { valor: abono.valor, metodoPago: abono.metodoPago };
+    await this.dataSource.transaction(async (manager) => {
+      const abonoRepo = manager.getRepository(Abono);
+      const auditoriaRepo = manager.getRepository(AuditoriaCartera);
+
+      await abonoRepo.delete({ id: abono.id });
+      await this.cajaService.aplicarMovimiento(
+        rutaId,
+        -abono.valor,
+        TipoMovimientoCaja.ABONO,
+        requester,
+        `reversión por eliminación de abono ${abono.id}`,
+        manager,
+      );
+      const fila = auditoriaRepo.create({
+        entidad: "abono",
+        entidadId: abono.id,
+        operacion: "eliminar",
+        valoresAntes: antes,
+        valoresDespues: {},
+        actorRol: requester.rol,
+        actorId: requester.sub,
+        motivo: ctx.motivo,
+      });
+      await auditoriaRepo.save(fila);
+    });
+
+    return { id: abonoId };
   }
 
   private async deudaPendiente(prestamoId: number): Promise<number> {

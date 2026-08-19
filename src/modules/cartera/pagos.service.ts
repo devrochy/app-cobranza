@@ -31,7 +31,7 @@ export interface RequesterPagoContext {
 
 export interface PagoPublic {
   id: number;
-  cuotaId: number;
+  cuotaId: number | null;
   clienteId: number;
   valor: number;
   metodoPago: MetodoPago;

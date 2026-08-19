@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Param,
   ParseIntPipe,
   Patch,
@@ -21,6 +22,7 @@ import { PrestamoService } from "./prestamo.service";
 import { PagosService } from "./pagos.service";
 import { AbonosService } from "./abonos.service";
 import { VisitasService } from "./visitas.service";
+import { CuotaService } from "./cuota.service";
 import { ClienteEvidenciaInput } from "./cliente.service";
 import { clienteFotosMulterOptions } from "./cliente-foto-upload";
 import { CreateClienteDto } from "./dto/create-cliente.dto";
@@ -30,6 +32,8 @@ import { RegistrarAbonoDto } from "./dto/registrar-abono.dto";
 import { RegistrarVisitaDto } from "./dto/registrar-visita.dto";
 import { ActualizarClienteDto } from "./dto/actualizar-cliente.dto";
 import { DecisionCambioDto } from "./dto/decision-cambio.dto";
+import { EditarCuotaDto } from "./dto/editar-cuota.dto";
+import { OperacionAuditadaDto } from "./dto/operacion-auditada.dto";
 
 @Controller("rutas/:rutaId")
 export class CarteraController {
@@ -39,6 +43,7 @@ export class CarteraController {
     private readonly pagosService: PagosService,
     private readonly abonosService: AbonosService,
     private readonly visitasService: VisitasService,
+    private readonly cuotaService: CuotaService,
   ) {}
 
   @Post("clientes")
@@ -180,6 +185,58 @@ export class CarteraController {
         sub: req.user.sub,
       },
       dto.motivoRechazo,
+    );
+  }
+
+  @Patch("cuotas/:cuotaId")
+  @PermisoRequerido("borrar_ultima_cuota")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  editarCuota(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("cuotaId", ParseIntPipe) cuotaId: number,
+    @Body() dto: EditarCuotaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cuotaService.editarCuota(
+      rutaId,
+      cuotaId,
+      { valorEsperado: dto.valorEsperado, fechaVencimiento: dto.fechaVencimiento },
+      { password: dto.password, motivo: dto.motivo },
+      { rol: req.user.rol, sub: req.user.sub },
+    );
+  }
+
+  @Delete("cuotas/:cuotaId")
+  @PermisoRequerido("borrar_ultima_cuota")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  eliminarCuota(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("cuotaId", ParseIntPipe) cuotaId: number,
+    @Body() dto: OperacionAuditadaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cuotaService.eliminarCuota(
+      rutaId,
+      cuotaId,
+      { password: dto.password, motivo: dto.motivo },
+      { rol: req.user.rol, sub: req.user.sub },
+    );
+  }
+
+  @Delete("abonos/:abonoId")
+  @PermisoRequerido("eliminar_abono")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  eliminarAbono(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("abonoId", ParseIntPipe) abonoId: number,
+    @Body() dto: OperacionAuditadaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.abonosService.eliminarAbono(
+      rutaId,
+      abonoId,
+      { password: dto.password, motivo: dto.motivo },
+      { rol: req.user.rol, sub: req.user.sub },
     );
   }
 }
