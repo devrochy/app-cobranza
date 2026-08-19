@@ -13,6 +13,7 @@ import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
 import { CajaService } from "./caja.service";
 import { GastosService } from "./gastos.service";
+import { RutasNotasService } from "./rutas-notas.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -23,6 +24,7 @@ describe("RutasController", () => {
   let inyeccionesService: InyeccionesService;
   let cajaService: CajaService;
   let gastosService: GastosService;
+  let rutasNotasService: RutasNotasService;
 
   const mockService = {
     create: jest.fn(),
@@ -52,6 +54,13 @@ describe("RutasController", () => {
     eliminar: jest.fn(),
   };
 
+  const mockRutasNotasService = {
+    crear: jest.fn(),
+    listar: jest.fn(),
+    editar: jest.fn(),
+    eliminar: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -73,6 +82,7 @@ describe("RutasController", () => {
         { provide: InyeccionesService, useValue: mockInyeccionesService },
         { provide: CajaService, useValue: mockCajaService },
         { provide: GastosService, useValue: mockGastosService },
+        { provide: RutasNotasService, useValue: mockRutasNotasService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -89,6 +99,7 @@ describe("RutasController", () => {
     inyeccionesService = module.get(InyeccionesService);
     cajaService = module.get(CajaService);
     gastosService = module.get(GastosService);
+    rutasNotasService = module.get(RutasNotasService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -245,5 +256,51 @@ describe("RutasController", () => {
     await controller.eliminarGasto(1, 5, req);
 
     expect(gastosService.eliminar).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al crear una nota de ruta", async () => {
+    (rutasNotasService.crear as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { nota: "Cliente no disponible" };
+
+    await controller.crearNota(1, dto, req);
+
+    expect(rutasNotasService.crear).toHaveBeenCalledWith(1, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al listar las notas de la ruta", async () => {
+    (rutasNotasService.listar as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarNotas(1, req);
+
+    expect(rutasNotasService.listar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al editar una nota de ruta", async () => {
+    (rutasNotasService.editar as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { nota: "Cliente pagó hoy" };
+
+    await controller.editarNota(1, 10, dto, req);
+
+    expect(rutasNotasService.editar).toHaveBeenCalledWith(1, 10, dto, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al eliminar una nota de ruta", async () => {
+    (rutasNotasService.eliminar as jest.Mock).mockResolvedValue({ id: 10 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.eliminarNota(1, 10, req);
+
+    expect(rutasNotasService.eliminar).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
   });
 });
