@@ -9,9 +9,13 @@ import {
   Post,
   Put,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
+import { evidenciasMulterOptions } from "./evidencia-upload";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
@@ -25,7 +29,12 @@ import { UpdateRutaConfigMatrixDto } from "./dto/update-ruta-config-matrix.dto";
 import { UpdateRutaDto } from "./dto/update-ruta.dto";
 import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
+import { CajaService } from "./caja.service";
+import { GastosService } from "./gastos.service";
 import { RutasService } from "./rutas.service";
+import { RegistrarGastoDto } from "./dto/registrar-gasto.dto";
+import { CrearNotaDto } from "./dto/crear-nota.dto";
+import { RutasNotasService } from "./rutas-notas.service";
 
 @Controller("rutas")
 export class RutasController {
@@ -33,6 +42,9 @@ export class RutasController {
     private readonly rutasService: RutasService,
     private readonly rutaConfigService: RutaConfigService,
     private readonly inyeccionesService: InyeccionesService,
+    private readonly cajaService: CajaService,
+    private readonly gastosService: GastosService,
+    private readonly rutasNotasService: RutasNotasService,
   ) {}
 
   @Post()
@@ -97,6 +109,19 @@ export class RutasController {
     });
   }
 
+  @Get(":id/caja")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  getCaja(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cajaService.consultar(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
   @Patch(":id")
   @PermisoRequerido("configurar_ruta")
   @UseGuards(JwtAuthGuard, PermisoGuard)
@@ -148,6 +173,106 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasService.reasignarCobrador(id, dto.cobradorId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post(":id/gastos")
+  @PermisoRequerido("registrar_gasto")
+  @UseInterceptors(FilesInterceptor("evidencias", 5, evidenciasMulterOptions))
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  registrarGasto(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: RegistrarGastoDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.gastosService.registrar(id, dto, files ?? [], {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch(":id/gastos/:gastoId/aprobar")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  aprobarGasto(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("gastoId", ParseIntPipe) gastoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.gastosService.aprobar(id, gastoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Delete(":id/gastos/:gastoId")
+  @PermisoRequerido("eliminar_gastos")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  eliminarGasto(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("gastoId", ParseIntPipe) gastoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.gastosService.eliminar(id, gastoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post(":id/notas")
+  @PermisoRequerido("anotar_notas_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  crearNota(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: CrearNotaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasNotasService.crear(id, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/notas")
+  @PermisoRequerido("anotar_notas_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarNotas(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasNotasService.listar(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch(":id/notas/:notaId")
+  @PermisoRequerido("anotar_notas_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  editarNota(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("notaId", ParseIntPipe) notaId: number,
+    @Body() dto: CrearNotaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasNotasService.editar(id, notaId, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Delete(":id/notas/:notaId")
+  @PermisoRequerido("anotar_notas_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  eliminarNota(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("notaId", ParseIntPipe) notaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasNotasService.eliminar(id, notaId, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

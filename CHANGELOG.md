@@ -4,6 +4,34 @@ Formato basado en [Conventional Commits](https://www.conventionalcommits.org/) y
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-19
+
+### Added
+
+- **Fase 0 — Cimientos**:
+  - **HU-05/HU-61 — Revalidar estado del usuario en cada request**: `JwtAuthGuard` vuelve a consultar el estado activo/bloqueado (admin/socio) en cada petición autenticada, haciendo efectivo el bloqueo de inmediato.
+  - **HU-05/HU-61 — Cascada de bloqueo en transacción**: al bloquear/activar un Socio se bloquean/activan en cascada sus Cobradores y sus Rutas (transaccional); al cambiar el estatus de un Cobrador se propagan sus Rutas.
+  - **Refactor — Helpers compartidos**: `assertOwned` (ownership) y `numericTransformer` extraídos a `src/common/` y reutilizados por los servicios existentes.
+  - **ADR PostGIS — Migrar coordenadas a `geography(Point)`**: `clientes.ubicacion` migrado a `geography(Point)` con índice GIST; se eliminó `lat/lng` de `prestamos` (usa la ubicación del negocio del cliente). Helpers `toPoint`/`fromPoint`.
+- **Fase 1 — Núcleo operativo de cartera (Épica 3)**:
+  - **HU-14 — Registro de cliente y préstamo ampliado**: cliente con dos direcciones (negocio obligatoria y domicilio opcional), fotos facial/documento según flags, tope de deuda propio, `tipo_interes`/`dias_entre_cuotas` por préstamo, fiador opcional, fecha del préstamo editable ±30 días y generación transaccional de cuotas respetando el cupo.
+  - **HU-13/HU-15/HU-16 — Regla de días de cobro y mora**: al generar cuotas se ajusta el vencimiento al siguiente día hábil (`dias_no_laborables` de `ruta_config`) y un job diario (`@nestjs/schedule`) marca como `atrasada` las cuotas desde el día siguiente al vencimiento, alimentando el color de riesgo.
+  - **HU-08/HU-11 — Caja de ruta**: entidad `caja` 1:1 con saldo inicial obligatorio, saldo vivo persistido, `caja_ajustes_log` con auditoría, `GET /rutas/:id/caja` (gated por `ver_reportes`) y wiring con inyecciones.
+  - **HU-15 — Pago de cuota y abono**: `POST /rutas/:id/pagos` y `/abonos` (gated por `configurar_ruta`), método de pago obligatorio (efectivo/QR/transferencia/tarjeta/depósito), actualización transaccional de caja y validación de deuda.
+  - **HU-46/HU-16 — Registro de visita**: `POST /rutas/:id/visitas` con resultado pago/no_pago, catálogo de motivos de no pago, promesa de pago por "compromiso de pago" y composición con pago/abono (visitaId).
+  - **HU-17 — Gastos de ruta con evidencias**: `POST`/`PATCH`(aprobar)/`DELETE /rutas/:id/gastos[/:gastoId]` con evidencias (imágenes/PDF vía multer), flujo de aprobación, trazabilidad de creador y wiring transaccional de caja.
+  - **HU-47 — Actualización de cliente con aprobación**: `PATCH /rutas/:id/clientes/:clienteId` aplica el cambio directo si hay permiso, o genera una propuesta pendiente que un Admin/Socio dueño aprueba o rechaza (auditable) vía `PATCH .../cambios-cliente/:cambioId/decision`.
+  - **HU-48 — Gestión de cuotas y abonos con auditoría**: `PATCH`/`DELETE /rutas/:id/cuotas/:cuotaId` (incluyendo pagadas, con ajuste/reversión de caja y sincronización del pago) y `DELETE /rutas/:id/abonos/:abonoId`, registrando cada operación en `auditoria_cartera` (valores antes/después, actor, motivo) y exigiendo re-autenticación de contraseña del operador. `pagos.cuota_id` pasó a nullable (`SET NULL`) para conservar el pago al eliminar una cuota.
+  - **HU-45 — Notas de ruta**: `POST/GET/PATCH/DELETE /rutas/:id/notas[/:notaId]` (gated por `anotar_notas_ruta`, agregado a las matrices de socio y cobrador), entidad `ruta_notas` con `creado_por_rol/id` y `created_at`/`updated_at`; borrado físico y sin historial de ediciones.
+
+### Tests
+
+- Suite unitaria ampliada (38 suites / 350 tests) y e2e (24 suites / 194 tests sobre Postgres real), incluyendo e2e nuevos de gastos, visitas, pagos/abonos, cuotas/abonos con auditoría, notas de ruta y flujo de aprobación de cliente.
+
+### Docs
+
+- Archivos de tarea por HU en `docs/ai/tasks/` (Fase 0 y Fase 1: ítems 5-13) y ADR PostGIS (0002); backlog ampliado (concurrencia en caja, préstamo/color de riesgo, visita tras eliminar abono, etc.).
+
 ## [0.3.0] - 2026-08-12
 
 ### Added

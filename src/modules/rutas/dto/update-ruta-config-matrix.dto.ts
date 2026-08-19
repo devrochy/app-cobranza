@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -7,6 +8,7 @@ import {
   Max,
   Min,
 } from "class-validator";
+import { DIAS_NO_LABORABLES } from "../ruta-config.entity";
 
 export class UpdateRutaConfigMatrixDto {
   @IsOptional()
@@ -72,6 +74,10 @@ export class UpdateRutaConfigMatrixDto {
 
   @IsOptional()
   @IsBoolean()
+  registroDocumentoCliente?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   eliminarPagosApk?: boolean;
 
   @IsOptional()
@@ -113,4 +119,10 @@ export class UpdateRutaConfigMatrixDto {
   @IsOptional()
   @IsBoolean()
   borrarClientesSinDeuda?: boolean;
+
+  @IsOptional()
+  @IsIn(DIAS_NO_LABORABLES, {
+    message: "diasNoLaborables debe ser solo_domingos o domingos_y_feriados",
+  })
+  diasNoLaborables?: (typeof DIAS_NO_LABORABLES)[number];
 }

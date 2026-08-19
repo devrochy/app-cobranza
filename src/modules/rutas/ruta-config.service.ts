@@ -1,13 +1,14 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { assertOwned } from "../../common/ownership";
+import { RolUsuario } from "../auth/auth.service";
 import { Ruta } from "./ruta.entity";
-import { RutaConfig } from "./ruta-config.entity";
+import { DiasNoLaborables, RutaConfig } from "./ruta-config.entity";
 
 export interface RutaConfigPublic {
   rutaId: number;
@@ -25,6 +26,7 @@ export interface RutaConfigPublic {
   mostrarPrestamos: boolean;
   eliminarPrestamosApk: boolean;
   reconocimientoFacialActivo: boolean;
+  registroDocumentoCliente: boolean;
   eliminarPagosApk: boolean;
   eliminarGastosApk: boolean;
   eliminarInyeccionApk: boolean;
@@ -36,13 +38,14 @@ export interface RutaConfigPublic {
   bloqueoAutomaticoClientes: boolean;
   permitirCambioFechaPrestamo: boolean;
   borrarClientesSinDeuda: boolean;
+  diasNoLaborables: DiasNoLaborables;
 }
 
 export type RutaConfigInput = Partial<Omit<RutaConfigPublic, "rutaId">>;
 
 const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   cuotasMinimasPrestamo: 0,
-  cuotasAtrasoUmbral: 0,
+  cuotasAtrasoUmbral: 1,
   manejoCupoActivo: false,
   cupoDefault: 0,
   recargoActivo: false,
@@ -55,6 +58,7 @@ const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   mostrarPrestamos: false,
   eliminarPrestamosApk: false,
   reconocimientoFacialActivo: false,
+  registroDocumentoCliente: false,
   eliminarPagosApk: false,
   eliminarGastosApk: false,
   eliminarInyeccionApk: false,
@@ -66,6 +70,7 @@ const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   bloqueoAutomaticoClientes: false,
   permitirCambioFechaPrestamo: false,
   borrarClientesSinDeuda: false,
+  diasNoLaborables: "solo_domingos" as const,
 };
 
 export const RutaConfigDefaults = RUTA_CONFIG_DEFAULTS;
@@ -73,11 +78,11 @@ export const RutaConfigDefaults = RUTA_CONFIG_DEFAULTS;
 const CAMPO_KEYS = Object.keys(RUTA_CONFIG_DEFAULTS);
 
 export interface RequesterConfigContext {
-  rol: "admin" | "socio";
+  rol: RolUsuario;
   sub: number;
 }
 
-const ACCESO_DENEGADO = "Acceso denegado";
+
 
 @Injectable()
 export class RutaConfigService {
@@ -93,7 +98,7 @@ export class RutaConfigService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const fila = await this.configRepo.findOne({ where: { ruta: { id: rutaId } } });
     if (!fila) {
@@ -111,7 +116,7 @@ export class RutaConfigService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const clavesInvalidas = Object.keys(input ?? {}).filter(
       (key) => !(CAMPO_KEYS as readonly string[]).includes(key),
@@ -142,12 +147,6 @@ export class RutaConfigService {
     return this.toPublic(saved, rutaId);
   }
 
-  private assertOwned(ruta: Ruta, requester: RequesterConfigContext): void {
-    if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
-      throw new ForbiddenException(ACCESO_DENEGADO);
-    }
-  }
-
   private toPublic(fila: RutaConfig, rutaId: number): RutaConfigPublic {
     return {
       rutaId,
@@ -165,6 +164,7 @@ export class RutaConfigService {
       mostrarPrestamos: fila.mostrarPrestamos,
       eliminarPrestamosApk: fila.eliminarPrestamosApk,
       reconocimientoFacialActivo: fila.reconocimientoFacialActivo,
+      registroDocumentoCliente: fila.registroDocumentoCliente,
       eliminarPagosApk: fila.eliminarPagosApk,
       eliminarGastosApk: fila.eliminarGastosApk,
       eliminarInyeccionApk: fila.eliminarInyeccionApk,
@@ -176,6 +176,7 @@ export class RutaConfigService {
       bloqueoAutomaticoClientes: fila.bloqueoAutomaticoClientes,
       permitirCambioFechaPrestamo: fila.permitirCambioFechaPrestamo,
       borrarClientesSinDeuda: fila.borrarClientesSinDeuda,
+      diasNoLaborables: fila.diasNoLaborables,
     };
   }
 }

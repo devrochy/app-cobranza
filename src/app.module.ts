@@ -1,8 +1,10 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { ScheduleModule } from "@nestjs/schedule";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AdminUsersModule } from "./modules/admin-users/admin-users.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { CarteraModule } from "./modules/cartera/cartera.module";
 import { CobradoresModule } from "./modules/cobradores/cobradores.module";
 import { HealthModule } from "./modules/health/health.module";
 import { RutasModule } from "./modules/rutas/rutas.module";
@@ -11,6 +13,7 @@ import { SociosModule } from "./modules/socios/socios.module";
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -27,6 +30,7 @@ import { SociosModule } from "./modules/socios/socios.module";
     SociosModule,
     CobradoresModule,
     RutasModule,
+    CarteraModule,
     HealthModule,
   ],
 })

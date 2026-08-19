@@ -38,4 +38,8 @@ export class CreateRutaDto {
     message: "La moneda debe ser un código ISO 4217 de 3 letras",
   })
   moneda!: string;
+
+  @IsNumber({}, { message: "El saldo inicial debe ser un número" })
+  @Min(0, { message: "El saldo inicial no puede ser negativo" })
+  saldoInicial!: number;
 }

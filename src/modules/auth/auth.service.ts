@@ -31,7 +31,7 @@ export interface SocioLoginResult extends AuthTokenPair {
   };
 }
 
-export type RolUsuario = "admin" | "socio";
+export type RolUsuario = "admin" | "socio" | "cobrador";
 
 export interface AuthTokenPayload {
   sub: number;

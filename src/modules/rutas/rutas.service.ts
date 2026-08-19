@@ -6,10 +6,13 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
+import { ACCESO_DENEGADO, assertOwned } from "../../common/ownership";
+import { RolUsuario } from "../auth/auth.service";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Ruta, RutaEstatus } from "./ruta.entity";
+import { CajaService } from "./caja.service";
 
 export interface CreateRutaInput {
   nombre: string;
@@ -19,10 +22,11 @@ export interface CreateRutaInput {
   tipoInteres: number;
   numCuotas: number;
   moneda: string;
+  saldoInicial: number;
 }
 
 export interface RequesterContext {
-  rol: "admin" | "socio";
+  rol: RolUsuario;
   sub: number;
 }
 
@@ -39,7 +43,7 @@ export interface RutaPublic {
   createdAt: Date;
 }
 
-const ACCESO_DENEGADO = "Acceso denegado";
+
 
 @Injectable()
 export class RutasService {
@@ -50,6 +54,8 @@ export class RutasService {
     private readonly socioRepo: Repository<Socio>,
     @InjectRepository(Cobrador)
     private readonly cobradorRepo: Repository<Cobrador>,
+    private readonly dataSource: DataSource,
+    private readonly cajaService: CajaService,
   ) {}
 
   async create(input: CreateRutaInput, requester: RequesterContext): Promise<RutaPublic> {
@@ -89,7 +95,13 @@ export class RutasService {
     ruta.socioId = input.socioId;
     ruta.cobradorId = input.cobradorId;
 
-    const saved = await this.repo.save(ruta);
+    // HU-08 ampliada: la ruta y su caja (saldo inicial obligatorio) se crean en
+    // la misma transacción para no dejar una ruta sin caja.
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const savedRuta = await manager.save(ruta);
+      await this.cajaService.crearCaja(savedRuta.id, input.saldoInicial, manager);
+      return savedRuta;
+    });
     return this.toPublic(saved);
   }
 
@@ -107,7 +119,7 @@ export class RutasService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     // HU-09: solo metadata (nombre/descripción). La configuración operativa
     // (cobrador, tipoInteres, numCuotas, moneda, estatus) queda intacta.
@@ -129,7 +141,7 @@ export class RutasService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     // Reactivación manual intencional: puede activar una ruta cuyo cobrador
     // esté bloqueado (escape hatch decidido con el usuario en HU-08); el
@@ -148,7 +160,7 @@ export class RutasService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     const cobrador = await this.cobradorRepo.findOne({ where: { id: nuevoCobradorId } });
     if (!cobrador) {
@@ -168,12 +180,6 @@ export class RutasService {
     return this.toPublic(saved);
   }
 
-  private assertOwned(ruta: Ruta, requester: RequesterContext): void {
-    if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
-      throw new ForbiddenException(ACCESO_DENEGADO);
-    }
-  }
-
   async actualizarConfiguracion(
     id: number,
     input: { tipoInteres?: number; numCuotas?: number },
@@ -187,7 +193,7 @@ export class RutasService {
     if (!ruta) {
       throw new NotFoundException("La ruta no existe");
     }
-    this.assertOwned(ruta, requester);
+    assertOwned(ruta, requester);
 
     // 9a: solo configuración de default (tipoInteres/numCuotas). La moneda NO es
     // editable (decisión) y la metadata (nombre/descripción) va por otro endpoint.

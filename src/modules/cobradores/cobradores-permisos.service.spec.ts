@@ -60,7 +60,7 @@ describe("CobradoresPermisosService", () => {
   }
 
   describe("getMatriz", () => {
-    it("devuelve la matriz completa de 12 permisos con ausentes en false", async () => {
+    it("devuelve la matriz completa de permisos con ausentes en false", async () => {
       cobradorRepo.findOne.mockResolvedValue(cobradorFixture());
       permisoRepo.find.mockResolvedValue([
         { permiso: "registrar_pago", habilitado: true },

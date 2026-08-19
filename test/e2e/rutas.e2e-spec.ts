@@ -6,6 +6,7 @@ import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
 import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
+import { Caja } from "../../src/modules/rutas/caja.entity";
 import { Ruta } from "../../src/modules/rutas/ruta.entity";
 import { Socio } from "../../src/modules/socios/socio.entity";
 import { AppModule } from "../../src/app.module";
@@ -16,6 +17,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
   let socioRepo: Repository<Socio>;
   let cobradorRepo: Repository<Cobrador>;
   let rutaRepo: Repository<Ruta>;
+  let cajaRepo: Repository<Caja>;
   let accessTokenAdmin: string;
   let tokenSocio: string;
   let socioId: number;
@@ -55,6 +57,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
     socioRepo = moduleFixture.get(getRepositoryToken(Socio));
     cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
     rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -101,7 +104,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
     await request(app.getHttpServer())
       .put(`/socios/${socioId}/permisos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ matriz: { registrar_ruta: true, configurar_ruta: true } });
+      .send({ matriz: { registrar_ruta: true, configurar_ruta: true, ver_reportes: true } });
 
     const cobrador = await cobradorRepo.save({
       socio: { id: socioId },
@@ -155,12 +158,47 @@ describe("Registro y gestión de rutas (e2e)", () => {
         tipoInteres: 20,
         numCuotas: 8,
         moneda: "BOB",
+        saldoInicial: 1000,
       });
 
     expect(res.status).toBe(201);
     expect(res.body.nombre).toBe("Ruta E2E");
     expect(res.body.tipoInteres).toBe(20);
     rutaId = res.body.id as number;
+  });
+
+  it("crea la caja de la ruta con el saldo inicial al registrar", async () => {
+    const caja = await cajaRepo
+      .createQueryBuilder("c")
+      .where("c.ruta_id = :rutaId", { rutaId })
+      .getOne();
+    expect(caja?.saldoInicial).toBe(1000);
+    expect(caja?.saldoActual).toBe(1000);
+  });
+
+  it("GET /rutas/:id/caja devuelve el saldo de la caja", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/rutas/${rutaId}/caja`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.rutaId).toBe(rutaId);
+    expect(res.body.saldoInicial).toBe(1000);
+    expect(res.body.saldoActual).toBe(1000);
+  });
+
+  it("GET /rutas/:id/caja de una ruta inexistente -> 404", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/rutas/999999/caja`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /rutas/:id/caja sin token -> 401", async () => {
+    const res = await request(app.getHttpServer()).get(`/rutas/${rutaId}/caja`);
+
+    expect(res.status).toBe(401);
   });
 
   it("un socio con registrar_ruta crea ruta bajo su socio -> 201", async () => {
@@ -174,10 +212,46 @@ describe("Registro y gestión de rutas (e2e)", () => {
         tipoInteres: 25,
         numCuotas: 10,
         moneda: "BOB",
+        saldoInicial: 1000,
       });
 
     expect(res.status).toBe(201);
     expect(res.body.socioId).toBe(socioId);
+  });
+
+  it("un socio con ver_reportes consulta la caja de su propia ruta -> 200", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/rutas/${rutaId}/caja`)
+      .set("Authorization", `Bearer ${tokenSocio}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.rutaId).toBe(rutaId);
+    expect(res.body.saldoActual).toBe(1000);
+  });
+
+  it("un socio sin ver_reportes no consulta la caja -> 403", async () => {
+    const socioSinVer = await socioRepo.save({
+      usuario: "socio-rt-sinver",
+      passwordHash: await bcrypt.hash(PASSWORD, 4),
+      nombre: "S",
+      apellido: "SinVer",
+      correo: "socio-rt-sinver@correo.com",
+      telefono: "+59171160088",
+      codigo: "SC-RT-SINVER",
+      moneda: "BOB",
+      estatus: "activo",
+    });
+    const login = await request(app.getHttpServer())
+      .post("/auth/socio/login")
+      .send({ usuario: "socio-rt-sinver", password: PASSWORD });
+    const token = login.body.accessToken as string;
+
+    const res = await request(app.getHttpServer())
+      .get(`/rutas/${rutaId}/caja`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    await socioRepo.delete({ id: socioSinVer.id });
   });
 
   it("un socio no puede crear ruta bajo otro socio -> 403", async () => {
@@ -191,6 +265,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         tipoInteres: 20,
         numCuotas: 8,
         moneda: "BOB",
+        saldoInicial: 1000,
       });
 
     expect(res.status).toBe(403);
@@ -219,6 +294,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         tipoInteres: 20,
         numCuotas: 8,
         moneda: "BOB",
+        saldoInicial: 1000,
       });
 
     expect(res.status).toBe(403);
@@ -241,6 +317,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         tipoInteres: 20,
         numCuotas: 8,
         moneda: "BOB",
+        saldoInicial: 1000,
       });
 
     expect(res.status).toBe(409);
@@ -257,6 +334,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         tipoInteres: 20,
         numCuotas: 8,
         moneda: "BOB",
+        saldoInicial: 1000,
       });
     const cascadaRutaId = creada.body.id as number;
 
@@ -331,6 +409,39 @@ describe("Registro y gestión de rutas (e2e)", () => {
         tipoInteres: 0,
         numCuotas: 0,
         moneda: "peso",
+      });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /rutas sin saldoInicial -> 400 (obligatorio, HU-08)", async () => {
+    const res = await request(app.getHttpServer())
+      .post("/rutas")
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({
+        nombre: "Ruta Sin Saldo",
+        socioId,
+        cobradorId,
+        tipoInteres: 20,
+        numCuotas: 8,
+        moneda: "BOB",
+      });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /rutas con saldoInicial negativo -> 400", async () => {
+    const res = await request(app.getHttpServer())
+      .post("/rutas")
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({
+        nombre: "Ruta Saldo Negativo",
+        socioId,
+        cobradorId,
+        tipoInteres: 20,
+        numCuotas: 8,
+        moneda: "BOB",
+        saldoInicial: -50,
       });
 
     expect(res.status).toBe(400);

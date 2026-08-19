@@ -5,14 +5,12 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
   RelationId,
-  ValueTransformer,
 } from "typeorm";
+import { numericTransformer } from "../../common/numeric-transformer";
 import { Ruta } from "./ruta.entity";
 
-const numericTransformer: ValueTransformer = {
-  to: (value: number): number => value,
-  from: (value: string): number => Number.parseFloat(value),
-};
+export const DIAS_NO_LABORABLES = ["solo_domingos", "domingos_y_feriados"] as const;
+export type DiasNoLaborables = (typeof DIAS_NO_LABORABLES)[number];
 
 @Entity("ruta_config")
 export class RutaConfig {
@@ -68,6 +66,9 @@ export class RutaConfig {
   @Column()
   reconocimientoFacialActivo!: boolean;
 
+  @Column({ name: "registro_documento_cliente" })
+  registroDocumentoCliente!: boolean;
+
   @Column()
   eliminarPagosApk!: boolean;
 
@@ -100,4 +101,7 @@ export class RutaConfig {
 
   @Column()
   borrarClientesSinDeuda!: boolean;
+
+  @Column({ name: "dias_no_laborables", type: "varchar", default: "solo_domingos" })
+  diasNoLaborables!: DiasNoLaborables;
 }

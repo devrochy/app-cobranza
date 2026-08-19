@@ -6,11 +6,12 @@ import {
 } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Ruta } from "./ruta.entity";
 import { CreateRutaInput, RequesterContext, RutasService } from "./rutas.service";
+import { CajaService } from "./caja.service";
 
 describe("RutasService", () => {
   let service: RutasService;
@@ -26,6 +27,7 @@ describe("RutasService", () => {
     tipoInteres: 20,
     numCuotas: 8,
     moneda: "BOB",
+    saldoInicial: 1000,
   };
 
   const adminContext: RequesterContext = { rol: "admin", sub: 0 };
@@ -39,6 +41,22 @@ describe("RutasService", () => {
   };
   const mockSocioRepo = { findOne: jest.fn() };
   const mockCobradorRepo = { findOne: jest.fn() };
+  const mockCajaService = {
+    crearCaja: jest.fn(async (rutaId: number, saldoInicial: number) => ({
+      rutaId,
+      saldoInicial,
+      saldoActual: saldoInicial,
+    })),
+  };
+  const mockDataSource = {
+    transaction: jest.fn(async (fn: (manager: unknown) => Promise<unknown>) => {
+      const manager = {
+        save: mockRutaRepo.save,
+        getRepository: jest.fn(() => ({ create: jest.fn(), save: jest.fn() })),
+      };
+      return fn(manager);
+    }),
+  };
 
   function socioFixture(overrides: Partial<Socio> = {}): Socio {
     return { id: 1, usuario: "socio1", estatus: "activo", ...overrides } as Socio;
@@ -62,6 +80,8 @@ describe("RutasService", () => {
         { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
         { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
         { provide: getRepositoryToken(Cobrador), useValue: mockCobradorRepo },
+        { provide: CajaService, useValue: mockCajaService },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -81,6 +101,20 @@ describe("RutasService", () => {
 
       expect(rutaRepo.save).toHaveBeenCalledTimes(1);
       expect(result).toMatchObject({ id: 1, nombre: "Ruta Centro", tipoInteres: 20, numCuotas: 8, moneda: "BOB", socioId: 1, cobradorId: 1 });
+    });
+
+    it("crea la caja de la ruta con el saldo inicial al registrar la ruta", async () => {
+      (socioRepo.findOne as jest.Mock).mockResolvedValue(socioFixture());
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+      (rutaRepo.save as jest.Mock).mockResolvedValue({ id: 1, ...baseInput, estatus: "activo", createdAt: new Date() });
+
+      await service.create(baseInput, adminContext);
+
+      expect(mockCajaService.crearCaja).toHaveBeenCalledWith(
+        1,
+        1000,
+        expect.anything(),
+      );
     });
 
     it("lanza NotFoundException si el socio no existe", async () => {

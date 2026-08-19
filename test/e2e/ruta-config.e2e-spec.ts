@@ -172,6 +172,7 @@ describe("Matriz ruta_config (e2e)", () => {
     expect(res.body.mostrarCaja).toBe(false);
     expect(res.body.eliminarPrestamosApk).toBe(false);
     expect(res.body.cupoDefault).toBe(0);
+    expect(res.body.diasNoLaborables).toBe("solo_domingos");
     expect(res.body.rutaId).toBe(rutaPropiaId);
   });
 
@@ -179,11 +180,12 @@ describe("Matriz ruta_config (e2e)", () => {
     const put = await request(app.getHttpServer())
       .put(`/rutas/${rutaPropiaId}/ruta-config`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ mostrarCaja: true, cupoDefault: 2000, comisionPorcentaje: 10 });
+      .send({ mostrarCaja: true, cupoDefault: 2000, comisionPorcentaje: 10, diasNoLaborables: "domingos_y_feriados" });
 
     expect(put.status).toBe(200);
     expect(put.body.mostrarCaja).toBe(true);
     expect(put.body.cupoDefault).toBe(2000);
+    expect(put.body.diasNoLaborables).toBe("domingos_y_feriados");
     expect(put.body.eliminarPrestamosApk).toBe(false);
 
     const get = await request(app.getHttpServer())
