@@ -2,10 +2,12 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFiles,
   UseGuards,
@@ -34,6 +36,9 @@ import { ActualizarClienteDto } from "./dto/actualizar-cliente.dto";
 import { DecisionCambioDto } from "./dto/decision-cambio.dto";
 import { EditarCuotaDto } from "./dto/editar-cuota.dto";
 import { OperacionAuditadaDto } from "./dto/operacion-auditada.dto";
+import { ClienteTarjetaService } from "./cliente-tarjeta.service";
+import { NavegacionClienteService } from "./navegacion-cliente.service";
+import { OrigenNavegacionDto } from "./dto/origen-navegacion.dto";
 
 @Controller("rutas/:rutaId")
 export class CarteraController {
@@ -44,6 +49,8 @@ export class CarteraController {
     private readonly abonosService: AbonosService,
     private readonly visitasService: VisitasService,
     private readonly cuotaService: CuotaService,
+    private readonly clienteTarjetaService: ClienteTarjetaService,
+    private readonly navegacionClienteService: NavegacionClienteService,
   ) {}
 
   @Post("clientes")
@@ -237,6 +244,40 @@ export class CarteraController {
       abonoId,
       { password: dto.password, motivo: dto.motivo },
       { rol: req.user.rol, sub: req.user.sub },
+    );
+  }
+
+  @Get("clientes/:clienteId/tarjeta")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  tarjetaCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.clienteTarjetaService.obtener(rutaId, clienteId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get("clientes/:clienteId/navegacion")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  navegacionCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Query() dto: OrigenNavegacionDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.navegacionClienteService.obtener(
+      rutaId,
+      clienteId,
+      { latitud: dto.origenLat, longitud: dto.origenLng },
+      {
+        rol: req.user.rol,
+        sub: req.user.sub,
+      },
     );
   }
 }
