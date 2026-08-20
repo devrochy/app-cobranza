@@ -1,11 +1,16 @@
 import { Body, Controller, Inject, Post, UseGuards } from "@nestjs/common";
-import { IsInt, IsNotEmpty, IsString } from "class-validator";
+import { IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { WHATSAPP_GATEWAY, WhatsappGateway } from "./whatsapp-gateway.interface";
+import { ConsultaSaldoIaService } from "./consulta-saldo-ia.service";
 
 export class RecibirMensajeDto {
   @IsInt({ message: "conversacionId debe ser un número" })
   conversacionId!: number;
+
+  @IsOptional()
+  @IsString()
+  telefono?: string | null;
 
   @IsString()
   @IsNotEmpty({ message: "contenido es obligatorio" })
@@ -14,22 +19,39 @@ export class RecibirMensajeDto {
 
 /**
  * Webhook simulado de recepción de mensajes de WhatsApp (Fase 1, PRD 6.1).
- * Recibe un mensaje entrante "como si viniera del cliente" y lo delega al
- * gateway (la implementación simulada lo persiste en `mensajes_ia`).
- * Protegido con JWT (no expuesto públicamente); en Fase 2 se sustituye por el
- * webhook real de la Cloud API.
+ * Recibe un mensaje entrante "como si viniera del cliente", lo persiste (emisor
+ * cliente) y delega al asistente conversacional para responder (HU-27). En Fase
+ * 2 se sustituye por el webhook real de la Cloud API.
  */
 @Controller("whatsapp/simulado")
 @UseGuards(JwtAuthGuard)
 export class WhatsappSimuladoController {
-  constructor(@Inject(WHATSAPP_GATEWAY) private readonly gateway: WhatsappGateway) {}
+  constructor(
+    @Inject(WHATSAPP_GATEWAY) private readonly gateway: WhatsappGateway,
+    private readonly consultaSaldoIaService: ConsultaSaldoIaService,
+  ) {}
 
   @Post("recibir")
   async recibir(@Body() dto: RecibirMensajeDto) {
-    return this.gateway.recibirMensaje({
+    const recibido = await this.gateway.recibirMensaje({
       conversacionId: dto.conversacionId,
       emisor: "cliente",
       contenido: dto.contenido,
+      telefono: dto.telefono,
     });
+
+    // HU-27: respuesta automática del asistente a la solicitud del cliente.
+    // No bloqueante: un fallo al responder no debe romper la recepción del mensaje.
+    try {
+      await this.consultaSaldoIaService.procesarMensaje({
+        conversacionId: dto.conversacionId,
+        telefono: dto.telefono,
+        contenido: dto.contenido,
+      });
+    } catch {
+      // se omite: la recepción ya quedó registrada
+    }
+
+    return recibido;
   }
 }
