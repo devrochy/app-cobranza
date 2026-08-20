@@ -38,3 +38,23 @@ export function construirTextoFallback(): string {
     "conocer tu estado de cuenta."
   );
 }
+
+/**
+ * HU-28: confirmación al cliente cuando se registra su promesa de pago.
+ */
+export function construirTextoConfirmacionPromesa(
+  nombreCliente: string,
+  fecha: string,
+  valor: number | null,
+): string {
+  const monto = valor !== null && valor !== undefined ? ` de ${valor}` : "";
+  return `Hola ${nombreCliente}, registré tu promesa de pago${monto} para el ${fecha}. ¡Gracias por tu compromiso!`;
+}
+
+/**
+ * HU-28: pedir aclaración cuando no se logra extraer la fecha de la promesa.
+ */
+export function construirTextoPedirFechaPromesa(): string {
+  return "No pude identificar para qué día quieres registrar la promesa. " +
+    "Por ejemplo, dime 'pago el viernes' o 'pago el 25'.";
+}

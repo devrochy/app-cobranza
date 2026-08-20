@@ -1,4 +1,4 @@
-export type IntencionIa = "consulta_saldo" | "desconocida";
+export type IntencionIa = "consulta_saldo" | "promesa_pago" | "desconocida";
 
 interface ReglaIntencion {
   intencion: IntencionIa;
@@ -27,6 +27,16 @@ const REGLAS_INTENCION: ReglaIntencion[] = [
       "cuando vence",
       "estado de cuenta",
       "cuanto es",
+    ],
+  },
+  {
+    intencion: "promesa_pago",
+    palabrasClave: [
+      "pago",
+      "pagar",
+      "promesa",
+      "compromiso",
+      "abono",
     ],
   },
 ];

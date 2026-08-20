@@ -2,7 +2,7 @@ import { Body, Controller, Inject, Post, UseGuards } from "@nestjs/common";
 import { IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { WHATSAPP_GATEWAY, WhatsappGateway } from "./whatsapp-gateway.interface";
-import { ConsultaSaldoIaService } from "./consulta-saldo-ia.service";
+import { AsistenteIaService } from "./asistente-ia.service";
 
 export class RecibirMensajeDto {
   @IsInt({ message: "conversacionId debe ser un número" })
@@ -28,7 +28,7 @@ export class RecibirMensajeDto {
 export class WhatsappSimuladoController {
   constructor(
     @Inject(WHATSAPP_GATEWAY) private readonly gateway: WhatsappGateway,
-    private readonly consultaSaldoIaService: ConsultaSaldoIaService,
+    private readonly asistenteIaService: AsistenteIaService,
   ) {}
 
   @Post("recibir")
@@ -40,10 +40,10 @@ export class WhatsappSimuladoController {
       telefono: dto.telefono,
     });
 
-    // HU-27: respuesta automática del asistente a la solicitud del cliente.
+    // HU-27/HU-28: respuesta automática del asistente a la solicitud del cliente.
     // No bloqueante: un fallo al responder no debe romper la recepción del mensaje.
     try {
-      await this.consultaSaldoIaService.procesarMensaje({
+      await this.asistenteIaService.procesarMensaje({
         conversacionId: dto.conversacionId,
         telefono: dto.telefono,
         contenido: dto.contenido,
