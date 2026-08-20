@@ -33,6 +33,7 @@ import { WHATSAPP_GATEWAY } from "./whatsapp-gateway.interface";
 import { NotificacionesService } from "./notificaciones.service";
 import { NotificacionesJob } from "./notificaciones-job.service";
 import { ConversacionChatService } from "./conversacion-chat.service";
+import { EstadoCuentaService } from "./estado-cuenta.service";
 import { WhatsappSimuladoController } from "./whatsapp-simulado.controller";
 
 @Module({
@@ -46,7 +47,7 @@ import { WhatsappSimuladoController } from "./whatsapp-simulado.controller";
   controllers: [CarteraController, WhatsappSimuladoController],
   providers: [
     ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService, ClienteTarjetaService, NavegacionClienteService,
-    WhatsappSimuladoGateway, NotificacionesService, NotificacionesJob, ConversacionChatService,
+    WhatsappSimuladoGateway, NotificacionesService, NotificacionesJob, ConversacionChatService, EstadoCuentaService,
     { provide: WHATSAPP_GATEWAY, useExisting: WhatsappSimuladoGateway },
   ],
   exports: [TypeOrmModule, WHATSAPP_GATEWAY],
