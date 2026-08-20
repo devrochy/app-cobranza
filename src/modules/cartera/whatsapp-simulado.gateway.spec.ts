@@ -31,10 +31,16 @@ describe("WhatsappSimuladoGateway", () => {
       conversacionId: 5,
       emisor: "ia",
       contenido: "Recordatorio de tu cuota",
+      intencionDetectada: "recordatorio",
     });
 
     expect(mockMensajeRepo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ conversacionId: 5, emisor: "ia", contenido: "Recordatorio de tu cuota" }),
+      expect.objectContaining({
+        conversacionId: 5,
+        emisor: "ia",
+        contenido: "Recordatorio de tu cuota",
+        intencionDetectada: "recordatorio",
+      }),
     );
     expect(mockMensajeRepo.save).toHaveBeenCalled();
   });

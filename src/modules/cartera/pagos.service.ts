@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -11,6 +12,7 @@ import { Ruta } from "../rutas/ruta.entity";
 import { CajaService, TipoMovimientoCaja } from "../rutas/caja.service";
 import { Cuota } from "./cuota.entity";
 import { Pago } from "./pago.entity";
+import { NotificacionesService } from "./notificaciones.service";
 import { RolUsuario } from "../auth/auth.service";
 
 export interface RegistrarPagoCuotaInput {
@@ -40,6 +42,8 @@ export interface PagoPublic {
 
 @Injectable()
 export class PagosService {
+  private readonly logger = new Logger(PagosService.name);
+
   constructor(
     @InjectRepository(Ruta)
     private readonly rutaRepo: Repository<Ruta>,
@@ -49,6 +53,7 @@ export class PagosService {
     private readonly pagoRepo: Repository<Pago>,
     private readonly dataSource: DataSource,
     private readonly cajaService: CajaService,
+    private readonly notificacionesService: NotificacionesService,
   ) {}
 
   async registrarPagoDeCuota(
@@ -116,6 +121,19 @@ export class PagosService {
     const pago = options.manager
       ? await ejecutar(options.manager)
       : await this.dataSource.transaction(ejecutar);
+
+    // HU-52: confirmación al cliente al registrarse el pago (no bloqueante;
+    // un fallo del canal no debe romper el registro del pago ya commiteado).
+    if (cuota.prestamo.cliente) {
+      try {
+        await this.notificacionesService.enviarConfirmacionPago(
+          cuota.prestamo.cliente,
+          pago.valor,
+        );
+      } catch (error) {
+        this.logger.warn(`No se pudo enviar la confirmación de pago: ${String(error)}`);
+      }
+    }
 
     return this.toPublic(pago, clienteId);
   }

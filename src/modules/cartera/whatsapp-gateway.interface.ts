@@ -3,6 +3,8 @@ export interface WhatsappMensaje {
   emisor: "cliente" | "ia" | "agente";
   contenido: string;
   telefono?: string | null;
+  /** Tipo de notificación automática (recordatorio, aviso_dia_cobro, confirmacion_pago, alerta_mora) para deduplicación y trazabilidad. */
+  intencionDetectada?: string | null;
 }
 
 /**
