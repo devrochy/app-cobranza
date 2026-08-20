@@ -191,7 +191,7 @@ export class NotificacionesService {
       .getExists();
   }
 
-  private async obtenerConversacion(cliente: Cliente): Promise<ConversacionIa> {
+  async obtenerConversacion(cliente: Cliente): Promise<ConversacionIa> {
     const existente = await this.conversacionRepo.findOne({
       where: { cliente: { id: cliente.id }, estado: "activa" },
     });
