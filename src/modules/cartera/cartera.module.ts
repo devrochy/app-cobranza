@@ -25,6 +25,7 @@ import { CambioClientePendiente } from "./cambio-cliente-pendiente.entity";
 import { AuditoriaCartera } from "./auditoria-cartera.entity";
 import { CuotaService } from "./cuota.service";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
+import { NavegacionClienteService } from "./navegacion-cliente.service";
 
 @Module({
   imports: [
@@ -35,7 +36,7 @@ import { ClienteTarjetaService } from "./cliente-tarjeta.service";
     RutasModule,
   ],
   controllers: [CarteraController],
-  providers: [ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService, ClienteTarjetaService],
+  providers: [ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService, ClienteTarjetaService, NavegacionClienteService],
   exports: [TypeOrmModule],
 })
 export class CarteraModule {}
