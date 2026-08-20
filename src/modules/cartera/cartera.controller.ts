@@ -40,6 +40,7 @@ import { ClienteTarjetaService } from "./cliente-tarjeta.service";
 import { NavegacionClienteService } from "./navegacion-cliente.service";
 import { OrigenNavegacionDto } from "./dto/origen-navegacion.dto";
 import { ConversacionChatService } from "./conversacion-chat.service";
+import { EstadoCuentaService } from "./estado-cuenta.service";
 import { EnviarMensajeDto } from "./dto/enviar-mensaje.dto";
 
 @Controller("rutas/:rutaId")
@@ -54,6 +55,7 @@ export class CarteraController {
     private readonly clienteTarjetaService: ClienteTarjetaService,
     private readonly navegacionClienteService: NavegacionClienteService,
     private readonly conversacionChatService: ConversacionChatService,
+    private readonly estadoCuentaService: EstadoCuentaService,
   ) {}
 
   @Post("clientes")
@@ -308,6 +310,34 @@ export class CarteraController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.conversacionChatService.enviarMensajeAgente(rutaId, clienteId, dto.contenido, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get("prestamos/:prestamoId/estado-cuenta")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  estadoCuentaPrestamo(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("prestamoId", ParseIntPipe) prestamoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.estadoCuentaService.obtener(rutaId, prestamoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post("prestamos/:prestamoId/enviar-reporte")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  enviarReportePrestamo(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("prestamoId", ParseIntPipe) prestamoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.estadoCuentaService.enviarReporte(rutaId, prestamoId, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
