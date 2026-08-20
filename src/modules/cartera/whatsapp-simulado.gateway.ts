@@ -30,7 +30,7 @@ export class WhatsappSimuladoGateway implements WhatsappGateway {
       conversacionId: mensaje.conversacionId,
       emisor: mensaje.emisor,
       contenido: mensaje.contenido,
-      intencionDetectada: null,
+      intencionDetectada: mensaje.intencionDetectada ?? null,
       modeloUsado: null,
     });
     return this.mensajeRepo.save(fila);
