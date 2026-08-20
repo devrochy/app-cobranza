@@ -17,6 +17,7 @@ import { VisitasService } from "./visitas.service";
 import { CuotaService } from "./cuota.service";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
 import { NavegacionClienteService } from "./navegacion-cliente.service";
+import { ConversacionChatService } from "./conversacion-chat.service";
 
 describe("CarteraController", () => {
   let controller: CarteraController;
@@ -28,6 +29,7 @@ describe("CarteraController", () => {
   let cuotaService: CuotaService;
   let clienteTarjetaService: ClienteTarjetaService;
   let navegacionClienteService: NavegacionClienteService;
+  let conversacionChatService: ConversacionChatService;
 
   const mockClienteService = {
     crear: jest.fn(),
@@ -65,6 +67,11 @@ describe("CarteraController", () => {
     obtener: jest.fn(),
   };
 
+  const mockConversacionChatService = {
+    obtenerHistorial: jest.fn(),
+    enviarMensajeAgente: jest.fn(),
+  };
+
   const baseDto = {
     nombre: "Juan",
     apellido: "Pérez",
@@ -86,6 +93,7 @@ describe("CarteraController", () => {
         { provide: CuotaService, useValue: mockCuotaService },
         { provide: ClienteTarjetaService, useValue: mockClienteTarjetaService },
         { provide: NavegacionClienteService, useValue: mockNavegacionClienteService },
+        { provide: ConversacionChatService, useValue: mockConversacionChatService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -105,6 +113,7 @@ describe("CarteraController", () => {
     cuotaService = module.get(CuotaService);
     clienteTarjetaService = module.get(ClienteTarjetaService);
     navegacionClienteService = module.get(NavegacionClienteService);
+    conversacionChatService = module.get(ConversacionChatService);
   });
 
   it("delega al crear un cliente", async () => {
@@ -294,5 +303,28 @@ describe("CarteraController", () => {
       { latitud: -17.77, longitud: -63.17 },
       { rol: "admin", sub: 1 },
     );
+  });
+
+  it("delega al obtener el historial de conversación del cliente", async () => {
+    (conversacionChatService.obtenerHistorial as jest.Mock).mockResolvedValue({ mensajes: [] });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.historialConversacion(1, 10, req);
+
+    expect(conversacionChatService.obtenerHistorial).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al enviar el mensaje del agente", async () => {
+    (conversacionChatService.enviarMensajeAgente as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { contenido: "Hola" };
+
+    await controller.enviarMensajeAgente(1, 10, dto, req);
+
+    expect(conversacionChatService.enviarMensajeAgente).toHaveBeenCalledWith(1, 10, "Hola", { rol: "admin", sub: 1 });
   });
 });
