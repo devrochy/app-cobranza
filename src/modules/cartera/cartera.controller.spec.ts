@@ -16,6 +16,7 @@ import { AbonosService } from "./abonos.service";
 import { VisitasService } from "./visitas.service";
 import { CuotaService } from "./cuota.service";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
+import { NavegacionClienteService } from "./navegacion-cliente.service";
 
 describe("CarteraController", () => {
   let controller: CarteraController;
@@ -26,6 +27,7 @@ describe("CarteraController", () => {
   let visitasService: VisitasService;
   let cuotaService: CuotaService;
   let clienteTarjetaService: ClienteTarjetaService;
+  let navegacionClienteService: NavegacionClienteService;
 
   const mockClienteService = {
     crear: jest.fn(),
@@ -59,6 +61,10 @@ describe("CarteraController", () => {
     obtener: jest.fn(),
   };
 
+  const mockNavegacionClienteService = {
+    obtener: jest.fn(),
+  };
+
   const baseDto = {
     nombre: "Juan",
     apellido: "Pérez",
@@ -79,6 +85,7 @@ describe("CarteraController", () => {
         { provide: VisitasService, useValue: mockVisitasService },
         { provide: CuotaService, useValue: mockCuotaService },
         { provide: ClienteTarjetaService, useValue: mockClienteTarjetaService },
+        { provide: NavegacionClienteService, useValue: mockNavegacionClienteService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -97,6 +104,7 @@ describe("CarteraController", () => {
     visitasService = module.get(VisitasService);
     cuotaService = module.get(CuotaService);
     clienteTarjetaService = module.get(ClienteTarjetaService);
+    navegacionClienteService = module.get(NavegacionClienteService);
   });
 
   it("delega al crear un cliente", async () => {
@@ -269,5 +277,22 @@ describe("CarteraController", () => {
     await controller.tarjetaCliente(1, 10, req);
 
     expect(clienteTarjetaService.obtener).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al obtener la navegación del cliente", async () => {
+    (navegacionClienteService.obtener as jest.Mock).mockResolvedValue({ googleMapsUrl: "x" });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { origenLat: -17.77, origenLng: -63.17 };
+
+    await controller.navegacionCliente(1, 10, dto, req);
+
+    expect(navegacionClienteService.obtener).toHaveBeenCalledWith(
+      1,
+      10,
+      { latitud: -17.77, longitud: -63.17 },
+      { rol: "admin", sub: 1 },
+    );
   });
 });
