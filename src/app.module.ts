@@ -8,6 +8,7 @@ import { CarteraModule } from "./modules/cartera/cartera.module";
 import { CobradoresModule } from "./modules/cobradores/cobradores.module";
 import { HealthModule } from "./modules/health/health.module";
 import { RutasModule } from "./modules/rutas/rutas.module";
+import { ReglasNegociacionIaModule } from "./modules/reglas-negociacion-ia/reglas-negociacion-ia.module";
 import { SecurityModule } from "./modules/security/security.module";
 import { SociosModule } from "./modules/socios/socios.module";
 
@@ -31,6 +32,7 @@ import { SociosModule } from "./modules/socios/socios.module";
     CobradoresModule,
     RutasModule,
     CarteraModule,
+    ReglasNegociacionIaModule,
     HealthModule,
   ],
 })
