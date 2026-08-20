@@ -26,17 +26,28 @@ import { AuditoriaCartera } from "./auditoria-cartera.entity";
 import { CuotaService } from "./cuota.service";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
 import { NavegacionClienteService } from "./navegacion-cliente.service";
+import { ConversacionIa } from "./conversacion-ia.entity";
+import { MensajeIa } from "./mensaje-ia.entity";
+import { WhatsappSimuladoGateway } from "./whatsapp-simulado.gateway";
+import { WHATSAPP_GATEWAY } from "./whatsapp-gateway.interface";
+import { NotificacionesService } from "./notificaciones.service";
+import { NotificacionesJob } from "./notificaciones-job.service";
+import { WhatsappSimuladoController } from "./whatsapp-simulado.controller";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, ClienteEvidencia, CambioClientePendiente, AuditoriaCartera, Ruta, RutaConfig]),
+    TypeOrmModule.forFeature([Cliente, Prestamo, Cuota, Pago, Abono, Visita, PromesaPago, ClienteEvidencia, CambioClientePendiente, AuditoriaCartera, ConversacionIa, MensajeIa, Ruta, RutaConfig]),
     SecurityModule,
     JwtModule.register({}),
     SociosModule,
     RutasModule,
   ],
-  controllers: [CarteraController],
-  providers: [ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService, ClienteTarjetaService, NavegacionClienteService],
-  exports: [TypeOrmModule],
+  controllers: [CarteraController, WhatsappSimuladoController],
+  providers: [
+    ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService, ClienteTarjetaService, NavegacionClienteService,
+    WhatsappSimuladoGateway, NotificacionesService, NotificacionesJob,
+    { provide: WHATSAPP_GATEWAY, useExisting: WhatsappSimuladoGateway },
+  ],
+  exports: [TypeOrmModule, WHATSAPP_GATEWAY],
 })
 export class CarteraModule {}

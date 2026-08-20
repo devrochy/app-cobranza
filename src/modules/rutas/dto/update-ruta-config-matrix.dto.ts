@@ -132,4 +132,18 @@ export class UpdateRutaConfigMatrixDto {
     message: "periodoLiquidacion debe ser diario, semanal, quincenal o mensual",
   })
   periodoLiquidacion?: PeriodoLiquidacion;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  diasAnticipacionNotificacion?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  avisoDiaCobro?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  umbralMoraNotificacion?: number;
 }
