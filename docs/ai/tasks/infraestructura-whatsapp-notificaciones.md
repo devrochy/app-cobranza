@@ -25,7 +25,7 @@ Infraestructura base de mensajería: abstracción de gateway de WhatsApp con imp
 - [x] Bloque 1: Entidades `ConversacionIa`/`MensajeIa` (PRD 4.2:331-335) + registro en módulo + `WHATSAPP_GATEWAY` (useExisting simulador).
 - [x] Bloque 2: `NotificacionesService` (recordatorios pre-vencimiento, crea conversación) + `NotificacionesJob` (@Cron diario). 2 tests unitarios.
 - [x] Bloque 3: Campos de notificación en `ruta_config` (`dias_anticipacion_notificacion`, `aviso_dia_cobro`, `umbral_mora_notificacion`) + defaults + DTO matriz.
-- [x] Bloque 4: `WhatsappSimuladoController` (`POST /whatsapp/simulado/recibir`) + e2e (2 tests).
+- [x] Bloque 4: `WhatsappSimuladoController` (`POST /whatsapp/simulado/recibir`, protegido con JwtAuthGuard) + e2e (3 tests).
 - Verificación: `scripts/check.sh` + `npm run test:e2e`.
 
 ## Ambigüedades resueltas con el usuario
@@ -37,7 +37,7 @@ Infraestructura base de mensajería: abstracción de gateway de WhatsApp con imp
 ## Resultado final
 - Comandos ejecutados para verificar:
   - `./scripts/check.sh` → lint + typecheck + tests unitarios OK.
-  - `npm run test:e2e` → OK (incluye `infraestructura-whatsapp-notificaciones.e2e-spec.ts`, 2 tests).
+  - `npm run test:e2e` → OK (incluye `infraestructura-whatsapp-notificaciones.e2e-spec.ts`, 3 tests).
 - Archivos modificados:
   - `src/modules/cartera/whatsapp-gateway.interface.ts` (nuevo) — interfaz + token `WHATSAPP_GATEWAY`.
   - `src/modules/cartera/whatsapp-simulado.gateway.ts` (+spec) — `enviarMensaje`/`recibirMensaje` persisten en `mensajes_ia`.
