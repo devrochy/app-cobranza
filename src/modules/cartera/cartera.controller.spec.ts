@@ -18,6 +18,7 @@ import { CuotaService } from "./cuota.service";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
 import { NavegacionClienteService } from "./navegacion-cliente.service";
 import { ConversacionChatService } from "./conversacion-chat.service";
+import { EstadoCuentaService } from "./estado-cuenta.service";
 
 describe("CarteraController", () => {
   let controller: CarteraController;
@@ -30,6 +31,7 @@ describe("CarteraController", () => {
   let clienteTarjetaService: ClienteTarjetaService;
   let navegacionClienteService: NavegacionClienteService;
   let conversacionChatService: ConversacionChatService;
+  let estadoCuentaService: EstadoCuentaService;
 
   const mockClienteService = {
     crear: jest.fn(),
@@ -72,6 +74,11 @@ describe("CarteraController", () => {
     enviarMensajeAgente: jest.fn(),
   };
 
+  const mockEstadoCuentaService = {
+    obtener: jest.fn(),
+    enviarReporte: jest.fn(),
+  };
+
   const baseDto = {
     nombre: "Juan",
     apellido: "Pérez",
@@ -94,6 +101,7 @@ describe("CarteraController", () => {
         { provide: ClienteTarjetaService, useValue: mockClienteTarjetaService },
         { provide: NavegacionClienteService, useValue: mockNavegacionClienteService },
         { provide: ConversacionChatService, useValue: mockConversacionChatService },
+        { provide: EstadoCuentaService, useValue: mockEstadoCuentaService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -114,6 +122,7 @@ describe("CarteraController", () => {
     clienteTarjetaService = module.get(ClienteTarjetaService);
     navegacionClienteService = module.get(NavegacionClienteService);
     conversacionChatService = module.get(ConversacionChatService);
+    estadoCuentaService = module.get(EstadoCuentaService);
   });
 
   it("delega al crear un cliente", async () => {
@@ -326,5 +335,27 @@ describe("CarteraController", () => {
     await controller.enviarMensajeAgente(1, 10, dto, req);
 
     expect(conversacionChatService.enviarMensajeAgente).toHaveBeenCalledWith(1, 10, "Hola", { rol: "admin", sub: 1 });
+  });
+
+  it("delega al obtener el estado de cuenta del préstamo", async () => {
+    (estadoCuentaService.obtener as jest.Mock).mockResolvedValue({ prestamoId: 5 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.estadoCuentaPrestamo(1, 5, req);
+
+    expect(estadoCuentaService.obtener).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al enviar el reporte del préstamo por WhatsApp", async () => {
+    (estadoCuentaService.enviarReporte as jest.Mock).mockResolvedValue({ conversacionId: 7 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.enviarReportePrestamo(1, 5, req);
+
+    expect(estadoCuentaService.enviarReporte).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
   });
 });
