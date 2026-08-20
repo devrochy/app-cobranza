@@ -18,6 +18,7 @@ import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
+import { TrayectoriasService } from "./trayectorias.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -33,6 +34,7 @@ describe("RutasController", () => {
   let rutasResumenService: RutasResumenService;
   let rutaOptimizacionService: RutaOptimizacionService;
   let listaClientesDelDiaService: ListaClientesDelDiaService;
+  let trayectoriasService: TrayectoriasService;
 
   const mockService = {
     create: jest.fn(),
@@ -89,6 +91,11 @@ describe("RutasController", () => {
     obtenerMapa: jest.fn(),
   };
 
+  const mockTrayectoriasService = {
+    registrarReal: jest.fn(),
+    consultar: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -115,6 +122,7 @@ describe("RutasController", () => {
         { provide: RutasResumenService, useValue: mockRutasResumenService },
         { provide: RutaOptimizacionService, useValue: mockRutaOptimizacionService },
         { provide: ListaClientesDelDiaService, useValue: mockListaClientesDelDiaService },
+        { provide: TrayectoriasService, useValue: mockTrayectoriasService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -136,6 +144,7 @@ describe("RutasController", () => {
     rutasResumenService = module.get(RutasResumenService);
     rutaOptimizacionService = module.get(RutaOptimizacionService);
     listaClientesDelDiaService = module.get(ListaClientesDelDiaService);
+    trayectoriasService = module.get(TrayectoriasService);
   });
 
   it("delega en el servicio con el DTO y el contexto del token", async () => {
@@ -439,5 +448,28 @@ describe("RutasController", () => {
     await controller.mapaClientesDelDia(1, req);
 
     expect(listaClientesDelDiaService.obtenerMapa).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al registrar la trayectoria real del día", async () => {
+    (trayectoriasService.registrarReal as jest.Mock).mockResolvedValue({ id: 1, tipo: "real" });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { puntos: [{ latitud: -17.78, longitud: -63.18 }] };
+
+    await controller.registrarTrayectoriaReal(1, dto, req);
+
+    expect(trayectoriasService.registrarReal).toHaveBeenCalledWith(1, dto.puntos, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al consultar las trayectorias del día", async () => {
+    (trayectoriasService.consultar as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.consultarTrayectorias(1, req);
+
+    expect(trayectoriasService.consultar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
   });
 });

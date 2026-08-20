@@ -277,3 +277,26 @@ Formato de cada entrada:
 - Fecha: 2026-08-19
 - Descripción: el patrón `ST_Y(c.ubicacion::geometry)`/`ST_X(c.ubicacion::geometry)` se repite en `ruta-optimizacion.service.ts` (clientes del día) y `lista-clientes-dia.service.ts` (coordenadas de markers). Evaluar un helper compartido en `src/common/geo.ts` para centralizar la extracción de coordenadas desde geography.
 - Prioridad sugerida: baja
+## fechaLocal duplicado en varios servicios (HU-49)
+- Detectado en: docs/ai/tasks/trayectorias-reporte.md (revisión code-reviewer HU-49)
+- Fecha: 2026-08-19
+- Descripción: `fechaLocal` se repite en `trayectorias.service.ts`, `ruta-optimizacion.service.ts`, `liquidaciones.service.ts`, etc. Extraer un helper común.
+- Prioridad sugerida: baja
+
+## registrarReal de trayectoria no transaccional (HU-49)
+- Detectado en: docs/ai/tasks/trayectorias-reporte.md (revisión code-reviewer HU-49)
+- Fecha: 2026-08-19
+- Descripción: `TrayectoriasService.registrarReal` persiste el log `real` y luego llama a `generarReporteDiario`; si este falla queda un registro huérfano sin reporte. Envolver en transacción.
+- Prioridad sugerida: media
+
+## Consolidación de trayectorias toma último log por tipo sin filtrar por día (HU-49)
+- Detectado en: docs/ai/tasks/trayectorias-reporte.md (revisión code-reviewer HU-49)
+- Fecha: 2026-08-19
+- Descripción: `generarReporteDiario` toma el último log de cada tipo por `fecha DESC` sin filtrar por la fecha del reporte; si la planificada es de otro día se cuela. Filtrar por `fecha = hoy`.
+- Prioridad sugerida: media
+
+## ver_reportes en POST de trayectoria-real (HU-49)
+- Detectado en: docs/ai/tasks/trayectorias-reporte.md (revisión code-reviewer HU-49)
+- Fecha: 2026-08-19
+- Descripción: el POST /rutas/:id/dia/trayectoria-real usa `ver_reportes` (lectura) para una escritura; el patrón del proyecto usa `generar_reporte` en POSTs. Evaluar cambiar el permiso.
+- Prioridad sugerida: baja

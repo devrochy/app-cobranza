@@ -41,6 +41,8 @@ import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
+import { TrayectoriasService } from "./trayectorias.service";
+import { RegistrarTrayectoriaRealDto } from "./dto/registrar-trayectoria-real.dto";
 
 @Controller("rutas")
 export class RutasController {
@@ -55,6 +57,7 @@ export class RutasController {
     private readonly rutasResumenService: RutasResumenService,
     private readonly rutaOptimizacionService: RutaOptimizacionService,
     private readonly listaClientesDelDiaService: ListaClientesDelDiaService,
+    private readonly trayectoriasService: TrayectoriasService,
   ) {}
 
   @Post()
@@ -393,6 +396,33 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.listaClientesDelDiaService.obtenerMapa(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post(":id/dia/trayectoria-real")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  registrarTrayectoriaReal(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: RegistrarTrayectoriaRealDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.trayectoriasService.registrarReal(id, dto.puntos, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/dia/trayectorias")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  consultarTrayectorias(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.trayectoriasService.consultar(id, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
