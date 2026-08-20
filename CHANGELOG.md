@@ -4,6 +4,25 @@ Formato basado en [Conventional Commits](https://www.conventionalcommits.org/) y
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-19
+
+### Added
+
+- **Fase 3 — Rutas inteligentes y listas del día (Épica 7 + Épica 3)**:
+  - **HU-55 — Segmentación de la ruta del día en trayectos**: `POST /rutas/:id/dia/trayectos` (generar, `generar_reporte`) y `GET /rutas/:id/dia/trayectos` (consultar, `ver_reportes`). Segmenta los clientes con deuda pendiente en trayectos de hasta 9 paradas con clustering geográfico (K-means) y orden por vecino más cercano, persistiendo en `ruta_optimizada_log` (PRD 4.2:344, tipo `planificada`) con distancia/tiempo estimados (haversine en memoria; coordenadas vía `ubicacion::geometry`).
+  - **HU-56 — Lista de clientes del día con colores**: `GET /rutas/:id/dia/clientes` (gated `ver_reportes`) devuelve los clientes del día con color verde/rojo/blanco (mapeo de HU-13 aplicado solo aquí) y flag `enTrayecto`, calculado en vivo desde el atraso de cuotas y las visitas de pago del día.
+  - **HU-57 — Mapa de clientes del día**: `GET /rutas/:id/dia/mapa` (gated `ver_reportes`) devuelve los markers de los clientes de la lista del día con coordenadas de negocio y domicilio (leídas del geography), con `tipo: negocio|domicilio`.
+  - **HU-58 — Tarjeta de cliente con detalle**: `GET /rutas/:rutaId/clientes/:clienteId/tarjeta` (gated `ver_reportes`) devuelve foto (ruta de `foto_facial`), nombre, tipo de pago (derivado de `dias_entre_cuotas`), negocio, color, teléfono, saldo pendiente (cuotas − abonos) y días de mora (desde la cuota vencida más antigua).
+  - **HU-59 — Navegación al cliente**: `GET /rutas/:rutaId/clientes/:clienteId/navegacion?origenLat=&origenLng=` (gated `ver_reportes`) genera deep links a Google Maps y Waze desde la ubicación del cobrador hasta el negocio del cliente, sin API de pago (coherente con ADR-0002).
+
+### Tests
+
+- Suite unitaria ampliada (47 suites / 442 tests) y e2e (32 suites / 232 tests sobre Postgres real), incluyendo e2e nuevos de segmentación de trayectos (5), lista del día (4), mapa (4), tarjeta de cliente (4) y navegación (6).
+
+### Docs
+
+- Archivos de tarea en `docs/ai/tasks/` (segmentacion-trayectos, lista-clientes-dia, mapa-clientes-dia, tarjeta-cliente, navegacion-cliente) y backlog ampliado (helper de coordenadas geography, etc.).
+
 ## [0.5.0] - 2026-08-19
 
 ### Added
