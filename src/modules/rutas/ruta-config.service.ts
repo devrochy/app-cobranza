@@ -41,6 +41,9 @@ export interface RutaConfigPublic {
   borrarClientesSinDeuda: boolean;
   diasNoLaborables: DiasNoLaborables;
   periodoLiquidacion: PeriodoLiquidacion;
+  diasAnticipacionNotificacion: number;
+  avisoDiaCobro: boolean;
+  umbralMoraNotificacion: number;
 }
 
 export type RutaConfigInput = Partial<Omit<RutaConfigPublic, "rutaId">>;
@@ -74,6 +77,9 @@ const RUTA_CONFIG_DEFAULTS: Omit<RutaConfigPublic, "rutaId"> = {
   borrarClientesSinDeuda: false,
   diasNoLaborables: "solo_domingos" as const,
   periodoLiquidacion: "diario" as const,
+  diasAnticipacionNotificacion: 0,
+  avisoDiaCobro: false,
+  umbralMoraNotificacion: 0,
 };
 
 export const RutaConfigDefaults = RUTA_CONFIG_DEFAULTS;
@@ -181,6 +187,9 @@ export class RutaConfigService {
       borrarClientesSinDeuda: fila.borrarClientesSinDeuda,
       diasNoLaborables: fila.diasNoLaborables,
       periodoLiquidacion: fila.periodoLiquidacion,
+      diasAnticipacionNotificacion: fila.diasAnticipacionNotificacion,
+      avisoDiaCobro: fila.avisoDiaCobro,
+      umbralMoraNotificacion: fila.umbralMoraNotificacion,
     };
   }
 }

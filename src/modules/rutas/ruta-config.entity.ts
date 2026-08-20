@@ -108,4 +108,13 @@ export class RutaConfig {
 
   @Column({ name: "periodo_liquidacion", type: "varchar", default: "diario" })
   periodoLiquidacion!: PeriodoLiquidacion;
+
+  @Column({ name: "dias_anticipacion_notificacion", type: "int", default: 0 })
+  diasAnticipacionNotificacion!: number;
+
+  @Column({ name: "aviso_dia_cobro", type: "boolean", default: false })
+  avisoDiaCobro!: boolean;
+
+  @Column({ name: "umbral_mora_notificacion", type: "int", default: 0 })
+  umbralMoraNotificacion!: number;
 }
