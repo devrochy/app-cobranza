@@ -1,6 +1,8 @@
 import {
   construirTextoConsultaSaldo,
   construirTextoFallback,
+  construirTextoConfirmacionPromesa,
+  construirTextoPedirFechaPromesa,
   ProximaCuotaInfo,
 } from "./consulta-saldo-ia";
 
@@ -38,5 +40,26 @@ describe("construirTextoFallback", () => {
     const texto = construirTextoFallback();
     expect(texto).toContain("No entendí");
     expect(texto.toLowerCase()).toContain("saldo");
+  });
+});
+
+describe("construirTextoConfirmacionPromesa", () => {
+  it("confirma la promesa con fecha y monto", () => {
+    const texto = construirTextoConfirmacionPromesa("Juan", "2026-08-25", 100);
+    expect(texto).toContain("2026-08-25");
+    expect(texto).toContain("100");
+    expect(texto.toLowerCase()).toContain("promesa");
+  });
+
+  it("confirma la promesa sin monto si no se mencionó", () => {
+    const texto = construirTextoConfirmacionPromesa("Juan", "2026-08-25", null);
+    expect(texto).toContain("2026-08-25");
+  });
+});
+
+describe("construirTextoPedirFechaPromesa", () => {
+  it("pide aclarar el día/fecha", () => {
+    const texto = construirTextoPedirFechaPromesa().toLowerCase();
+    expect(texto).toContain("día");
   });
 });
