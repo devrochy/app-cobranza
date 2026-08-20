@@ -1,7 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import { RutaConfig } from "../rutas/ruta-config.entity";
 import { Cuota } from "./cuota.entity";
 import { ConversacionIa } from "./conversacion-ia.entity";
+import { MensajeIa } from "./mensaje-ia.entity";
 import { WHATSAPP_GATEWAY } from "./whatsapp-gateway.interface";
 import { NotificacionesService } from "./notificaciones.service";
 
@@ -10,6 +12,15 @@ describe("NotificacionesService", () => {
 
   const mockCuotaRepo = { find: jest.fn() };
   const mockConversacionRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockMensajeRepo = {
+    findOne: jest.fn(),
+    createQueryBuilder: jest.fn(() => ({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getExists: jest.fn().mockResolvedValue(false),
+    })),
+  };
+  const mockConfigRepo = { findOne: jest.fn() };
   const mockGateway = { enviarMensaje: jest.fn(), recibirMensaje: jest.fn() };
 
   beforeEach(async () => {
@@ -19,6 +30,8 @@ describe("NotificacionesService", () => {
         NotificacionesService,
         { provide: getRepositoryToken(Cuota), useValue: mockCuotaRepo },
         { provide: getRepositoryToken(ConversacionIa), useValue: mockConversacionRepo },
+        { provide: getRepositoryToken(MensajeIa), useValue: mockMensajeRepo },
+        { provide: getRepositoryToken(RutaConfig), useValue: mockConfigRepo },
         { provide: WHATSAPP_GATEWAY, useValue: mockGateway },
       ],
     }).compile();
@@ -41,8 +54,9 @@ describe("NotificacionesService", () => {
     ]);
     mockConversacionRepo.findOne.mockResolvedValue({ id: 7, clienteId: 5 });
     mockGateway.enviarMensaje.mockResolvedValue({ id: 1 });
+    mockConfigRepo.findOne.mockResolvedValue({ diasAnticipacionNotificacion: 3 } as RutaConfig);
 
-    const enviadas = await service.ejecutarRecordatorios({ hoy, diasAnticipacion: 3 });
+    const enviadas = await service.ejecutarRecordatorios({ rutaId: 1, hoy });
 
     expect(mockGateway.enviarMensaje).toHaveBeenCalledTimes(1);
     expect(mockGateway.enviarMensaje).toHaveBeenCalledWith(
@@ -66,8 +80,9 @@ describe("NotificacionesService", () => {
     mockConversacionRepo.create.mockImplementation((e: Partial<ConversacionIa>) => e as ConversacionIa);
     mockConversacionRepo.save.mockResolvedValue({ id: 8, clienteId: 5 });
     mockGateway.enviarMensaje.mockResolvedValue({ id: 1 });
+    mockConfigRepo.findOne.mockResolvedValue({ diasAnticipacionNotificacion: 3 } as RutaConfig);
 
-    await service.ejecutarRecordatorios({ hoy, diasAnticipacion: 3 });
+    await service.ejecutarRecordatorios({ rutaId: 1, hoy });
 
     expect(mockConversacionRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({ clienteId: 5, estado: "activa", canal: "whatsapp" }),
