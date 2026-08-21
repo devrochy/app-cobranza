@@ -38,4 +38,20 @@ describe("detectarIntencion", () => {
     expect(detectarIntencion("   ")).toBe<IntencionIa>("desconocida");
     expect(detectarIntencion("   ")).toBe<IntencionIa>("desconocida");
   });
+
+  it("reconoce promesa_pago por 'pago el viernes'", () => {
+    expect(detectarIntencion("pago el viernes")).toBe<IntencionIa>("promesa_pago");
+  });
+
+  it("reconoce promesa_pago por 'promesa de pago'", () => {
+    expect(detectarIntencion("quiero hacer una promesa de pago")).toBe<IntencionIa>("promesa_pago");
+  });
+
+  it("reconoce promesa_pago por 'compromiso'", () => {
+    expect(detectarIntencion("mi compromiso es pagar el 25")).toBe<IntencionIa>("promesa_pago");
+  });
+
+  it("reconoce promesa_pago por 'voy a pagar'", () => {
+    expect(detectarIntencion("voy a pagar 100 el lunes")).toBe<IntencionIa>("promesa_pago");
+  });
 });

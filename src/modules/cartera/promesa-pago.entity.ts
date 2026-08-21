@@ -10,6 +10,7 @@ import {
 import { numericTransformer } from "../../common/numeric-transformer";
 import { Prestamo } from "./prestamo.entity";
 import { Visita } from "./visita.entity";
+import { ConversacionIa } from "./conversacion-ia.entity";
 
 export const PROMESA_ESTADO = ["pendiente", "cumplida", "incumplida"] as const;
 export type PromesaEstado = (typeof PROMESA_ESTADO)[number];
@@ -28,6 +29,14 @@ export class PromesaPago {
 
   @RelationId((promesa: PromesaPago) => promesa.visita)
   visitaId!: number | null;
+
+  // PRD 4.2:338: vínculo opcional con la conversación de IA (promesas del asistente).
+  @ManyToOne(() => ConversacionIa, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "conversacion_id" })
+  conversacion!: ConversacionIa | null;
+
+  @RelationId((promesa: PromesaPago) => promesa.conversacion)
+  conversacionId!: number | null;
 
   @ManyToOne(() => Prestamo, { onDelete: "RESTRICT", nullable: false })
   @JoinColumn({ name: "prestamo_id" })
