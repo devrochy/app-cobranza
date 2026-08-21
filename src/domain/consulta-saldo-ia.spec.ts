@@ -3,6 +3,8 @@ import {
   construirTextoFallback,
   construirTextoConfirmacionPromesa,
   construirTextoPedirFechaPromesa,
+  construirTextoConfirmacionAbonoParcial,
+  construirTextoConfirmacionRefinanciacion,
   ProximaCuotaInfo,
 } from "./consulta-saldo-ia";
 
@@ -61,5 +63,23 @@ describe("construirTextoPedirFechaPromesa", () => {
   it("pide aclarar el día/fecha", () => {
     const texto = construirTextoPedirFechaPromesa().toLowerCase();
     expect(texto).toContain("día");
+  });
+});
+
+describe("construirTextoConfirmacionAbonoParcial", () => {
+  it("confirma el abono parcial con fecha y monto", () => {
+    const texto = construirTextoConfirmacionAbonoParcial("Juan", "2026-08-25", 100);
+    expect(texto.toLowerCase()).toContain("abono");
+    expect(texto).toContain("100");
+    expect(texto).toContain("2026-08-25");
+  });
+});
+
+describe("construirTextoConfirmacionRefinanciacion", () => {
+  it("confirma que la solicitud de refinanciación quedó registrada y que NO se reprograma de inmediato", () => {
+    const texto = construirTextoConfirmacionRefinanciacion("Juan");
+    expect(texto.toLowerCase()).toContain("refinanciación");
+    expect(texto.toLowerCase()).toContain("registré");
+    expect(texto.toLowerCase()).toContain("no cambian");
   });
 });

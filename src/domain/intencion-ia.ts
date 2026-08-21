@@ -22,7 +22,6 @@ const REGLAS_INTENCION: ReglaIntencion[] = [
       "debo",
       "deuda",
       "proxima cuota",
-      "cuota",
       "vencimiento",
       "cuando vence",
       "estado de cuenta",
@@ -37,17 +36,22 @@ const REGLAS_INTENCION: ReglaIntencion[] = [
       "promesa",
       "compromiso",
       "abono",
+      "abonar",
+      "refinanciar",
+      "reprogramar",
+      "plan de pago",
+      "plan de pagos",
     ],
   },
 ];
 
 /**
  * HU-27: detecta la intención de un mensaje del cliente de forma determinista.
- * Normaliza a minúsculas y busca palabras clave. Devuelve `desconocida` si no
- * hay coincidencia o si el mensaje está vacío.
+ * Normaliza a minúsculas, quita acentos y busca palabras clave. Devuelve
+ * `desconocida` si no hay coincidencia o si el mensaje está vacío.
  */
 export function detectarIntencion(mensaje: string | null | undefined): IntencionIa {
-  const normalizado = (mensaje ?? "").toLowerCase().trim();
+  const normalizado = normalizar(mensaje);
   if (!normalizado) {
     return "desconocida";
   }
@@ -60,4 +64,12 @@ export function detectarIntencion(mensaje: string | null | undefined): Intencion
   }
 
   return "desconocida";
+}
+
+function normalizar(mensaje: string | null | undefined): string {
+  return (mensaje ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }

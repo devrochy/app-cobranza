@@ -54,4 +54,24 @@ describe("detectarIntencion", () => {
   it("reconoce promesa_pago por 'voy a pagar'", () => {
     expect(detectarIntencion("voy a pagar 100 el lunes")).toBe<IntencionIa>("promesa_pago");
   });
+
+  it("reconoce promesa_pago por 'refinanciar' (negociación)", () => {
+    expect(detectarIntencion("quiero refinanciar mi préstamo")).toBe<IntencionIa>("promesa_pago");
+  });
+
+  it("reconoce promesa_pago por 'reprogramar' (negociación)", () => {
+    expect(detectarIntencion("puedo reprogramar mis cuotas")).toBe<IntencionIa>("promesa_pago");
+  });
+
+  it("reconoce promesa_pago por 'plan de pago' (negociación)", () => {
+    expect(detectarIntencion("necesito un plan de pago")).toBe<IntencionIa>("promesa_pago");
+  });
+
+  it("'cuánto debo pagar' sigue siendo consulta_saldo (regresión del reordenamiento)", () => {
+    expect(detectarIntencion("cuánto debo pagar")).toBe<IntencionIa>("consulta_saldo");
+  });
+
+  it("'reprogramar mis cuotas' sigue siendo promesa_pago (conflicto con 'cuota')", () => {
+    expect(detectarIntencion("puedo reprogramar mis cuotas")).toBe<IntencionIa>("promesa_pago");
+  });
 });

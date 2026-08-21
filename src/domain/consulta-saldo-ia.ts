@@ -58,3 +58,27 @@ export function construirTextoPedirFechaPromesa(): string {
   return "No pude identificar para qué día quieres registrar la promesa. " +
     "Por ejemplo, dime 'pago el viernes' o 'pago el 25'.";
 }
+
+/**
+ * HU-29: confirmación de un acuerdo de abono parcial (no se ejecuta el pago,
+ * solo se registra el acuerdo conversacional).
+ */
+export function construirTextoConfirmacionAbonoParcial(
+  nombreCliente: string,
+  fecha: string,
+  valor: number,
+): string {
+  return `Hola ${nombreCliente}, registré tu acuerdo de abono parcial de ${valor} para el ${fecha}. ¡Gracias!`;
+}
+
+/**
+ * HU-29: confirmación de que la solicitud de refinanciación quedó registrada.
+ * Deja claro que la reprogramación de cuotas NO se ejecuta de inmediato (se
+ * coordina; la ejecución es una iteración transaccional posterior).
+ */
+export function construirTextoConfirmacionRefinanciacion(nombreCliente: string): string {
+  return (
+    `Hola ${nombreCliente}, registré tu solicitud de refinanciación. ` +
+    "Tu plan de pagos será revisado y coordinado. Por ahora tus cuotas no cambian."
+  );
+}

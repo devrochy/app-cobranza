@@ -195,6 +195,7 @@ describe("AsistenteIaService", () => {
     expect(guardada.estado).toBe("pendiente");
     expect(guardada.conversacionId).toBe(7);
     expect(guardada.valorPrometido).toBe(100);
+    expect(guardada.tipo).toBe("promesa");
 
     const enviado = mockGateway.enviarMensaje.mock.calls[0][0];
     expect(enviado.intencionDetectada).toBe("promesa_pago");
@@ -232,5 +233,56 @@ describe("AsistenteIaService", () => {
     expect(mockPromesaRepo.save).not.toHaveBeenCalled();
     const enviado = mockGateway.enviarMensaje.mock.calls[0][0];
     expect(enviado.intencionDetectada).toBe("promesa_pago_clarificacion");
+  });
+
+  it("registra un acuerdo de abono parcial con tipo abono_parcial", async () => {
+    mockConversacionRepo.findOne.mockResolvedValue({ id: 7, clienteId: 10 });
+    mockClienteRepo.findOne.mockResolvedValue(clienteFixture());
+    mockRutaRepo.findOne.mockResolvedValue({ id: 1, moneda: "BOB" } as Ruta);
+    mockPrestamoRepo.find.mockResolvedValue([
+      { id: 5, valor: 100, numCuotas: 1, tipoInteres: 0, estatus: "vigente" },
+    ]);
+    mockCuotaRepo.find.mockResolvedValue([
+      { numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2099-01-01", estatus: "pendiente" },
+    ]);
+    mockAbonoRepo.find.mockResolvedValue([]);
+    mockNotificaciones.obtenerConversacion.mockResolvedValue({ id: 7, clienteId: 10 });
+    mockPromesaRepo.create.mockImplementation((e) => e as PromesaPago);
+    mockPromesaRepo.save.mockResolvedValue({ id: 1 });
+
+    await service.procesarMensaje({ conversacionId: 7, contenido: "puedo abonar 100 el viernes" });
+
+    expect(mockPromesaRepo.save).toHaveBeenCalledTimes(1);
+    const guardada = mockPromesaRepo.save.mock.calls[0][0];
+    expect(guardada.tipo).toBe("abono_parcial");
+    expect(guardada.valorPrometido).toBe(100);
+
+    const enviado = mockGateway.enviarMensaje.mock.calls[0][0];
+    expect(enviado.contenido.toLowerCase()).toContain("abono");
+  });
+
+  it("registra un acuerdo de refinanciación con tipo refinanciacion", async () => {
+    mockConversacionRepo.findOne.mockResolvedValue({ id: 7, clienteId: 10 });
+    mockClienteRepo.findOne.mockResolvedValue(clienteFixture());
+    mockRutaRepo.findOne.mockResolvedValue({ id: 1, moneda: "BOB" } as Ruta);
+    mockPrestamoRepo.find.mockResolvedValue([
+      { id: 5, valor: 100, numCuotas: 1, tipoInteres: 0, estatus: "vigente" },
+    ]);
+    mockCuotaRepo.find.mockResolvedValue([
+      { numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2099-01-01", estatus: "pendiente" },
+    ]);
+    mockAbonoRepo.find.mockResolvedValue([]);
+    mockNotificaciones.obtenerConversacion.mockResolvedValue({ id: 7, clienteId: 10 });
+    mockPromesaRepo.create.mockImplementation((e) => e as PromesaPago);
+    mockPromesaRepo.save.mockResolvedValue({ id: 1 });
+
+    await service.procesarMensaje({ conversacionId: 7, contenido: "quiero refinanciar el viernes" });
+
+    expect(mockPromesaRepo.save).toHaveBeenCalledTimes(1);
+    const guardada = mockPromesaRepo.save.mock.calls[0][0];
+    expect(guardada.tipo).toBe("refinanciacion");
+
+    const enviado = mockGateway.enviarMensaje.mock.calls[0][0];
+    expect(enviado.contenido.toLowerCase()).toContain("refinanciación");
   });
 });

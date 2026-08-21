@@ -7,9 +7,12 @@ import {
   construirTextoFallback,
   construirTextoConfirmacionPromesa,
   construirTextoPedirFechaPromesa,
+  construirTextoConfirmacionAbonoParcial,
+  construirTextoConfirmacionRefinanciacion,
   ProximaCuotaInfo,
 } from "../../domain/consulta-saldo-ia";
 import { parsearPromesaPago } from "../../domain/promesa-pago-ia";
+import { detectarTipoNegociacion } from "../../domain/negociacion-ia";
 import { construirEstadoCuentaPrestamo } from "../../domain/estado-cuenta-prestamo";
 import { Ruta } from "../rutas/ruta.entity";
 import { Cliente } from "./cliente.entity";
@@ -124,7 +127,9 @@ export class AsistenteIaService {
     }
 
     const conversacion = await this.notificacionesService.obtenerConversacion(cliente);
+    const nombre = `${cliente.nombre} ${cliente.apellido}`.trim();
     const valorPrometido = parseado.valor ?? proxima.valorEsperado;
+    const tipo = detectarTipoNegociacion(contenido);
 
     const promesa = this.promesaRepo.create({
       prestamo: { id: proxima.prestamoId } as PromesaPago["prestamo"],
@@ -135,15 +140,21 @@ export class AsistenteIaService {
       valorPrometido,
       estado: "pendiente",
       creadoPor: "ia",
+      tipo,
     });
     await this.promesaRepo.save(promesa);
 
+    let contenidoConfirmacion: string;
+    if (tipo === "abono_parcial") {
+      contenidoConfirmacion = construirTextoConfirmacionAbonoParcial(nombre, parseado.fecha, valorPrometido);
+    } else if (tipo === "refinanciacion") {
+      contenidoConfirmacion = construirTextoConfirmacionRefinanciacion(nombre);
+    } else {
+      contenidoConfirmacion = construirTextoConfirmacionPromesa(nombre, parseado.fecha, valorPrometido);
+    }
+
     return {
-      contenido: construirTextoConfirmacionPromesa(
-        `${cliente.nombre} ${cliente.apellido}`.trim(),
-        parseado.fecha,
-        valorPrometido,
-      ),
+      contenido: contenidoConfirmacion,
       intencionDetectada: "promesa_pago",
     };
   }

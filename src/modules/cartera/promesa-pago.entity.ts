@@ -18,6 +18,9 @@ export type PromesaEstado = (typeof PROMESA_ESTADO)[number];
 export const PROMESA_CREADOR = ["ia", "cobrador", "agente"] as const;
 export type PromesaCreador = (typeof PROMESA_CREADOR)[number];
 
+export const TIPO_PROMESA = ["promesa", "abono_parcial", "refinanciacion"] as const;
+export type TipoPromesa = (typeof TIPO_PROMESA)[number];
+
 @Entity("promesas_pago")
 export class PromesaPago {
   @PrimaryGeneratedColumn()
@@ -56,6 +59,10 @@ export class PromesaPago {
 
   @Column({ name: "creado_por", type: "varchar" })
   creadoPor!: PromesaCreador;
+
+  // HU-29: tipo de acuerdo. Default "promesa" (promesas de visita HU-46).
+  @Column({ type: "varchar", default: "promesa" })
+  tipo!: TipoPromesa;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
