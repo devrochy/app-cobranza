@@ -9,6 +9,7 @@ import { Abono } from "./abono.entity";
 import { PromesaPago } from "./promesa-pago.entity";
 import { WHATSAPP_GATEWAY } from "./whatsapp-gateway.interface";
 import { NotificacionesService } from "./notificaciones.service";
+import { ReglasNegociacionIaService } from "../reglas-negociacion-ia/reglas-negociacion-ia.service";
 import { AsistenteIaService } from "./asistente-ia.service";
 
 describe("AsistenteIaService", () => {
@@ -19,10 +20,19 @@ describe("AsistenteIaService", () => {
   const mockPrestamoRepo = { find: jest.fn() };
   const mockCuotaRepo = { find: jest.fn() };
   const mockAbonoRepo = { find: jest.fn() };
-  const mockPromesaRepo = { create: jest.fn(), save: jest.fn() };
+  const mockPromesaRepo = { create: jest.fn(), save: jest.fn(), count: jest.fn() };
   const mockRutaRepo = { findOne: jest.fn() };
   const mockGateway = { enviarMensaje: jest.fn(), recibirMensaje: jest.fn() };
   const mockNotificaciones = { obtenerConversacion: jest.fn() };
+  const mockReglasService = { obtener: jest.fn() };
+
+  const REGLAS_VACIAS = {
+    maxDiasProrroga: 0,
+    minAbonoAceptablePct: 0,
+    maxReprogramacionesPorCliente: 0,
+    configuradoPor: null,
+    vigenteDesde: null,
+  };
 
   function clienteFixture(overrides: Partial<Cliente> = {}): Cliente {
     return {
@@ -44,6 +54,8 @@ describe("AsistenteIaService", () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockReglasService.obtener.mockResolvedValue(REGLAS_VACIAS);
+    mockPromesaRepo.count.mockResolvedValue(0);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AsistenteIaService,
@@ -56,6 +68,7 @@ describe("AsistenteIaService", () => {
         { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
         { provide: WHATSAPP_GATEWAY, useValue: mockGateway },
         { provide: NotificacionesService, useValue: mockNotificaciones },
+        { provide: ReglasNegociacionIaService, useValue: mockReglasService },
       ],
     }).compile();
 
@@ -284,5 +297,37 @@ describe("AsistenteIaService", () => {
 
     const enviado = mockGateway.enviarMensaje.mock.calls[0][0];
     expect(enviado.contenido.toLowerCase()).toContain("refinanciación");
+  });
+
+  it("rechaza la negociación y NO persiste cuando excede las reglas", async () => {
+    mockReglasService.obtener.mockResolvedValue({ ...REGLAS_VACIAS, minAbonoAceptablePct: 90 });
+    mockConversacionRepo.findOne.mockResolvedValue({ id: 7, clienteId: 10 });
+    mockClienteRepo.findOne.mockResolvedValue(clienteFixture());
+    mockRutaRepo.findOne.mockResolvedValue({ id: 1, moneda: "BOB" } as Ruta);
+    mockPrestamoRepo.find.mockResolvedValue([
+      { id: 5, valor: 100, numCuotas: 1, tipoInteres: 0, estatus: "vigente" },
+    ]);
+    mockCuotaRepo.find.mockResolvedValue([
+      { numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2099-01-01", estatus: "pendiente" },
+    ]);
+    mockAbonoRepo.find.mockResolvedValue([]);
+    mockNotificaciones.obtenerConversacion.mockResolvedValue({ id: 7, clienteId: 10 });
+    mockPromesaRepo.create.mockImplementation((e) => e as PromesaPago);
+    mockPromesaRepo.save.mockResolvedValue({ id: 1 });
+
+    await service.procesarMensaje({ conversacionId: 7, contenido: "puedo abonar 10 el viernes" });
+
+    expect(mockPromesaRepo.save).not.toHaveBeenCalled();
+    expect(mockPromesaRepo.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tipo: "refinanciacion",
+          prestamo: expect.objectContaining({ cliente: expect.objectContaining({ id: 10 }) }),
+        }),
+      }),
+    );
+    const enviado = mockGateway.enviarMensaje.mock.calls[0][0];
+    expect(enviado.intencionDetectada).toBe("promesa_pago_rechazada");
+    expect(enviado.contenido.toLowerCase()).toContain("límites");
   });
 });

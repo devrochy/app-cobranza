@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { SecurityModule } from "../security/security.module";
 import { SociosModule } from "../socios/socios.module";
 import { RutasModule } from "../rutas/rutas.module";
+import { ReglasNegociacionIaModule } from "../reglas-negociacion-ia/reglas-negociacion-ia.module";
 import { Ruta } from "../rutas/ruta.entity";
 import { RutaConfig } from "../rutas/ruta-config.entity";
 import { CarteraController } from "./cartera.controller";
@@ -44,6 +45,7 @@ import { AsistenteIaService } from "./asistente-ia.service";
     JwtModule.register({}),
     SociosModule,
     RutasModule,
+    ReglasNegociacionIaModule,
   ],
   controllers: [CarteraController, WhatsappSimuladoController],
   providers: [

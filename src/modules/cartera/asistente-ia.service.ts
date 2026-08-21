@@ -9,12 +9,15 @@ import {
   construirTextoPedirFechaPromesa,
   construirTextoConfirmacionAbonoParcial,
   construirTextoConfirmacionRefinanciacion,
+  construirTextoNegociacionRechazada,
   ProximaCuotaInfo,
 } from "../../domain/consulta-saldo-ia";
 import { parsearPromesaPago } from "../../domain/promesa-pago-ia";
 import { detectarTipoNegociacion } from "../../domain/negociacion-ia";
+import { evaluarNegociacion } from "../../domain/evaluacion-negociacion-ia";
 import { construirEstadoCuentaPrestamo } from "../../domain/estado-cuenta-prestamo";
 import { Ruta } from "../rutas/ruta.entity";
+import { ReglasNegociacionIaService } from "../reglas-negociacion-ia/reglas-negociacion-ia.service";
 import { Cliente } from "./cliente.entity";
 import { ConversacionIa } from "./conversacion-ia.entity";
 import { Prestamo } from "./prestamo.entity";
@@ -63,6 +66,7 @@ export class AsistenteIaService {
     @Inject(WHATSAPP_GATEWAY)
     private readonly gateway: WhatsappGateway,
     private readonly notificacionesService: NotificacionesService,
+    private readonly reglasService: ReglasNegociacionIaService,
   ) {}
 
   async procesarMensaje(entrada: MensajeEntrante): Promise<void> {
@@ -130,6 +134,34 @@ export class AsistenteIaService {
     const nombre = `${cliente.nombre} ${cliente.apellido}`.trim();
     const valorPrometido = parseado.valor ?? proxima.valorEsperado;
     const tipo = detectarTipoNegociacion(contenido);
+
+    // HU-31: evaluar la negociación contra las reglas configuradas (HU-25)
+    // antes de persistir el acuerdo ("IA propone, reglas deciden").
+    const reglas = await this.reglasService.obtener();
+    const reprogramacionesCliente = await this.promesaRepo.count({
+      where: { tipo: "refinanciacion", prestamo: { cliente: { id: cliente.id } } },
+    });
+    const evaluacion = evaluarNegociacion(
+      {
+        tipo,
+        valorPrometido,
+        fechaPrometida: parseado.fecha,
+        valorCuota: proxima.valorEsperado,
+        fechaVencimientoCuota: proxima.fechaVencimiento,
+        reprogramacionesCliente,
+      },
+      {
+        maxDiasProrroga: reglas.maxDiasProrroga,
+        minAbonoAceptablePct: reglas.minAbonoAceptablePct,
+        maxReprogramacionesPorCliente: reglas.maxReprogramacionesPorCliente,
+      },
+    );
+    if (!evaluacion.aprobado) {
+      return {
+        contenido: construirTextoNegociacionRechazada(nombre, evaluacion.motivos),
+        intencionDetectada: "promesa_pago_rechazada",
+      };
+    }
 
     const promesa = this.promesaRepo.create({
       prestamo: { id: proxima.prestamoId } as PromesaPago["prestamo"],
