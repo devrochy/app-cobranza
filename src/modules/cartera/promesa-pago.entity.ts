@@ -10,12 +10,16 @@ import {
 import { numericTransformer } from "../../common/numeric-transformer";
 import { Prestamo } from "./prestamo.entity";
 import { Visita } from "./visita.entity";
+import { ConversacionIa } from "./conversacion-ia.entity";
 
 export const PROMESA_ESTADO = ["pendiente", "cumplida", "incumplida"] as const;
 export type PromesaEstado = (typeof PROMESA_ESTADO)[number];
 
 export const PROMESA_CREADOR = ["ia", "cobrador", "agente"] as const;
 export type PromesaCreador = (typeof PROMESA_CREADOR)[number];
+
+export const TIPO_PROMESA = ["promesa", "abono_parcial", "refinanciacion"] as const;
+export type TipoPromesa = (typeof TIPO_PROMESA)[number];
 
 @Entity("promesas_pago")
 export class PromesaPago {
@@ -28,6 +32,14 @@ export class PromesaPago {
 
   @RelationId((promesa: PromesaPago) => promesa.visita)
   visitaId!: number | null;
+
+  // PRD 4.2:338: vínculo opcional con la conversación de IA (promesas del asistente).
+  @ManyToOne(() => ConversacionIa, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "conversacion_id" })
+  conversacion!: ConversacionIa | null;
+
+  @RelationId((promesa: PromesaPago) => promesa.conversacion)
+  conversacionId!: number | null;
 
   @ManyToOne(() => Prestamo, { onDelete: "RESTRICT", nullable: false })
   @JoinColumn({ name: "prestamo_id" })
@@ -47,6 +59,10 @@ export class PromesaPago {
 
   @Column({ name: "creado_por", type: "varchar" })
   creadoPor!: PromesaCreador;
+
+  // HU-29: tipo de acuerdo. Default "promesa" (promesas de visita HU-46).
+  @Column({ type: "varchar", default: "promesa" })
+  tipo!: TipoPromesa;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;

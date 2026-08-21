@@ -4,6 +4,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { Ruta } from "../rutas/ruta.entity";
 import { CajaService } from "../rutas/caja.service";
+import { NotificacionesService } from "./notificaciones.service";
 import { Cliente } from "./cliente.entity";
 import { Cuota } from "./cuota.entity";
 import { Prestamo } from "./prestamo.entity";
@@ -22,6 +23,7 @@ describe("PagosService", () => {
   const mockCuotaRepo = { findOne: jest.fn(), save: jest.fn() };
   const mockClienteRepo = { findOne: jest.fn() };
   const mockCajaService = { aplicarMovimiento: jest.fn() };
+  const mockNotificacionesService = { enviarConfirmacionPago: jest.fn() };
   const mockDataSource = {
     transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
       fn({
@@ -79,6 +81,7 @@ describe("PagosService", () => {
         { provide: getRepositoryToken(Pago), useValue: { create: jest.fn(), save: jest.fn() } },
         { provide: CajaService, useValue: mockCajaService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: NotificacionesService, useValue: mockNotificacionesService },
       ],
     }).compile();
 
@@ -152,6 +155,24 @@ describe("PagosService", () => {
       "cuota 1 (prestamo 20)",
       expect.anything(),
     );
+    expect(mockNotificacionesService.enviarConfirmacionPago).toHaveBeenCalled();
+  });
+
+  it("no rompe el registro del pago si falla la confirmación", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    const cuota = cuotaFixture();
+    (cuotaRepo.findOne as jest.Mock).mockResolvedValue(cuota);
+    (cuotaRepo.save as jest.Mock).mockImplementation(async (c: Cuota) => c);
+    (mockNotificacionesService.enviarConfirmacionPago as jest.Mock).mockRejectedValue(new Error("gateway"));
+
+    const result = await service.registrarPagoDeCuota(
+      1,
+      { cuotaId: 10, valor: 120, metodoPago: "efectivo" },
+      adminContext,
+    );
+
+    expect(cuota.estatus).toBe("pagada");
+    expect(result.cuotaId).toBe(10);
   });
 
   it("registra el pago con visitaId y manager externo cuando se componen (no abre transacción propia)", async () => {

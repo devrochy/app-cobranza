@@ -17,6 +17,9 @@ import { VisitasService } from "./visitas.service";
 import { CuotaService } from "./cuota.service";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
 import { NavegacionClienteService } from "./navegacion-cliente.service";
+import { ConversacionChatService } from "./conversacion-chat.service";
+import { EstadoCuentaService } from "./estado-cuenta.service";
+import { PromesasPagoService } from "./promesas-pago.service";
 
 describe("CarteraController", () => {
   let controller: CarteraController;
@@ -28,6 +31,9 @@ describe("CarteraController", () => {
   let cuotaService: CuotaService;
   let clienteTarjetaService: ClienteTarjetaService;
   let navegacionClienteService: NavegacionClienteService;
+  let conversacionChatService: ConversacionChatService;
+  let estadoCuentaService: EstadoCuentaService;
+  let promesasPagoService: PromesasPagoService;
 
   const mockClienteService = {
     crear: jest.fn(),
@@ -65,6 +71,21 @@ describe("CarteraController", () => {
     obtener: jest.fn(),
   };
 
+  const mockConversacionChatService = {
+    obtenerHistorial: jest.fn(),
+    enviarMensajeAgente: jest.fn(),
+  };
+
+  const mockEstadoCuentaService = {
+    obtener: jest.fn(),
+    enviarReporte: jest.fn(),
+  };
+
+  const mockPromesasPagoService = {
+    listarPorPrestamo: jest.fn(),
+    transicionarEstado: jest.fn(),
+  };
+
   const baseDto = {
     nombre: "Juan",
     apellido: "Pérez",
@@ -86,6 +107,9 @@ describe("CarteraController", () => {
         { provide: CuotaService, useValue: mockCuotaService },
         { provide: ClienteTarjetaService, useValue: mockClienteTarjetaService },
         { provide: NavegacionClienteService, useValue: mockNavegacionClienteService },
+        { provide: ConversacionChatService, useValue: mockConversacionChatService },
+        { provide: EstadoCuentaService, useValue: mockEstadoCuentaService },
+        { provide: PromesasPagoService, useValue: mockPromesasPagoService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
@@ -105,6 +129,9 @@ describe("CarteraController", () => {
     cuotaService = module.get(CuotaService);
     clienteTarjetaService = module.get(ClienteTarjetaService);
     navegacionClienteService = module.get(NavegacionClienteService);
+    conversacionChatService = module.get(ConversacionChatService);
+    estadoCuentaService = module.get(EstadoCuentaService);
+    promesasPagoService = module.get(PromesasPagoService);
   });
 
   it("delega al crear un cliente", async () => {
@@ -292,6 +319,79 @@ describe("CarteraController", () => {
       1,
       10,
       { latitud: -17.77, longitud: -63.17 },
+      { rol: "admin", sub: 1 },
+    );
+  });
+
+  it("delega al obtener el historial de conversación del cliente", async () => {
+    (conversacionChatService.obtenerHistorial as jest.Mock).mockResolvedValue({ mensajes: [] });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.historialConversacion(1, 10, req);
+
+    expect(conversacionChatService.obtenerHistorial).toHaveBeenCalledWith(1, 10, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al enviar el mensaje del agente", async () => {
+    (conversacionChatService.enviarMensajeAgente as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { contenido: "Hola" };
+
+    await controller.enviarMensajeAgente(1, 10, dto, req);
+
+    expect(conversacionChatService.enviarMensajeAgente).toHaveBeenCalledWith(1, 10, "Hola", { rol: "admin", sub: 1 });
+  });
+
+  it("delega al obtener el estado de cuenta del préstamo", async () => {
+    (estadoCuentaService.obtener as jest.Mock).mockResolvedValue({ prestamoId: 5 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.estadoCuentaPrestamo(1, 5, req);
+
+    expect(estadoCuentaService.obtener).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al enviar el reporte del préstamo por WhatsApp", async () => {
+    (estadoCuentaService.enviarReporte as jest.Mock).mockResolvedValue({ conversacionId: 7 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.enviarReportePrestamo(1, 5, req);
+
+    expect(estadoCuentaService.enviarReporte).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al listar las promesas de un préstamo", async () => {
+    (promesasPagoService.listarPorPrestamo as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarPromesasPrestamo(1, 5, req);
+
+    expect(promesasPagoService.listarPorPrestamo).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
+  });
+
+  it("delega a la transición de estado de una promesa", async () => {
+    (promesasPagoService.transicionarEstado as jest.Mock).mockResolvedValue({ id: 30 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { estado: "cumplida" as const, motivo: "pagó" };
+
+    await controller.transicionarEstadoPromesa(1, 30, dto, req);
+
+    expect(promesasPagoService.transicionarEstado).toHaveBeenCalledWith(
+      1,
+      30,
+      { estado: "cumplida", motivo: "pagó" },
       { rol: "admin", sub: 1 },
     );
   });

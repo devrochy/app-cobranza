@@ -39,6 +39,11 @@ import { OperacionAuditadaDto } from "./dto/operacion-auditada.dto";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
 import { NavegacionClienteService } from "./navegacion-cliente.service";
 import { OrigenNavegacionDto } from "./dto/origen-navegacion.dto";
+import { ConversacionChatService } from "./conversacion-chat.service";
+import { EstadoCuentaService } from "./estado-cuenta.service";
+import { PromesasPagoService } from "./promesas-pago.service";
+import { TransicionarEstadoPromesaDto } from "./dto/transicionar-estado-promesa.dto";
+import { EnviarMensajeDto } from "./dto/enviar-mensaje.dto";
 
 @Controller("rutas/:rutaId")
 export class CarteraController {
@@ -51,6 +56,9 @@ export class CarteraController {
     private readonly cuotaService: CuotaService,
     private readonly clienteTarjetaService: ClienteTarjetaService,
     private readonly navegacionClienteService: NavegacionClienteService,
+    private readonly conversacionChatService: ConversacionChatService,
+    private readonly estadoCuentaService: EstadoCuentaService,
+    private readonly promesasPagoService: PromesasPagoService,
   ) {}
 
   @Post("clientes")
@@ -278,6 +286,94 @@ export class CarteraController {
         rol: req.user.rol,
         sub: req.user.sub,
       },
+    );
+  }
+
+  @Get("clientes/:clienteId/conversacion")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  historialConversacion(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.conversacionChatService.obtenerHistorial(rutaId, clienteId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post("clientes/:clienteId/conversacion/mensajes")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  enviarMensajeAgente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Body() dto: EnviarMensajeDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.conversacionChatService.enviarMensajeAgente(rutaId, clienteId, dto.contenido, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get("prestamos/:prestamoId/estado-cuenta")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  estadoCuentaPrestamo(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("prestamoId", ParseIntPipe) prestamoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.estadoCuentaService.obtener(rutaId, prestamoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Post("prestamos/:prestamoId/enviar-reporte")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  enviarReportePrestamo(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("prestamoId", ParseIntPipe) prestamoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.estadoCuentaService.enviarReporte(rutaId, prestamoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get("prestamos/:prestamoId/promesas")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarPromesasPrestamo(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("prestamoId", ParseIntPipe) prestamoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.promesasPagoService.listarPorPrestamo(rutaId, prestamoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch("promesas/:promesaId/estado")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  transicionarEstadoPromesa(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("promesaId", ParseIntPipe) promesaId: number,
+    @Body() dto: TransicionarEstadoPromesaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.promesasPagoService.transicionarEstado(
+      rutaId,
+      promesaId,
+      { estado: dto.estado, motivo: dto.motivo },
+      { rol: req.user.rol, sub: req.user.sub },
     );
   }
 }

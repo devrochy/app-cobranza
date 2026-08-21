@@ -4,6 +4,32 @@ Formato basado en [Conventional Commits](https://www.conventionalcommits.org/) y
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-21
+
+### Added
+
+- **Fase 4 — Notificaciones e IA (Épica 6)**:
+  - **Ítem 23 — Infraestructura del simulador de WhatsApp y motor de notificaciones**: `POST /whatsapp/simulado/recibir` (protegido con `JwtAuthGuard`) simula el webhook de WhatsApp en local (sin WhatsApp Business API, coherente con PRD 6.1); motor de programación de notificaciones y configuración de notificación por ruta.
+  - **HU-52 — Notificaciones de pago en ciclo completo**: recordatorio antes del vencimiento (días de anticipación configurados por ruta), aviso el día de cobro y, después, confirmación al registrarse el pago y alerta de mora si no se paga, con config por ruta (amplía HU-30).
+  - **HU-53 — Historial unificado de conversación con el cliente**: `GET .../clientes/:clienteId/conversacion` y `POST .../conversacion/mensajes` (gated `ver_reportes`) consolidan mensajes del asistente IA, notificaciones y mensajes manuales de agentes, con chat por simulador y enlace `wa.me` (amplía HU-19/HU-33).
+  - **HU-54 — Estado de cuenta del préstamo y envío por WhatsApp**: `GET /rutas/:rutaId/prestamos/:prestamoId/estado-cuenta` (gated `ver_reportes`) y `POST .../enviar-reporte` (gated `generar_reporte`, emisor `ia`, intención `reporte_estado_cuenta`) (amplía HU-27).
+  - **HU-25 — Reglas de negociación del asistente de IA**: `GET`/`PUT /reglas-negociacion-ia` (admin-only) con DTO validado (`min_abono_aceptable_pct` 0-100, enteros > 0) para los límites financieros que la IA puede ofrecer autónomamente.
+  - **HU-27 — Consulta de saldo y próxima cuota por WhatsApp**: el webhook simulado persiste el mensaje del cliente y auto-responde con saldo/próxima cuota vía detección de intención (`AsistenteIaService`, renombrado desde `ConsultaSaldoIaService`).
+  - **HU-28 — Registro de promesa de pago en lenguaje natural**: el asistente interpreta el compromiso del cliente (ej. "pago el viernes") y lo formaliza como promesa vinculada al préstamo.
+  - **HU-29 — Negociación de refinanciación o abono parcial por WhatsApp**: el asistente negocia con tipo de acuerdo (abono parcial/refinanciación) en lenguaje natural.
+  - **HU-31 — Evaluación de cada negociación contra las reglas configuradas**: toda propuesta del asistente se valida contra los límites de HU-25 antes de confirmarse (patrón "IA propone, reglas deciden", PRD 3.3).
+  - **HU-32 — Detección y derivación a agente humano**: casos complejos (disputa, queja, solicitud de agente, fraude sospechado) se detectan y derivan al panel con historial completo de la conversación.
+  - **HU-34 — Promesas de pago y acuerdos como entidades auditables**: `GET /rutas/:rutaId/prestamos/:prestamoId/promesas` (gated `ver_reportes`) y `PATCH /rutas/:rutaId/promesas/:promesaId/estado` (gated `generar_reporte`) con transición de estado (pendiente/cumplida/incumplida) vinculada al préstamo.
+- **Fase 3 (complemento) — HU-49 — Trayectorias planificada y real en reporte diario**: `POST /rutas/:id/dia/trayectoria-real` (registro manual de puntos GeoJSON, tipo `real` en `ruta_optimizada_log`) y `GET /rutas/:id/dia/trayectorias` (gated `ver_reportes`) consolidan la trayectoria planificada y la real en `reportes_diarios` (amplía HU-18/HU-38; quedó fuera del tag v0.6.0).
+
+### Tests
+
+- Suite unitaria ampliada (68 suites / 587 tests) y e2e (44 suites / 280 tests sobre Postgres real), incluyendo e2e nuevos de simulador WhatsApp/notificaciones, ciclo completo de notificaciones, historial de conversación, estado de cuenta, reglas de negociación, consulta de saldo, promesa de pago, negociación, evaluación de reglas, derivación a agente humano, promesas auditables y trayectorias.
+
+### Docs
+
+- Archivos de tarea en `docs/ai/tasks/` (infraestructura-whatsapp-notificaciones, notificaciones-ciclo-pago, historial-chat-cliente, estado-cuenta-envio-reporte, reglas-negociacion-ia, consulta-saldo-whatsapp, promesa-pago-ia, negociacion-ia, evaluacion-reglas-negociacion, derivacion-agente-humano, promesas-auditables, trayectorias-reporte) y backlog ampliado.
+
 ## [0.6.0] - 2026-08-19
 
 ### Added
