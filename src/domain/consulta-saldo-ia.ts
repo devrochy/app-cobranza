@@ -82,3 +82,18 @@ export function construirTextoConfirmacionRefinanciacion(nombreCliente: string):
     "Tu plan de pagos será revisado y coordinado. Por ahora tus cuotas no cambian."
   );
 }
+
+/**
+ * HU-31: respuesta cuando la evaluación de reglas rechaza una negociación.
+ * Indica que la propuesta excede los límites permitidos (sin derivar; HU-32).
+ */
+export function construirTextoNegociacionRechazada(
+  nombreCliente: string,
+  motivos: string[],
+): string {
+  const lineas = [`Hola ${nombreCliente}, no puedo confirmar tu propuesta: excede los límites permitidos.`];
+  for (const motivo of motivos) {
+    lineas.push(`- ${motivo}`);
+  }
+  return lineas.join("\n");
+}
