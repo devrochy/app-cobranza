@@ -10,11 +10,13 @@ import {
   construirTextoConfirmacionAbonoParcial,
   construirTextoConfirmacionRefinanciacion,
   construirTextoNegociacionRechazada,
+  construirTextoDerivacion,
   ProximaCuotaInfo,
 } from "../../domain/consulta-saldo-ia";
 import { parsearPromesaPago } from "../../domain/promesa-pago-ia";
 import { detectarTipoNegociacion } from "../../domain/negociacion-ia";
 import { evaluarNegociacion } from "../../domain/evaluacion-negociacion-ia";
+import { detectarDerivacion } from "../../domain/derivacion-ia";
 import { construirEstadoCuentaPrestamo } from "../../domain/estado-cuenta-prestamo";
 import { Ruta } from "../rutas/ruta.entity";
 import { ReglasNegociacionIaService } from "../reglas-negociacion-ia/reglas-negociacion-ia.service";
@@ -80,6 +82,21 @@ export class AsistenteIaService {
     const intencion = detectarIntencion(entrada.contenido);
     const nombre = `${cliente.nombre} ${cliente.apellido}`.trim();
 
+    // HU-32: si el mensaje requiere atención humana, se deriva la conversación
+    // y el asistente deja el caso a un agente (sin forzar la automatización).
+    const derivacion = detectarDerivacion(entrada.contenido);
+    if (derivacion.deriva) {
+      await this.marcarDerivada(conversacion, derivacion.motivo);
+      await this.gateway.enviarMensaje({
+        conversacionId: conversacion.id,
+        emisor: "ia",
+        contenido: construirTextoDerivacion(nombre),
+        telefono: cliente.telefonoWhatsapp,
+        intencionDetectada: "derivacion",
+      });
+      return;
+    }
+
     let contenido: string;
     let intencionDetectada: string;
 
@@ -103,6 +120,16 @@ export class AsistenteIaService {
       telefono: cliente.telefonoWhatsapp,
       intencionDetectada,
     });
+  }
+
+  private async marcarDerivada(
+    conversacion: ConversacionIa,
+    motivo: string | null,
+  ): Promise<void> {
+    conversacion.estado = "derivada";
+    conversacion.motivoDerivacion = motivo;
+    conversacion.agenteAsignadoId = null;
+    await this.conversacionRepo.save(conversacion);
   }
 
   private async registrarPromesa(
@@ -161,6 +188,19 @@ export class AsistenteIaService {
         contenido: construirTextoNegociacionRechazada(nombre, evaluacion.motivos),
         intencionDetectada: "promesa_pago_rechazada",
       };
+    }
+
+    // HU-32: si el saldo del cliente supera el umbral de decisión autónoma
+    // configurado (HU-25), la negociación se deriva a un agente humano.
+    if (reglas.umbralSaldoAutonomo > 0) {
+      const { totalSaldo } = await this.computarSaldo(cliente);
+      if (totalSaldo > reglas.umbralSaldoAutonomo) {
+        await this.marcarDerivada(conversacion, "saldo_supera_umbral");
+        return {
+          contenido: construirTextoDerivacion(nombre),
+          intencionDetectada: "derivacion",
+        };
+      }
     }
 
     const promesa = this.promesaRepo.create({

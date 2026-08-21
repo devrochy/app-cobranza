@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { formatDate } from "../../common/date";
 import { RutaConfig } from "../rutas/ruta-config.entity";
 import { Cliente } from "./cliente.entity";
@@ -192,8 +192,12 @@ export class NotificacionesService {
   }
 
   async obtenerConversacion(cliente: Cliente): Promise<ConversacionIa> {
+    // HU-32: reutiliza la conversación más reciente (activa o derivada) del
+    // cliente; si quedó derivada, un mensaje posterior no debe crear una
+    // conversación activa nueva (eso desharía la derivación).
     const existente = await this.conversacionRepo.findOne({
-      where: { cliente: { id: cliente.id }, estado: "activa" },
+      where: { cliente: { id: cliente.id }, estado: In(["activa", "derivada"]) },
+      order: { id: "DESC" },
     });
     if (existente) {
       return existente;

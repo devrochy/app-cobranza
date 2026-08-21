@@ -97,3 +97,10 @@ export function construirTextoNegociacionRechazada(
   }
   return lineas.join("\n");
 }
+
+/**
+ * HU-32: respuesta cuando la conversación se deriva a un agente humano.
+ */
+export function construirTextoDerivacion(nombreCliente: string): string {
+  return `Hola ${nombreCliente}, un agente humano te atenderá pronto para ayudarte.`;
+}
