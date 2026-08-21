@@ -6,6 +6,7 @@ import {
   construirTextoConfirmacionAbonoParcial,
   construirTextoConfirmacionRefinanciacion,
   construirTextoNegociacionRechazada,
+  construirTextoDerivacion,
   ProximaCuotaInfo,
 } from "./consulta-saldo-ia";
 
@@ -95,5 +96,13 @@ describe("construirTextoNegociacionRechazada", () => {
   it("indica que la propuesta excede los límites sin motivos", () => {
     const texto = construirTextoNegociacionRechazada("Juan", []);
     expect(texto.toLowerCase()).toContain("límites");
+  });
+});
+
+describe("construirTextoDerivacion", () => {
+  it("indica que un agente humano atenderá el caso", () => {
+    const texto = construirTextoDerivacion("Juan");
+    expect(texto.toLowerCase()).toContain("agente");
+    expect(texto.toLowerCase()).toContain("atender");
   });
 });
