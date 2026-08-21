@@ -63,6 +63,7 @@ describe("Mapa de clientes del día (e2e)", () => {
     await rutaRepo.createQueryBuilder().delete().execute();
     await cobradorRepo.delete({ codigo: "CB-MAPA-1" });
     await socioRepo.delete({ codigo: "SC-MAPA-1" });
+    await socioRepo.delete({ codigo: "SC-MAPA-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -160,6 +161,7 @@ describe("Mapa de clientes del día (e2e)", () => {
     await rutaRepo.delete({ id: rutaId });
     await cobradorRepo.delete({ codigo: "CB-MAPA-1" });
     await socioRepo.delete({ codigo: "SC-MAPA-1" });
+    await socioRepo.delete({ codigo: "SC-MAPA-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
