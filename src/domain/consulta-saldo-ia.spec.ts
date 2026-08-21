@@ -5,6 +5,7 @@ import {
   construirTextoPedirFechaPromesa,
   construirTextoConfirmacionAbonoParcial,
   construirTextoConfirmacionRefinanciacion,
+  construirTextoNegociacionRechazada,
   ProximaCuotaInfo,
 } from "./consulta-saldo-ia";
 
@@ -81,5 +82,18 @@ describe("construirTextoConfirmacionRefinanciacion", () => {
     expect(texto.toLowerCase()).toContain("refinanciación");
     expect(texto.toLowerCase()).toContain("registré");
     expect(texto.toLowerCase()).toContain("no cambian");
+  });
+});
+
+describe("construirTextoNegociacionRechazada", () => {
+  it("indica que la propuesta excede los límites y menciona el motivo", () => {
+    const texto = construirTextoNegociacionRechazada("Juan", ["el abono no alcanza el mínimo aceptable"]);
+    expect(texto.toLowerCase()).toContain("límites");
+    expect(texto.toLowerCase()).toContain("mínimo");
+  });
+
+  it("indica que la propuesta excede los límites sin motivos", () => {
+    const texto = construirTextoNegociacionRechazada("Juan", []);
+    expect(texto.toLowerCase()).toContain("límites");
   });
 });
