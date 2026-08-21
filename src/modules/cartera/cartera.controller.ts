@@ -41,6 +41,8 @@ import { NavegacionClienteService } from "./navegacion-cliente.service";
 import { OrigenNavegacionDto } from "./dto/origen-navegacion.dto";
 import { ConversacionChatService } from "./conversacion-chat.service";
 import { EstadoCuentaService } from "./estado-cuenta.service";
+import { PromesasPagoService } from "./promesas-pago.service";
+import { TransicionarEstadoPromesaDto } from "./dto/transicionar-estado-promesa.dto";
 import { EnviarMensajeDto } from "./dto/enviar-mensaje.dto";
 
 @Controller("rutas/:rutaId")
@@ -56,6 +58,7 @@ export class CarteraController {
     private readonly navegacionClienteService: NavegacionClienteService,
     private readonly conversacionChatService: ConversacionChatService,
     private readonly estadoCuentaService: EstadoCuentaService,
+    private readonly promesasPagoService: PromesasPagoService,
   ) {}
 
   @Post("clientes")
@@ -341,5 +344,36 @@ export class CarteraController {
       rol: req.user.rol,
       sub: req.user.sub,
     });
+  }
+
+  @Get("prestamos/:prestamoId/promesas")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarPromesasPrestamo(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("prestamoId", ParseIntPipe) prestamoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.promesasPagoService.listarPorPrestamo(rutaId, prestamoId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch("promesas/:promesaId/estado")
+  @PermisoRequerido("generar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  transicionarEstadoPromesa(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("promesaId", ParseIntPipe) promesaId: number,
+    @Body() dto: TransicionarEstadoPromesaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.promesasPagoService.transicionarEstado(
+      rutaId,
+      promesaId,
+      { estado: dto.estado, motivo: dto.motivo },
+      { rol: req.user.rol, sub: req.user.sub },
+    );
   }
 }

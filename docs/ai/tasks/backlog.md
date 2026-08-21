@@ -300,3 +300,9 @@ Formato de cada entrada:
 - Fecha: 2026-08-19
 - Descripción: el POST /rutas/:id/dia/trayectoria-real usa `ver_reportes` (lectura) para una escritura; el patrón del proyecto usa `generar_reporte` en POSTs. Evaluar cambiar el permiso.
 - Prioridad sugerida: baja
+
+## Extraer helper compartido de construcción de fila de auditoría
+- Detectado en: docs/ai/tasks/promesas-auditables.md (revisión code-reviewer HU-34)
+- Fecha: 2026-08-21
+- Descripción: la fila de `auditoria_cartera` (entidad, operacion, valoresAntes/Despues, actor, motivo) se construye a mano en tres servicios (cuota.service, abonos.service, promesas-pago.service). Extraer un helper compartido para evitar el tercer lugar duplicado.
+- Prioridad sugerida: baja

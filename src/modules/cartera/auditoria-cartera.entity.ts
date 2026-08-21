@@ -5,7 +5,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 
-export const AUDITORIA_CARTERA_ENTIDAD = ["cuota", "abono", "pago"] as const;
+export const AUDITORIA_CARTERA_ENTIDAD = ["cuota", "abono", "pago", "promesa"] as const;
 export type AuditoriaCarteraEntidad = (typeof AUDITORIA_CARTERA_ENTIDAD)[number];
 
 export const AUDITORIA_CARTERA_OPERACION = ["editar", "eliminar"] as const;
