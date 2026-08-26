@@ -7,6 +7,8 @@ import { CobroSocio } from "./cobro-socio.entity";
 import { CobrosSocioController } from "./cobros-socio.controller";
 import { CobrosSocioJob } from "./cobros-socio-job.service";
 import { CobrosSocioService } from "./cobros-socio.service";
+import { ConversacionesSocioController } from "./conversaciones-socio.controller";
+import { ConversacionSocioChatService } from "./conversacion-socio-chat.service";
 import { ConversacionSocio } from "./conversacion-socio.entity";
 import { LinkPago } from "./link-pago.entity";
 import { MensajeSocio } from "./mensaje-socio.entity";
@@ -19,8 +21,8 @@ import { SocioMoraService } from "./socio-mora.service";
     SociosModule,
     JwtModule.register({}),
   ],
-  controllers: [CobrosSocioController],
-  providers: [CobrosSocioService, CobrosSocioJob, NotificacionesSocioService, SocioMoraService],
+controllers: [CobrosSocioController, ConversacionesSocioController],
+  providers: [CobrosSocioService, CobrosSocioJob, NotificacionesSocioService, SocioMoraService, ConversacionSocioChatService],
   exports: [CobrosSocioService, NotificacionesSocioService],
 })
 export class CobrosSocioModule {}

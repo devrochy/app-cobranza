@@ -142,7 +142,7 @@ export class NotificacionesSocioService {
       .getExists();
   }
 
-  private async obtenerConversacion(socioId: number): Promise<ConversacionSocio> {
+  async obtenerConversacion(socioId: number): Promise<ConversacionSocio> {
     const existente = await this.conversacionRepo.findOne({
       where: { socio: { id: socioId }, estado: "activa" },
       order: { id: "DESC" },
