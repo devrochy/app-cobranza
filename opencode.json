@@ -6,8 +6,7 @@
   "default_agent": "build",
 
   "instructions": [
-    "AGENTS.md",
-    "docs/APP_REQUIREMENTS.md"
+    "AGENTS.md"
   ],
 
   "skills": {

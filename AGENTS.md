@@ -63,6 +63,7 @@ Ejemplos de lo que NO requiere preguntar (puedes decidir y documentar la decisi�
 - Antes de usar una API externa (WhatsApp Cloud API, Google Maps Platform, Anthropic/OpenCode Zen, proveedor de mapas), **consulta la documentación oficial** con `webfetch` si no la tienes ya confirmada en la sesión, y cita la URL consultada en el archivo de tarea o en el comentario de código relevante.
 - Si no puedes verificar algo (por ejemplo, un límite de rate-limit de una API de terceros) dilo explícitamente como suposición pendiente de validar, no lo presentes como un hecho confirmado.
 - Nunca inventes datos de negocio (tasas de interés, montos, nombres de clientes reales) — usa siempre datos de prueba claramente marcados como ficticios (`test-`, `fixture-`, etc.).
+- **El PRD (`docs/APP_REQUIREMENTS.md`) NO se carga en cada sesión** (optimización de tokens, ver `opencode.json`): léelo **por demanda** con `Read` + `offset`/`limit` cuando una HU/tarea lo requiera, y cítalo por `HU:nlínea`. No lo resumas ni lo reinterpretes de memoria.
 
 ## 5. Anti-redundancia
 
