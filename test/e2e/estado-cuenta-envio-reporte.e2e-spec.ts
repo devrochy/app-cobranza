@@ -121,6 +121,7 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
         numCuotas: 3,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
 

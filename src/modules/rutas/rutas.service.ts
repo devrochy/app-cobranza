@@ -23,6 +23,7 @@ export interface CreateRutaInput {
   numCuotas: number;
   moneda: string;
   saldoInicial: number;
+  costoCobro: number;
 }
 
 export interface RequesterContext {
@@ -39,6 +40,7 @@ export interface RutaPublic {
   tipoInteres: number;
   numCuotas: number;
   moneda: string;
+  costoCobro: number;
   estatus: RutaEstatus;
   createdAt: Date;
 }
@@ -90,6 +92,7 @@ export class RutasService {
       tipoInteres: input.tipoInteres,
       numCuotas: input.numCuotas,
       moneda: input.moneda,
+      costoCobro: input.costoCobro,
       estatus: "activo",
     });
     ruta.socioId = input.socioId;
@@ -218,6 +221,7 @@ export class RutasService {
       tipoInteres: ruta.tipoInteres,
       numCuotas: ruta.numCuotas,
       moneda: ruta.moneda,
+      costoCobro: ruta.costoCobro,
       estatus: ruta.estatus,
       createdAt: ruta.createdAt,
     };

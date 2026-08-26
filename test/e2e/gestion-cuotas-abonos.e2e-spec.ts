@@ -128,6 +128,7 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
 

@@ -48,6 +48,9 @@ export class Ruta {
   @Column({ length: 3 })
   moneda!: string;
 
+  @Column({ name: "costo_cobro", type: "numeric", precision: 10, scale: 2, default: 0, transformer: numericTransformer })
+  costoCobro!: number;
+
   @Column({ type: "varchar", default: "activo" })
   estatus!: RutaEstatus;
 

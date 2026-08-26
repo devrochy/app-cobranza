@@ -121,6 +121,7 @@ describe("Consulta de saldo por WhatsApp (e2e, HU-27)", () => {
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
 

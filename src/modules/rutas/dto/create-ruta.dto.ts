@@ -42,4 +42,8 @@ export class CreateRutaDto {
   @IsNumber({}, { message: "El saldo inicial debe ser un número" })
   @Min(0, { message: "El saldo inicial no puede ser negativo" })
   saldoInicial!: number;
+
+  @IsNumber({}, { message: "El costo de cobro debe ser un número" })
+  @Min(0, { message: "El costo de cobro no puede ser negativo" })
+  costoCobro!: number;
 }
