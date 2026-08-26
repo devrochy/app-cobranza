@@ -31,6 +31,7 @@ export interface ActualizarConfiguracionSocioInput {
   pais?: string | null;
   nombreOficinaCobro?: string | null;
   diasToleranciaCobro?: number;
+  diasAnticipacionCobro?: number;
 }
 
 export interface RequesterSocioContext {
@@ -50,6 +51,7 @@ export interface SocioPublic {
   pais: string | null;
   nombreOficinaCobro: string | null;
   diasToleranciaCobro: number;
+  diasAnticipacionCobro: number;
   estatus: SocioEstatus;
   createdAt: Date;
 }
@@ -180,7 +182,7 @@ export class SociosService {
       throw new NotFoundException("El socio no existe");
     }
 
-    const campos = [input.pais, input.nombreOficinaCobro, input.diasToleranciaCobro];
+    const campos = [input.pais, input.nombreOficinaCobro, input.diasToleranciaCobro, input.diasAnticipacionCobro];
     if (campos.every((value) => value === undefined)) {
       throw new BadRequestException("No hay campos de configuración para actualizar");
     }
@@ -188,6 +190,7 @@ export class SociosService {
     if (input.pais !== undefined) socio.pais = this.cleanNullable(input.pais);
     if (input.nombreOficinaCobro !== undefined) socio.nombreOficinaCobro = this.cleanNullable(input.nombreOficinaCobro);
     if (input.diasToleranciaCobro !== undefined) socio.diasToleranciaCobro = input.diasToleranciaCobro;
+    if (input.diasAnticipacionCobro !== undefined) socio.diasAnticipacionCobro = input.diasAnticipacionCobro;
 
     const saved = await this.repo.save(socio);
     return this.toPublic(saved);
@@ -264,6 +267,7 @@ export class SociosService {
       pais: socio.pais,
       nombreOficinaCobro: socio.nombreOficinaCobro,
       diasToleranciaCobro: socio.diasToleranciaCobro,
+      diasAnticipacionCobro: socio.diasAnticipacionCobro,
       estatus: socio.estatus,
       createdAt: socio.createdAt,
     };
