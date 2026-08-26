@@ -18,3 +18,6 @@ docs/ai/memory/knowledge-graph.json
 
 # Uploads locales (evidencias, MVP)
 uploads/
+
+# Obsidian (config de máquina)
+.obsidian/
