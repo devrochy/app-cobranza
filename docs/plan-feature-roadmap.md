@@ -67,7 +67,7 @@
 35. `/plan-feature Cobro mensual a socios: costo base por ruta, fecha de cobro anclada al alta, historial de cobros y notificaciones antes/durante/después (HU-60)`
 36. `/plan-feature Bloqueo automático por mora de cobro con job diario y auto-habilitación al pagar (HU-61)`
 37. `/plan-feature Conversaciones Admin↔Socio: historial unificado, chat por simulador y enlace wa.me (HU-63)`
-38. `/plan-feature Estrategia y diseño de métodos de pago para socios (sección 6.4 del PRD) con ADR de proveedor global vs local`
+38. `/plan-feature Estrategia y diseño de métodos de pago para socios (sección 6.4 del PRD) con ADR de proveedor global vs local` — **entregado (docs/estrategia-metodos-pago-socios.md + ADR-0003 en `propuesta`, pendiente de validación del marco por el usuario; integración real en Fase 2/3)**
 
 ## Fase 6 — Offline y sincronización (Épica 10, transversal)
 
