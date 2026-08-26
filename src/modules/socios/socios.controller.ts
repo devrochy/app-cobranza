@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Put, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import type { Request } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisoRequerido } from "../auth/permiso-requerido.decorator";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { CreateSocioDto } from "./dto/create-socio.dto";
+import { ListarSociosDto } from "./dto/listar-socios.dto";
 import { UpdateEstatusDto } from "./dto/update-estatus.dto";
 import { UpdatePermisosDto } from "./dto/update-permisos.dto";
 import { UpdateSocioDto } from "./dto/update-socio.dto";
@@ -30,6 +31,12 @@ export class SociosController {
   @UseGuards(JwtAuthGuard, PermisoGuard)
   update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateSocioDto) {
     return this.sociosService.update(id, dto);
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listar(@Query() query: ListarSociosDto) {
+    return this.sociosService.listar(query);
   }
 
   @Get(":id")

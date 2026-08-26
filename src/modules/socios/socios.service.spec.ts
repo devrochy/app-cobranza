@@ -38,6 +38,7 @@ describe("SociosService", () => {
     findOne: jest.fn(),
     create: jest.fn((entity: Partial<Socio>) => entity as Socio),
     save: jest.fn(async (entity: Partial<Socio>) => entity as Socio),
+    createQueryBuilder: jest.fn(),
   };
 
   function socioConfigFixture(overrides: Partial<Socio> = {}): Socio {
@@ -460,6 +461,101 @@ describe("SociosService", () => {
         adminCtx,
       );
       expect(res.diasAnticipacionCobro).toBe(5);
+    });
+  });
+
+  describe("listar", () => {
+    const socio1: Socio = {
+      id: 1,
+      usuario: "socio1",
+      passwordHash: "hash",
+      nombre: "Juan",
+      apellido: "Pérez",
+      correo: "juan@correo.com",
+      telefono: "+59170000001",
+      codigo: "SC001",
+      moneda: "BOB",
+      pais: null,
+      nombreOficinaCobro: null,
+      diasToleranciaCobro: 5,
+      diasAnticipacionCobro: 3,
+      estatus: "activo",
+      createdAt: new Date(),
+    } as Socio;
+    const socio2: Socio = {
+      ...socio1,
+      id: 2,
+      usuario: "socio2",
+      codigo: "SC002",
+      correo: "maria@correo.com",
+      estatus: "bloqueado",
+    };
+
+    function mockQueryBuilder(rows: Socio[]) {
+      return {
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(rows),
+      };
+    }
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("lista todos los socios sin filtros en orden id ASC y sin passwordHash", async () => {
+      const qb = mockQueryBuilder([socio1, socio2]);
+      (repo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const res = await service.listar({});
+
+      expect(repo.createQueryBuilder).toHaveBeenCalledWith("socio");
+      expect(qb.orderBy).toHaveBeenCalledWith("socio.id", "ASC");
+      expect(qb.andWhere).not.toHaveBeenCalled();
+      expect(res).toHaveLength(2);
+      expect(res.map((s) => s.codigo)).toEqual(["SC001", "SC002"]);
+      expect(Object.keys(res[0])).not.toContain("passwordHash");
+    });
+
+    it("filtra por busqueda con ILIKE aplicando trim", async () => {
+      const qb = mockQueryBuilder([socio1]);
+      (repo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({ busqueda: "  juan  " });
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining("ILIKE"),
+        { termino: "%juan%" },
+      );
+    });
+
+    it("filtra por estatus", async () => {
+      const qb = mockQueryBuilder([socio2]);
+      (repo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({ estatus: "bloqueado" });
+
+      expect(qb.andWhere).toHaveBeenCalledWith("socio.estatus = :estatus", {
+        estatus: "bloqueado",
+      });
+    });
+
+    it("aplica busqueda y estatus juntos", async () => {
+      const qb = mockQueryBuilder([]);
+      (repo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({ busqueda: "juan", estatus: "activo" });
+
+      expect(qb.andWhere).toHaveBeenCalledTimes(2);
+    });
+
+    it("ignora una busqueda vacía o de solo espacios", async () => {
+      const qb = mockQueryBuilder([socio1]);
+      (repo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({ busqueda: "   " });
+
+      expect(qb.andWhere).not.toHaveBeenCalled();
     });
   });
 });

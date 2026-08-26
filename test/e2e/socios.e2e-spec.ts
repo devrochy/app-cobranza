@@ -262,4 +262,100 @@ describe("Socios (e2e)", () => {
       .send({ nombreOficinaCobro: "Oficina Ajena" });
     expect(otroRes.status).toBe(403);
   });
+
+  describe("GET /socios (listado)", () => {
+    beforeAll(async () => {
+      await request(app.getHttpServer())
+        .post("/socios")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({
+          usuario: "socio-e2e-3",
+          password: "password-seguro",
+          nombre: "Luis",
+          apellido: "Torres",
+          correo: "luis@correo.com",
+          telefono: "+59170000003",
+          codigo: "SC-E2E-003",
+          moneda: "BOB",
+          estatus: "bloqueado",
+        });
+    });
+
+    afterAll(async () => {
+      await socioRepo.delete({ codigo: "SC-E2E-003" });
+    });
+
+    it("devuelve todos los socios sin passwordHash como admin", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/socios")
+        .set("Authorization", `Bearer ${accessToken}`);
+
+      expect(res.status).toBe(200);
+      const codigos = res.body.map((s: { codigo: string }) => s.codigo);
+      expect(codigos).toContain("SC-E2E-001");
+      expect(codigos).toContain("SC-E2E-002");
+      expect(codigos).toContain("SC-E2E-003");
+      expect(Object.keys(res.body[0])).not.toContain("passwordHash");
+    });
+
+    it("filtra por busqueda (ILIKE)", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/socios")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .query({ busqueda: "juan" });
+
+      expect(res.status).toBe(200);
+      const codigos = res.body.map((s: { codigo: string }) => s.codigo);
+      expect(codigos).toContain("SC-E2E-001");
+      expect(codigos).not.toContain("SC-E2E-002");
+      expect(codigos).not.toContain("SC-E2E-003");
+    });
+
+    it("filtra por estatus", async () => {
+      const bloqueados = await request(app.getHttpServer())
+        .get("/socios")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .query({ estatus: "bloqueado" });
+      const activos = await request(app.getHttpServer())
+        .get("/socios")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .query({ estatus: "activo" });
+
+      const codigosBloqueados = bloqueados.body.map((s: { codigo: string }) => s.codigo);
+      expect(codigosBloqueados).toContain("SC-E2E-003");
+      expect(codigosBloqueados).not.toContain("SC-E2E-001");
+
+      const codigosActivos = activos.body.map((s: { codigo: string }) => s.codigo);
+      expect(codigosActivos).toContain("SC-E2E-001");
+      expect(codigosActivos).toContain("SC-E2E-002");
+      expect(codigosActivos).not.toContain("SC-E2E-003");
+    });
+
+    it("rechaza un estatus inválido con 400", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/socios")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .query({ estatus: "pendiente" });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("responde 401 sin token", async () => {
+      const res = await request(app.getHttpServer()).get("/socios");
+      expect(res.status).toBe(401);
+    });
+
+    it("responde 403 como socio (admin-only)", async () => {
+      const login = await request(app.getHttpServer())
+        .post("/auth/socio/login")
+        .send({ usuario: "socio-e2e", password: "password-seguro" });
+      const tokenSocio = login.body.accessToken as string;
+
+      const res = await request(app.getHttpServer())
+        .get("/socios")
+        .set("Authorization", `Bearer ${tokenSocio}`);
+
+      expect(res.status).toBe(403);
+    });
+  });
 });
