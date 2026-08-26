@@ -73,6 +73,10 @@
 
 39. `/plan-feature API de sincronización de eventos offline con idempotencia por ID de dispositivo (HU-64)`
 
+## Fase 7 — Panel administrativo (Workstream B, repo separado)
+
+> El backend del panel quedó listo (HU-23 `GET /dashboard` y HU-24 `GET /conversaciones-ia/panel`). El panel se construye en el repo `devrochy/app-cobranza-admin` (Next.js) según `docs/plan-panel-admin.md`.
+
 ---
 
 ## Notas de ejecución
