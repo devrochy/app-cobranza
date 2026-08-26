@@ -34,6 +34,11 @@ export interface ActualizarConfiguracionSocioInput {
   diasAnticipacionCobro?: number;
 }
 
+export interface ListarSociosFiltros {
+  busqueda?: string;
+  estatus?: SocioEstatus;
+}
+
 export interface RequesterSocioContext {
   rol: RolUsuario;
   sub: number;
@@ -165,6 +170,23 @@ export class SociosService {
       throw new NotFoundException("El socio no existe");
     }
     return this.toPublic(socio);
+  }
+
+  async listar(filtros: ListarSociosFiltros = {}): Promise<SocioPublic[]> {
+    const qb = this.repo.createQueryBuilder("socio");
+    const busqueda = filtros.busqueda?.trim();
+    if (busqueda) {
+      qb.andWhere(
+        "(socio.usuario ILIKE :termino OR socio.nombre ILIKE :termino OR socio.apellido ILIKE :termino OR socio.correo ILIKE :termino OR socio.codigo ILIKE :termino OR socio.telefono ILIKE :termino)",
+        { termino: `%${busqueda}%` },
+      );
+    }
+    if (filtros.estatus) {
+      qb.andWhere("socio.estatus = :estatus", { estatus: filtros.estatus });
+    }
+    qb.orderBy("socio.id", "ASC");
+    const socios = await qb.getMany();
+    return socios.map((socio) => this.toPublic(socio));
   }
 
   async actualizarConfiguracion(
