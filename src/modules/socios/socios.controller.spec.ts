@@ -8,6 +8,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { CreateSocioDto } from "./dto/create-socio.dto";
+import { ListarSociosDto } from "./dto/listar-socios.dto";
 import { PermisosSocioService } from "./permisos-socio.service";
 import { SociosController } from "./socios.controller";
 import { SociosService } from "./socios.service";
@@ -22,6 +23,7 @@ describe("SociosController", () => {
     update: jest.fn(),
     setEstatus: jest.fn(),
     obtener: jest.fn(),
+    listar: jest.fn(),
     actualizarConfiguracion: jest.fn(),
   };
 
@@ -138,6 +140,15 @@ describe("SociosController", () => {
     await controller.getById(1);
 
     expect(service.obtener).toHaveBeenCalledWith(1);
+  });
+
+  it("delega en el servicio al listar socios con los filtros del query", async () => {
+    (service.listar as jest.Mock).mockResolvedValue([{ id: 1 }]);
+    const query: ListarSociosDto = { busqueda: "juan", estatus: "activo" };
+
+    await controller.listar(query);
+
+    expect(service.listar).toHaveBeenCalledWith(query);
   });
 
   it("delega en el servicio al actualizar la configuración del socio", async () => {
