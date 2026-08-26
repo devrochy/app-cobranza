@@ -2,9 +2,11 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
+import type { Request } from "express";
 import { DataSource } from "typeorm";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
+import { AuthTokenPayload } from "../auth/auth.service";
 import { CreateSocioDto } from "./dto/create-socio.dto";
 import { PermisosSocioService } from "./permisos-socio.service";
 import { SociosController } from "./socios.controller";
@@ -19,6 +21,8 @@ describe("SociosController", () => {
     create: jest.fn(),
     update: jest.fn(),
     setEstatus: jest.fn(),
+    obtener: jest.fn(),
+    actualizarConfiguracion: jest.fn(),
   };
 
   const mockPermisosService = {
@@ -126,5 +130,29 @@ describe("SociosController", () => {
     await controller.setPermisos(1, { matriz });
 
     expect(permisosService.setMatriz).toHaveBeenCalledWith(1, matriz);
+  });
+
+  it("delega en el servicio al obtener un socio por id", async () => {
+    (service.obtener as jest.Mock).mockResolvedValue({ id: 1 });
+
+    await controller.getById(1);
+
+    expect(service.obtener).toHaveBeenCalledWith(1);
+  });
+
+  it("delega en el servicio al actualizar la configuración del socio", async () => {
+    (service.actualizarConfiguracion as jest.Mock).mockResolvedValue({ id: 1 });
+    const req = { user: { sub: 1, rol: "socio", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { nombreOficinaCobro: "Mi Oficina", diasToleranciaCobro: 3 };
+
+    await controller.actualizarConfiguracion(1, dto, req);
+
+    expect(service.actualizarConfiguracion).toHaveBeenCalledWith(
+      1,
+      dto,
+      { rol: "socio", sub: 1 },
+    );
   });
 });

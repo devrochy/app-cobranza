@@ -9,4 +9,5 @@ module.exports = {
   testEnvironment: "node",
   testTimeout: 30000,
   maxWorkers: 1,
+  setupFiles: ["<rootDir>/test/e2e/setup.ts"],
 };

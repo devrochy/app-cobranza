@@ -1,11 +1,14 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Put, Req, UseGuards } from "@nestjs/common";
+import type { Request } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisoRequerido } from "../auth/permiso-requerido.decorator";
+import { AuthTokenPayload } from "../auth/auth.service";
 import { CreateSocioDto } from "./dto/create-socio.dto";
 import { UpdateEstatusDto } from "./dto/update-estatus.dto";
 import { UpdatePermisosDto } from "./dto/update-permisos.dto";
 import { UpdateSocioDto } from "./dto/update-socio.dto";
+import { ActualizarConfiguracionSocioDto } from "./dto/actualizar-configuracion-socio.dto";
 import { PermisosSocioService } from "./permisos-socio.service";
 import { SociosService } from "./socios.service";
 
@@ -27,6 +30,26 @@ export class SociosController {
   @UseGuards(JwtAuthGuard, PermisoGuard)
   update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateSocioDto) {
     return this.sociosService.update(id, dto);
+  }
+
+  @Get(":id")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  getById(@Param("id", ParseIntPipe) id: number) {
+    return this.sociosService.obtener(id);
+  }
+
+  @Patch(":id/configuracion")
+  @PermisoRequerido("editar_configuracion_socio")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  actualizarConfiguracion(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: ActualizarConfiguracionSocioDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.sociosService.actualizarConfiguracion(id, dto, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
   }
 
   @Patch(":id/estatus")

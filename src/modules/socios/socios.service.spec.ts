@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
@@ -39,6 +39,19 @@ describe("SociosService", () => {
     create: jest.fn((entity: Partial<Socio>) => entity as Socio),
     save: jest.fn(async (entity: Partial<Socio>) => entity as Socio),
   };
+
+  function socioConfigFixture(overrides: Partial<Socio> = {}): Socio {
+    return {
+      id: 1,
+      ...baseInput,
+      passwordHash: "hash",
+      createdAt: new Date(),
+      pais: null,
+      nombreOficinaCobro: null,
+      diasToleranciaCobro: 0,
+      ...overrides,
+    } as Socio;
+  }
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -160,7 +173,15 @@ describe("SociosService", () => {
 
   describe("update", () => {
     function socioActual(): Socio {
-      return { id: 1, ...baseInput, passwordHash: "hash-viejo", createdAt: new Date() } as Socio;
+      return {
+        id: 1,
+        ...baseInput,
+        passwordHash: "hash-viejo",
+        createdAt: new Date(),
+        pais: null,
+        nombreOficinaCobro: null,
+        diasToleranciaCobro: 0,
+      } as Socio;
     }
 
     it("actualiza el perfil y devuelve sin passwordHash", async () => {
@@ -347,6 +368,82 @@ describe("SociosService", () => {
       await expect(service.setEstatus(999, "bloqueado")).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe("obtener", () => {
+    it("lanza NotFound si el socio no existe", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(service.obtener(999)).rejects.toThrow(NotFoundException);
+    });
+
+    it("devuelve el socio completo con los campos de configuración", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue({
+        ...socioConfigFixture(),
+        pais: "BO",
+        nombreOficinaCobro: "Oficina Central",
+        diasToleranciaCobro: 3,
+      });
+      const res = await service.obtener(1);
+      expect(res.pais).toBe("BO");
+      expect(res.nombreOficinaCobro).toBe("Oficina Central");
+      expect(res.diasToleranciaCobro).toBe(3);
+    });
+  });
+
+  describe("actualizarConfiguracion", () => {
+    const adminCtx = { rol: "admin" as const, sub: 1 };
+    const socioCtx = { rol: "socio" as const, sub: 1 };
+
+    it("lanza NotFound si el socio no existe", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(
+        service.actualizarConfiguracion(999, { nombreOficinaCobro: "Oficina" }, adminCtx),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("un socio no puede configurar a otro socio (403)", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioConfigFixture());
+      await expect(
+        service.actualizarConfiguracion(2, { nombreOficinaCobro: "Oficina" }, socioCtx),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("un socio puede configurar su propio socio", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioConfigFixture());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioConfigFixture(),
+        ...e,
+      }));
+      const res = await service.actualizarConfiguracion(
+        1,
+        { nombreOficinaCobro: "Mi Oficina" },
+        socioCtx,
+      );
+      expect(res.nombreOficinaCobro).toBe("Mi Oficina");
+    });
+
+    it("rechaza sin campos para actualizar", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioConfigFixture());
+      await expect(service.actualizarConfiguracion(1, {}, adminCtx)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("actualiza los campos de configuración", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioConfigFixture());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioConfigFixture(),
+        ...e,
+      }));
+      const res = await service.actualizarConfiguracion(
+        1,
+        { pais: "PE", nombreOficinaCobro: "Oficina Sur", diasToleranciaCobro: 5 },
+        adminCtx,
+      );
+      expect(res.pais).toBe("PE");
+      expect(res.nombreOficinaCobro).toBe("Oficina Sur");
+      expect(res.diasToleranciaCobro).toBe(5);
     });
   });
 });

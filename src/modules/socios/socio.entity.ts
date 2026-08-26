@@ -32,6 +32,15 @@ export class Socio {
   @Column({ length: 3 })
   moneda!: string;
 
+  @Column({ type: "varchar", nullable: true })
+  pais!: string | null;
+
+  @Column({ name: "nombre_oficina_cobro", type: "varchar", nullable: true })
+  nombreOficinaCobro!: string | null;
+
+  @Column({ name: "dias_tolerancia_cobro", type: "int", default: 0 })
+  diasToleranciaCobro!: number;
+
   @Column({ type: "varchar", default: "activo" })
   estatus!: SocioEstatus;
 

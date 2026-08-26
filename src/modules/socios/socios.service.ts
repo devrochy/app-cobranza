@@ -1,7 +1,8 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
+import { RolUsuario } from "../auth/auth.service";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Ruta, RutaEstatus } from "../rutas/ruta.entity";
 import { Socio, SocioEstatus } from "./socio.entity";
@@ -26,6 +27,17 @@ export interface UpdateSocioInput {
   password?: string;
 }
 
+export interface ActualizarConfiguracionSocioInput {
+  pais?: string | null;
+  nombreOficinaCobro?: string | null;
+  diasToleranciaCobro?: number;
+}
+
+export interface RequesterSocioContext {
+  rol: RolUsuario;
+  sub: number;
+}
+
 export interface SocioPublic {
   id: number;
   usuario: string;
@@ -35,6 +47,9 @@ export interface SocioPublic {
   telefono: string;
   codigo: string;
   moneda: string;
+  pais: string | null;
+  nombreOficinaCobro: string | null;
+  diasToleranciaCobro: number;
   estatus: SocioEstatus;
   createdAt: Date;
 }
@@ -92,6 +107,12 @@ export class SociosService {
     return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
   }
 
+  private cleanNullable(value: string | null | undefined): string | null {
+    if (value === null || value === undefined) return null;
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
+  }
+
   async update(id: number, input: UpdateSocioInput): Promise<SocioPublic> {
     const socio = await this.repo.findOne({ where: { id } });
     if (!socio) {
@@ -133,6 +154,42 @@ export class SociosService {
       }
       throw err;
     }
+    return this.toPublic(saved);
+  }
+
+  async obtener(id: number): Promise<SocioPublic> {
+    const socio = await this.repo.findOne({ where: { id } });
+    if (!socio) {
+      throw new NotFoundException("El socio no existe");
+    }
+    return this.toPublic(socio);
+  }
+
+  async actualizarConfiguracion(
+    id: number,
+    input: ActualizarConfiguracionSocioInput,
+    requester: RequesterSocioContext,
+  ): Promise<SocioPublic> {
+    // HU-62: un socio con permiso solo puede configurar su propio socio.
+    if (requester.rol === "socio" && requester.sub !== id) {
+      throw new ForbiddenException("No puedes configurar otro socio");
+    }
+
+    const socio = await this.repo.findOne({ where: { id } });
+    if (!socio) {
+      throw new NotFoundException("El socio no existe");
+    }
+
+    const campos = [input.pais, input.nombreOficinaCobro, input.diasToleranciaCobro];
+    if (campos.every((value) => value === undefined)) {
+      throw new BadRequestException("No hay campos de configuración para actualizar");
+    }
+
+    if (input.pais !== undefined) socio.pais = this.cleanNullable(input.pais);
+    if (input.nombreOficinaCobro !== undefined) socio.nombreOficinaCobro = this.cleanNullable(input.nombreOficinaCobro);
+    if (input.diasToleranciaCobro !== undefined) socio.diasToleranciaCobro = input.diasToleranciaCobro;
+
+    const saved = await this.repo.save(socio);
     return this.toPublic(saved);
   }
 
@@ -204,6 +261,9 @@ export class SociosService {
       telefono: socio.telefono,
       codigo: socio.codigo,
       moneda: socio.moneda,
+      pais: socio.pais,
+      nombreOficinaCobro: socio.nombreOficinaCobro,
+      diasToleranciaCobro: socio.diasToleranciaCobro,
       estatus: socio.estatus,
       createdAt: socio.createdAt,
     };

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { buildTypeOrmOptions } from "./config/db-options";
 import { AdminUsersModule } from "./modules/admin-users/admin-users.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CarteraModule } from "./modules/cartera/cartera.module";
@@ -18,12 +19,8 @@ import { SociosModule } from "./modules/socios/socios.module";
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: "postgres",
-        url: configService.get<string>("DATABASE_URL"),
-        autoLoadEntities: true,
-        synchronize: configService.get<string>("NODE_ENV") !== "production",
-      }),
+      useFactory: (configService: ConfigService) =>
+        buildTypeOrmOptions((key, defaultValue) => configService.get(key, defaultValue)),
     }),
     AdminUsersModule,
     AuthModule,
