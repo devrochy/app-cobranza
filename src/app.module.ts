@@ -12,6 +12,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { RutasModule } from "./modules/rutas/rutas.module";
 import { ReglasNegociacionIaModule } from "./modules/reglas-negociacion-ia/reglas-negociacion-ia.module";
 import { SecurityModule } from "./modules/security/security.module";
+import { SincronizacionOfflineModule } from "./modules/sincronizacion-offline/sincronizacion-offline.module";
 import { SociosModule } from "./modules/socios/socios.module";
 
 @Module({
@@ -32,6 +33,7 @@ import { SociosModule } from "./modules/socios/socios.module";
     CarteraModule,
     CobrosSocioModule,
     ReglasNegociacionIaModule,
+    SincronizacionOfflineModule,
     HealthModule,
   ],
 })
