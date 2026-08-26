@@ -7,6 +7,7 @@ import { Socio } from "../socios/socio.entity";
 import { CobroSocio } from "./cobro-socio.entity";
 import { LinkPago } from "./link-pago.entity";
 import { CobrosSocioService } from "./cobros-socio.service";
+import { SocioMoraService } from "./socio-mora.service";
 
 describe("CobrosSocioService", () => {
   let service: CobrosSocioService;
@@ -69,6 +70,9 @@ describe("CobrosSocioService", () => {
     save: jest.fn(async (e: Partial<LinkPago>) => ({ ...link(), ...e } as LinkPago)),
     update: jest.fn(),
   };
+  const mockSocioMora = {
+    habilitarSiSinMorosidad: jest.fn().mockResolvedValue(true),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -79,6 +83,7 @@ describe("CobrosSocioService", () => {
         { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
         { provide: getRepositoryToken(CobroSocio), useValue: mockCobroRepo },
         { provide: getRepositoryToken(LinkPago), useValue: mockLinkRepo },
+        { provide: SocioMoraService, useValue: mockSocioMora },
       ],
     }).compile();
 
@@ -249,6 +254,18 @@ describe("CobrosSocioService", () => {
         expect.anything(),
         { estado: "pagado" },
       );
+    });
+
+    it("tras registrar el pago dispara la auto-habilitación por mora", async () => {
+      (cobroRepo.findOne as jest.Mock).mockResolvedValue(cobro());
+
+      await service.registrarPago(1, {
+        montoPagado: 500,
+        metodoPago: "qr",
+        registradoPor: 1,
+      });
+
+      expect(mockSocioMora.habilitarSiSinMorosidad).toHaveBeenCalledWith(1);
     });
   });
 
