@@ -105,6 +105,7 @@ describe("RutasController", () => {
     numCuotas: 8,
     moneda: "BOB",
     saldoInicial: 1000,
+    costoCobro: 250,
   };
 
   beforeEach(async () => {

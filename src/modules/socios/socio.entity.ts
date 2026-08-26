@@ -41,6 +41,9 @@ export class Socio {
   @Column({ name: "dias_tolerancia_cobro", type: "int", default: 0 })
   diasToleranciaCobro!: number;
 
+  @Column({ name: "dias_anticipacion_cobro", type: "int", default: 3 })
+  diasAnticipacionCobro!: number;
+
   @Column({ type: "varchar", default: "activo" })
   estatus!: SocioEstatus;
 

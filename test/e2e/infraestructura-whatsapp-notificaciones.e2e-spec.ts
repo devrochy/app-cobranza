@@ -120,6 +120,7 @@ describe("Infraestructura de WhatsApp y notificaciones (e2e)", () => {
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
 

@@ -126,6 +126,7 @@ describe("Negociación de abono parcial o refinanciación por WhatsApp (e2e, HU-
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
 

@@ -136,6 +136,7 @@ describe("Detección y derivación a agente humano (e2e, HU-32)", () => {
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
 

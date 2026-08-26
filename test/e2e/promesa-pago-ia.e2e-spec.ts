@@ -126,6 +126,7 @@ describe("Registro de promesa de pago por WhatsApp (e2e, HU-28)", () => {
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
 

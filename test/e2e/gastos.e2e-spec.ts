@@ -110,6 +110,7 @@ describe("Registro y aprobación de gastos (e2e)", () => {
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
   });

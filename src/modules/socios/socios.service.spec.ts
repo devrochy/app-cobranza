@@ -49,6 +49,7 @@ describe("SociosService", () => {
       pais: null,
       nombreOficinaCobro: null,
       diasToleranciaCobro: 0,
+      diasAnticipacionCobro: 3,
       ...overrides,
     } as Socio;
   }
@@ -181,6 +182,7 @@ describe("SociosService", () => {
         pais: null,
         nombreOficinaCobro: null,
         diasToleranciaCobro: 0,
+        diasAnticipacionCobro: 3,
       } as Socio;
     }
 
@@ -444,6 +446,20 @@ describe("SociosService", () => {
       expect(res.pais).toBe("PE");
       expect(res.nombreOficinaCobro).toBe("Oficina Sur");
       expect(res.diasToleranciaCobro).toBe(5);
+    });
+
+    it("actualiza diasAnticipacionCobro", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(socioConfigFixture());
+      (repo.save as jest.Mock).mockImplementation(async (e: Partial<Socio>) => ({
+        ...socioConfigFixture(),
+        ...e,
+      }));
+      const res = await service.actualizarConfiguracion(
+        1,
+        { diasAnticipacionCobro: 5 },
+        adminCtx,
+      );
+      expect(res.diasAnticipacionCobro).toBe(5);
     });
   });
 });

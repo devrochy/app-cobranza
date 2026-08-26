@@ -28,6 +28,7 @@ describe("RutasService", () => {
     numCuotas: 8,
     moneda: "BOB",
     saldoInicial: 1000,
+    costoCobro: 250,
   };
 
   const adminContext: RequesterContext = { rol: "admin", sub: 0 };
@@ -100,7 +101,7 @@ describe("RutasService", () => {
       const result = await service.create(baseInput, adminContext);
 
       expect(rutaRepo.save).toHaveBeenCalledTimes(1);
-      expect(result).toMatchObject({ id: 1, nombre: "Ruta Centro", tipoInteres: 20, numCuotas: 8, moneda: "BOB", socioId: 1, cobradorId: 1 });
+      expect(result).toMatchObject({ id: 1, nombre: "Ruta Centro", tipoInteres: 20, numCuotas: 8, moneda: "BOB", socioId: 1, cobradorId: 1, costoCobro: 250 });
     });
 
     it("crea la caja de la ruta con el saldo inicial al registrar la ruta", async () => {

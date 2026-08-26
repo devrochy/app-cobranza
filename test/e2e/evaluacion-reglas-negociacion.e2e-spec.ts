@@ -137,6 +137,7 @@ describe("Evaluación de negociaciones contra las reglas (e2e, HU-31)", () => {
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     rutaId = rutaRes.body.id as number;
 

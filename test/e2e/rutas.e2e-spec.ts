@@ -159,12 +159,49 @@ describe("Registro y gestión de rutas (e2e)", () => {
         numCuotas: 8,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
 
     expect(res.status).toBe(201);
     expect(res.body.nombre).toBe("Ruta E2E");
     expect(res.body.tipoInteres).toBe(20);
+    expect(res.body.costoCobro).toBe(250);
     rutaId = res.body.id as number;
+  });
+
+  it("POST /rutas sin costoCobro -> 400", async () => {
+    const res = await request(app.getHttpServer())
+      .post("/rutas")
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({
+        nombre: "Ruta Sin Costo",
+        socioId,
+        cobradorId,
+        tipoInteres: 20,
+        numCuotas: 8,
+        moneda: "BOB",
+        saldoInicial: 1000,
+      });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /rutas con costoCobro negativo -> 400", async () => {
+    const res = await request(app.getHttpServer())
+      .post("/rutas")
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({
+        nombre: "Ruta Costo Negativo",
+        socioId,
+        cobradorId,
+        tipoInteres: 20,
+        numCuotas: 8,
+        moneda: "BOB",
+        saldoInicial: 1000,
+        costoCobro: -10,
+      });
+
+    expect(res.status).toBe(400);
   });
 
   it("crea la caja de la ruta con el saldo inicial al registrar", async () => {
@@ -213,6 +250,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         numCuotas: 10,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
 
     expect(res.status).toBe(201);
@@ -266,6 +304,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         numCuotas: 8,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
 
     expect(res.status).toBe(403);
@@ -295,6 +334,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         numCuotas: 8,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
 
     expect(res.status).toBe(403);
@@ -318,6 +358,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         numCuotas: 8,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
 
     expect(res.status).toBe(409);
@@ -335,6 +376,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
         numCuotas: 8,
         moneda: "BOB",
         saldoInicial: 1000,
+        costoCobro: 250,
       });
     const cascadaRutaId = creada.body.id as number;
 
