@@ -38,7 +38,7 @@ export class Socio {
   @Column({ name: "nombre_oficina_cobro", type: "varchar", nullable: true })
   nombreOficinaCobro!: string | null;
 
-  @Column({ name: "dias_tolerancia_cobro", type: "int", default: 0 })
+  @Column({ name: "dias_tolerancia_cobro", type: "int", default: 5 })
   diasToleranciaCobro!: number;
 
   @Column({ name: "dias_anticipacion_cobro", type: "int", default: 3 })
