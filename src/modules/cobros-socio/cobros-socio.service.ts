@@ -13,6 +13,7 @@ import { Socio } from "../socios/socio.entity";
 import { CobroSocio, CobroSocioEstado } from "./cobro-socio.entity";
 import { calcularFechaVencimiento, diaAnclaDe, fechaGeneracionCobro, periodoDeFecha } from "./cobro-fecha";
 import { LinkPago, LinkPagoEstado } from "./link-pago.entity";
+import { SocioMoraService } from "./socio-mora.service";
 
 export interface RegistrarPagoInput {
   montoPagado: number;
@@ -61,6 +62,7 @@ export class CobrosSocioService {
     private readonly cobroRepo: Repository<CobroSocio>,
     @InjectRepository(LinkPago)
     private readonly linkRepo: Repository<LinkPago>,
+    private readonly socioMoraService: SocioMoraService,
   ) {}
 
   async calcularCobro(socioId: number): Promise<number> {
@@ -127,6 +129,9 @@ export class CobrosSocioService {
     cobro.registradoPor = input.registradoPor;
     const saved = await this.cobroRepo.save(cobro);
     await this.linkRepo.update({ cobroSocio: { id: cobro.id } }, { estado: "pagado" });
+
+    // HU-61: al registrarse el pago se re-habilita el socio si ya no queda morosidad.
+    await this.socioMoraService.habilitarSiSinMorosidad(cobro.socioId);
 
     return this.toPublic(saved);
   }
