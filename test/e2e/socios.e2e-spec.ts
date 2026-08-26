@@ -167,7 +167,7 @@ describe("Socios (e2e)", () => {
     expect(res.body.codigo).toBe("SC-E2E-001");
     expect(res.body).toHaveProperty("pais");
     expect(res.body).toHaveProperty("nombreOficinaCobro");
-    expect(res.body.diasToleranciaCobro).toBe(0);
+    expect(res.body.diasToleranciaCobro).toBe(5);
   });
 
   it("GET /socios/:id como socio -> 403 (admin-only)", async () => {

@@ -48,7 +48,7 @@ describe("SociosService", () => {
       createdAt: new Date(),
       pais: null,
       nombreOficinaCobro: null,
-      diasToleranciaCobro: 0,
+      diasToleranciaCobro: 5,
       diasAnticipacionCobro: 3,
       ...overrides,
     } as Socio;
@@ -181,7 +181,7 @@ describe("SociosService", () => {
         createdAt: new Date(),
         pais: null,
         nombreOficinaCobro: null,
-        diasToleranciaCobro: 0,
+        diasToleranciaCobro: 5,
         diasAnticipacionCobro: 3,
       } as Socio;
     }
