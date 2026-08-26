@@ -8,6 +8,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { CarteraModule } from "./modules/cartera/cartera.module";
 import { CobrosSocioModule } from "./modules/cobros-socio/cobros-socio.module";
 import { CobradoresModule } from "./modules/cobradores/cobradores.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { HealthModule } from "./modules/health/health.module";
 import { RutasModule } from "./modules/rutas/rutas.module";
 import { ReglasNegociacionIaModule } from "./modules/reglas-negociacion-ia/reglas-negociacion-ia.module";
@@ -34,6 +35,7 @@ import { SociosModule } from "./modules/socios/socios.module";
     CobrosSocioModule,
     ReglasNegociacionIaModule,
     SincronizacionOfflineModule,
+    DashboardModule,
     HealthModule,
   ],
 })
