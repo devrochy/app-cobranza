@@ -48,6 +48,8 @@ describe("Socios (e2e)", () => {
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
     socioRepo = moduleFixture.get(getRepositoryToken(Socio));
 
+    await socioRepo.delete({ codigo: "SC-E2E-001" });
+    await socioRepo.delete({ codigo: "SC-E2E-002" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,
@@ -152,5 +154,112 @@ describe("Socios (e2e)", () => {
       .send(socioPayload);
 
     expect(res.status).toBe(409);
+  });
+
+  it("GET /socios/:id devuelve el socio con los campos de configuración", async () => {
+    const socio = await socioRepo.findOne({ where: { codigo: "SC-E2E-001" } });
+
+    const res = await request(app.getHttpServer())
+      .get(`/socios/${socio!.id}`)
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.codigo).toBe("SC-E2E-001");
+    expect(res.body).toHaveProperty("pais");
+    expect(res.body).toHaveProperty("nombreOficinaCobro");
+    expect(res.body.diasToleranciaCobro).toBe(0);
+  });
+
+  it("GET /socios/:id como socio -> 403 (admin-only)", async () => {
+    const socio = await socioRepo.findOne({ where: { codigo: "SC-E2E-002" } });
+    const login = await request(app.getHttpServer())
+      .post("/auth/socio/login")
+      .send({ usuario: "socio-e2e-2", password: "password-seguro" });
+    const tokenSocio = login.body.accessToken as string;
+
+    const res = await request(app.getHttpServer())
+      .get(`/socios/${socio!.id}`)
+      .set("Authorization", `Bearer ${tokenSocio}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("PATCH /socios/:id/configuracion actualiza la configuración (admin)", async () => {
+    const socio = await socioRepo.findOne({ where: { codigo: "SC-E2E-001" } });
+
+    const res = await request(app.getHttpServer())
+      .patch(`/socios/${socio!.id}/configuracion`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ pais: "BO", nombreOficinaCobro: "Oficina Central", diasToleranciaCobro: 3 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.pais).toBe("BO");
+    expect(res.body.nombreOficinaCobro).toBe("Oficina Central");
+    expect(res.body.diasToleranciaCobro).toBe(3);
+  });
+
+  it("PATCH .../configuracion con diasToleranciaCobro negativo -> 400", async () => {
+    const socio = await socioRepo.findOne({ where: { codigo: "SC-E2E-001" } });
+
+    const res = await request(app.getHttpServer())
+      .patch(`/socios/${socio!.id}/configuracion`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ diasToleranciaCobro: -1 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("PATCH .../configuracion con nombreOficinaCobro demasiado largo -> 400", async () => {
+    const socio = await socioRepo.findOne({ where: { codigo: "SC-E2E-001" } });
+
+    const res = await request(app.getHttpServer())
+      .patch(`/socios/${socio!.id}/configuracion`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ nombreOficinaCobro: "x".repeat(256) });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("un socio SIN editar_configuracion_socio no puede configurar su propio socio -> 403", async () => {
+    const socio = await socioRepo.findOne({ where: { codigo: "SC-E2E-002" } });
+    const login = await request(app.getHttpServer())
+      .post("/auth/socio/login")
+      .send({ usuario: "socio-e2e-2", password: "password-seguro" });
+    const tokenSocio = login.body.accessToken as string;
+
+    const res = await request(app.getHttpServer())
+      .patch(`/socios/${socio!.id}/configuracion`)
+      .set("Authorization", `Bearer ${tokenSocio}`)
+      .send({ nombreOficinaCobro: "Mi Oficina" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("un socio con editar_configuracion_socio configura su propio socio -> 200, y otro -> 403", async () => {
+    const propio = await socioRepo.findOne({ where: { codigo: "SC-E2E-001" } });
+    const otro = await socioRepo.findOne({ where: { codigo: "SC-E2E-002" } });
+
+    await request(app.getHttpServer())
+      .put(`/socios/${propio!.id}/permisos`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ matriz: { editar_configuracion_socio: true } });
+
+    const login = await request(app.getHttpServer())
+      .post("/auth/socio/login")
+      .send({ usuario: "socio-e2e", password: "password-seguro" });
+    const tokenSocio = login.body.accessToken as string;
+
+    const propioRes = await request(app.getHttpServer())
+      .patch(`/socios/${propio!.id}/configuracion`)
+      .set("Authorization", `Bearer ${tokenSocio}`)
+      .send({ nombreOficinaCobro: "Mi Oficina" });
+    expect(propioRes.status).toBe(200);
+    expect(propioRes.body.nombreOficinaCobro).toBe("Mi Oficina");
+
+    const otroRes = await request(app.getHttpServer())
+      .patch(`/socios/${otro!.id}/configuracion`)
+      .set("Authorization", `Bearer ${tokenSocio}`)
+      .send({ nombreOficinaCobro: "Oficina Ajena" });
+    expect(otroRes.status).toBe(403);
   });
 });

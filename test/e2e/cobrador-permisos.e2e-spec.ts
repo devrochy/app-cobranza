@@ -54,6 +54,12 @@ describe("Matriz de permisos de cobrador gestionada por el socio (e2e)", () => {
     socioRepo = moduleFixture.get(getRepositoryToken(Socio));
     cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
 
+    await cobradorRepo.delete({ codigo: "CB-CP-X" });
+    await cobradorRepo.delete({ codigo: "CB-CP-Y" });
+    await cobradorRepo.delete({ codigo: "CB-CP-1" });
+    await cobradorRepo.delete({ codigo: "CB-CP-2" });
+    await socioRepo.delete({ codigo: "SC-CP-1" });
+    await socioRepo.delete({ codigo: "SC-CP-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,

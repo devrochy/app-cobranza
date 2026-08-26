@@ -48,7 +48,7 @@ describe("PermisosSocioService", () => {
   });
 
   describe("getMatriz", () => {
-    it("devuelve la matriz completa de 20 permisos con ausentes en false", async () => {
+    it("devuelve la matriz completa de permisos con ausentes en false", async () => {
       socioRepo.findOne.mockResolvedValue({ id: 1 });
       permisoRepo.find.mockResolvedValue([
         { permiso: "ver_reportes", habilitado: true },
@@ -71,7 +71,7 @@ describe("PermisosSocioService", () => {
   });
 
   describe("setMatriz", () => {
-    it("reemplaza la matriz (delete + insert de los 20) y devuelve el resultado", async () => {
+    it("reemplaza la matriz (delete + insert de todos los permisos) y devuelve el resultado", async () => {
       socioRepo.findOne.mockResolvedValue({ id: 1 });
       const filasGuardadas: Array<{ permiso: string; habilitado: boolean }> = [];
       manager.save.mockImplementation(async (_e: unknown, filas: Array<{ permiso: string; habilitado: boolean }>) => {
