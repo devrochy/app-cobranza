@@ -32,6 +32,7 @@ export const SOCIO_PERMISOS = [
   "eliminar_socio",
   "registrar_cobrador",
   "registrar_ruta",
+  "editar_configuracion_socio",
 ] as const;
 
 export type SocioPermisoNombre = (typeof SOCIO_PERMISOS)[number];
