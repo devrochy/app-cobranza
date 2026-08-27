@@ -34,6 +34,8 @@ import { RegistrarAbonoDto } from "./dto/registrar-abono.dto";
 import { RegistrarVisitaDto } from "./dto/registrar-visita.dto";
 import { ActualizarClienteDto } from "./dto/actualizar-cliente.dto";
 import { DecisionCambioDto } from "./dto/decision-cambio.dto";
+import { ListarCambiosClienteDto } from "./dto/listar-cambios-cliente.dto";
+import { UpdateEstatusClienteDto } from "./dto/update-estatus-cliente.dto";
 import { EditarCuotaDto } from "./dto/editar-cuota.dto";
 import { OperacionAuditadaDto } from "./dto/operacion-auditada.dto";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
@@ -100,6 +102,62 @@ export class CarteraController {
       }
     }
     return this.clienteService.crear(rutaId, dto, evidencias, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get("clientes")
+  @PermisoRequerido("configurar_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarClientes(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.clienteService.listar(rutaId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get("clientes/:clienteId/prestamos")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarPrestamosDeCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.prestamoService.listarPorCliente(rutaId, clienteId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Patch("clientes/:clienteId/estatus")
+  @PermisoRequerido("configurar_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  setEstatusCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Body() dto: UpdateEstatusClienteDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.clienteService.setEstatus(rutaId, clienteId, dto.estatus, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get("cambios-cliente")
+  @PermisoRequerido("configurar_ruta")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarCambiosCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Query() query: ListarCambiosClienteDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.clienteService.listarCambios(rutaId, query.estado, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
