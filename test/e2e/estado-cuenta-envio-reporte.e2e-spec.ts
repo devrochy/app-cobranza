@@ -171,6 +171,7 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
     expect(res.body.totalAbonos).toBe(0);
     expect(res.body.cuotas[0]).toHaveProperty("saldoPendiente");
     expect(res.body.cuotas[0]).toHaveProperty("abonosAcumulados");
+    expect(res.body.cuotas[0]).toHaveProperty("cuotaId");
   });
 
   it("GET .../estado-cuenta con préstamo inexistente -> 404", async () => {

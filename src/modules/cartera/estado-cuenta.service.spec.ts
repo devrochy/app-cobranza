@@ -111,9 +111,9 @@ describe("EstadoCuentaService", () => {
       prestamoFixture(),
     );
     (cuotaRepo.find as jest.Mock).mockResolvedValue([
-      { numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2026-09-01", estatus: "pagada" },
-      { numeroCuota: 2, valorEsperado: 100, fechaVencimiento: "2026-09-08", estatus: "pendiente" },
-      { numeroCuota: 3, valorEsperado: 100, fechaVencimiento: "2026-09-15", estatus: "pendiente" },
+      { id: 11, numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2026-09-01", estatus: "pagada" },
+      { id: 12, numeroCuota: 2, valorEsperado: 100, fechaVencimiento: "2026-09-08", estatus: "pendiente" },
+      { id: 13, numeroCuota: 3, valorEsperado: 100, fechaVencimiento: "2026-09-15", estatus: "pendiente" },
     ]);
     (abonoRepo.find as jest.Mock).mockResolvedValue([{ valor: 50 }, { valor: 25 }]);
 
@@ -124,6 +124,7 @@ describe("EstadoCuentaService", () => {
     expect(result.saldoPendiente).toBe(125);
     expect(result.proximoVencimiento).toBe("2026-09-08");
     expect(result.cuotas).toHaveLength(3);
+    expect(result.cuotas.map((c) => c.cuotaId)).toEqual([11, 12, 13]);
     expect(result.moneda).toBe("BOB");
   });
 

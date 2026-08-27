@@ -118,6 +118,7 @@ export class EstadoCuentaService {
         tipoInteres: prestamo.tipoInteres,
       },
       cuotas.map((c) => ({
+        cuotaId: c.id,
         numeroCuota: c.numeroCuota,
         valorEsperado: c.valorEsperado,
         fechaVencimiento: c.fechaVencimiento,
