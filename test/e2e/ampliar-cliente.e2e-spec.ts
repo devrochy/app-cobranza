@@ -215,4 +215,55 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
 
     expect(res.status).toBe(401);
   });
+
+
+  describe("listados de cartera (GET clientes / prestamos / cambios + PATCH estatus)", () => {
+    it("GET /rutas/:id/clientes devuelve el cliente creado", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/rutas/${rutaId}/clientes`)
+        .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+      expect(res.status).toBe(200);
+      const ids = res.body.map((c: { id: number }) => c.id);
+      expect(ids).toContain(clienteId);
+    });
+
+    it("GET /rutas/:id/clientes/:clienteId/prestamos devuelve el préstamo con cuotas", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/rutas/${rutaId}/clientes/${clienteId}/prestamos`)
+        .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+      expect(res.body[0].cuotas.length).toBeGreaterThan(0);
+    });
+
+    it("GET /rutas/:id/cambios-cliente devuelve la lista (sin cambios)", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/rutas/${rutaId}/cambios-cliente`)
+        .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    it("PATCH /rutas/:id/clientes/:clienteId/estatus bloquea el cliente", async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/rutas/${rutaId}/clientes/${clienteId}/estatus`)
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .send({ estatus: "bloqueado" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.estatus).toBe("bloqueado");
+    });
+
+    it("GET /rutas/:id/cambios-cliente con estado inválido -> 400", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/rutas/${rutaId}/cambios-cliente`)
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .query({ estado: "invalido" });
+
+      expect(res.status).toBe(400);
+    });
+  });
 });
