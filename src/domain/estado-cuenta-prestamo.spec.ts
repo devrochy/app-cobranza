@@ -4,8 +4,12 @@ import {
   CuotaEstadoInput,
 } from "./estado-cuenta-prestamo";
 
+let seq = 0;
+
 function cuota(overrides: Partial<CuotaEstadoInput> = {}): CuotaEstadoInput {
+  seq += 1;
   return {
+    cuotaId: seq,
     numeroCuota: 1,
     valorEsperado: 100,
     fechaVencimiento: "2026-09-01",
@@ -33,6 +37,7 @@ describe("construirEstadoCuentaPrestamo", () => {
     expect(res.cuotas).toHaveLength(4);
     expect(res.cuotas[0]).toMatchObject({
       numeroCuota: 1,
+      cuotaId: expect.any(Number),
       saldoPendiente: 100,
       abonosAcumulados: 0,
     });

@@ -1,6 +1,7 @@
 export type EstadoCuotaEstatus = "pendiente" | "pagada" | "atrasada";
 
 export interface CuotaEstadoInput {
+  cuotaId: number;
   numeroCuota: number;
   valorEsperado: number;
   fechaVencimiento: string;
@@ -12,6 +13,7 @@ export interface AbonoInput {
 }
 
 export interface CuotaEstado {
+  cuotaId: number;
   numeroCuota: number;
   valorEsperado: number;
   fechaVencimiento: string;
@@ -50,6 +52,7 @@ export function construirEstadoCuentaPrestamo(
     // vía pago de cuota, no vía abono).
     if (esPagada) {
       return {
+        cuotaId: c.cuotaId,
         numeroCuota: c.numeroCuota,
         valorEsperado: c.valorEsperado,
         fechaVencimiento: c.fechaVencimiento,
@@ -68,6 +71,7 @@ export function construirEstadoCuentaPrestamo(
     }
 
     return {
+      cuotaId: c.cuotaId,
       numeroCuota: c.numeroCuota,
       valorEsperado: c.valorEsperado,
       fechaVencimiento: c.fechaVencimiento,
