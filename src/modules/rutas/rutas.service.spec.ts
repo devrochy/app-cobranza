@@ -39,6 +39,7 @@ describe("RutasService", () => {
     create: jest.fn((entity: Partial<Ruta>) => entity as Ruta),
     save: jest.fn(async (entity: Partial<Ruta>) => entity as Ruta),
     update: jest.fn(),
+    createQueryBuilder: jest.fn(),
   };
   const mockSocioRepo = { findOne: jest.fn() };
   const mockCobradorRepo = { findOne: jest.fn() };
@@ -479,6 +480,95 @@ describe("RutasService", () => {
       await expect(
         service.actualizarConfiguracion(1, { tipoInteres: 25 }, socioContext),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+
+  describe("listar", () => {
+    const ruta1: Ruta = {
+      id: 1,
+      nombre: "Ruta Centro",
+      descripcion: "Zona céntrica",
+      socioId: 1,
+      cobradorId: 1,
+      tipoInteres: 20,
+      numCuotas: 8,
+      moneda: "BOB",
+      costoCobro: 250,
+      estatus: "activo",
+      createdAt: new Date(),
+    } as Ruta;
+    const ruta2: Ruta = {
+      ...ruta1,
+      id: 2,
+      nombre: "Ruta Norte",
+      descripcion: null,
+      estatus: "bloqueado",
+    };
+
+    function mockQueryBuilder(rows: Ruta[]) {
+      return {
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(rows),
+      };
+    }
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("lista todas las rutas sin filtros en orden id ASC", async () => {
+      const qb = mockQueryBuilder([ruta1, ruta2]);
+      (rutaRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const res = await service.listar({});
+
+      expect(rutaRepo.createQueryBuilder).toHaveBeenCalledWith("ruta");
+      expect(qb.orderBy).toHaveBeenCalledWith("ruta.id", "ASC");
+      expect(qb.andWhere).not.toHaveBeenCalled();
+      expect(res.map((r) => r.nombre)).toEqual(["Ruta Centro", "Ruta Norte"]);
+    });
+
+    it("filtra por busqueda con ILIKE sobre nombre y descripcion", async () => {
+      const qb = mockQueryBuilder([ruta1]);
+      (rutaRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({ busqueda: "  centro  " });
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining("ILIKE"),
+        { termino: "%centro%" },
+      );
+    });
+
+    it("filtra por estatus", async () => {
+      const qb = mockQueryBuilder([ruta2]);
+      (rutaRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({ estatus: "bloqueado" });
+
+      expect(qb.andWhere).toHaveBeenCalledWith("ruta.estatus = :estatus", {
+        estatus: "bloqueado",
+      });
+    });
+
+    it("aplica busqueda y estatus juntos", async () => {
+      const qb = mockQueryBuilder([]);
+      (rutaRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({ busqueda: "centro", estatus: "activo" });
+
+      expect(qb.andWhere).toHaveBeenCalledTimes(2);
+    });
+
+    it("ignora una busqueda vacía o de solo espacios", async () => {
+      const qb = mockQueryBuilder([ruta1]);
+      (rutaRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({ busqueda: "   " });
+
+      expect(qb.andWhere).not.toHaveBeenCalled();
     });
   });
 });

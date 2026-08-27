@@ -9,6 +9,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CreateRutaDto } from "./dto/create-ruta.dto";
+import { ListarRutasDto } from "./dto/listar-rutas.dto";
 import { InyeccionesService } from "./inyecciones.service";
 import { RutaConfigService } from "./ruta-config.service";
 import { CajaService } from "./caja.service";
@@ -38,6 +39,7 @@ describe("RutasController", () => {
 
   const mockService = {
     create: jest.fn(),
+    listar: jest.fn(),
     setEstatus: jest.fn(),
     reasignarCobrador: jest.fn(),
     actualizarInformacion: jest.fn(),
@@ -157,6 +159,15 @@ describe("RutasController", () => {
     await controller.create(baseDto, req);
 
     expect(service.create).toHaveBeenCalledWith(baseDto, { rol: "socio", sub: 10 });
+  });
+
+  it("delega en el servicio al listar rutas con los filtros del query", async () => {
+    (service.listar as jest.Mock).mockResolvedValue([{ id: 1 }]);
+    const query: ListarRutasDto = { busqueda: "centro", estatus: "activo" };
+
+    await controller.listar(query);
+
+    expect(service.listar).toHaveBeenCalledWith(query);
   });
 
   it("delega al cambiar el estatus de la ruta", async () => {

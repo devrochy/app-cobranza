@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   Req,
   Res,
   UploadedFiles,
@@ -22,6 +23,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisoRequerido } from "../auth/permiso-requerido.decorator";
 import { CreateRutaDto } from "./dto/create-ruta.dto";
+import { ListarRutasDto } from "./dto/listar-rutas.dto";
 import { CreateInyeccionDto } from "./dto/create-inyeccion.dto";
 import { ReasignarCobradorDto } from "./dto/reasignar-cobrador.dto";
 import { UpdateEstatusRutaDto } from "./dto/update-estatus-ruta.dto";
@@ -65,6 +67,12 @@ export class RutasController {
   @UseGuards(JwtAuthGuard, PermisoGuard)
   create(@Body() dto: CreateRutaDto, @Req() req: Request & { user: AuthTokenPayload }) {
     return this.rutasService.create(dto, { rol: req.user.rol, sub: req.user.sub });
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listar(@Query() query: ListarRutasDto) {
+    return this.rutasService.listar(query);
   }
 
   @Post(":id/inyecciones")
