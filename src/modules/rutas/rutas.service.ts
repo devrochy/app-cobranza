@@ -31,6 +31,11 @@ export interface RequesterContext {
   sub: number;
 }
 
+export interface ListarRutasFiltros {
+  busqueda?: string;
+  estatus?: RutaEstatus;
+}
+
 export interface RutaPublic {
   id: number;
   socioId: number;
@@ -209,6 +214,23 @@ export class RutasService {
     }
     const saved = await this.repo.save(ruta);
     return this.toPublic(saved);
+  }
+
+  async listar(filtros: ListarRutasFiltros = {}): Promise<RutaPublic[]> {
+    const qb = this.repo.createQueryBuilder("ruta");
+    const busqueda = filtros.busqueda?.trim();
+    if (busqueda) {
+      qb.andWhere(
+        "(ruta.nombre ILIKE :termino OR ruta.descripcion ILIKE :termino)",
+        { termino: `%${busqueda}%` },
+      );
+    }
+    if (filtros.estatus) {
+      qb.andWhere("ruta.estatus = :estatus", { estatus: filtros.estatus });
+    }
+    qb.orderBy("ruta.id", "ASC");
+    const rutas = await qb.getMany();
+    return rutas.map((ruta) => this.toPublic(ruta));
   }
 
   protected toPublic(ruta: Ruta): RutaPublic {
