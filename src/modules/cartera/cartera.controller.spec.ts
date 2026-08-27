@@ -39,10 +39,14 @@ describe("CarteraController", () => {
     crear: jest.fn(),
     actualizar: jest.fn(),
     decidirPropuesta: jest.fn(),
+    listar: jest.fn(),
+    listarCambios: jest.fn(),
+    setEstatus: jest.fn(),
   };
 
   const mockPrestamoService = {
     crear: jest.fn(),
+    listarPorCliente: jest.fn(),
   };
 
   const mockPagosService = {
@@ -152,6 +156,60 @@ describe("CarteraController", () => {
     );
 
     expect(clienteService.crear).toHaveBeenCalledWith(1, baseDto, [], { rol: "admin", sub: 1 });
+  });
+
+  it("delega al listar los clientes de la ruta", async () => {
+    (clienteService.listar as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarClientes(1, req);
+
+    expect(clienteService.listar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al listar los préstamos de un cliente", async () => {
+    (prestamoService.listarPorCliente as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarPrestamosDeCliente(1, 5, req);
+
+    expect(prestamoService.listarPorCliente).toHaveBeenCalledWith(1, 5, {
+      rol: "admin",
+      sub: 1,
+    });
+  });
+
+  it("delega al cambiar el estatus de un cliente", async () => {
+    (clienteService.setEstatus as jest.Mock).mockResolvedValue({ id: 5, estatus: "bloqueado" });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { estatus: "bloqueado" as const };
+
+    await controller.setEstatusCliente(1, 5, dto, req);
+
+    expect(clienteService.setEstatus).toHaveBeenCalledWith(1, 5, "bloqueado", {
+      rol: "admin",
+      sub: 1,
+    });
+  });
+
+  it("delega al listar los cambios de cliente", async () => {
+    (clienteService.listarCambios as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarCambiosCliente(1, { estado: "pendiente" }, req);
+
+    expect(clienteService.listarCambios).toHaveBeenCalledWith(1, "pendiente", {
+      rol: "admin",
+      sub: 1,
+    });
   });
 
   it("delega al crear un préstamo", async () => {

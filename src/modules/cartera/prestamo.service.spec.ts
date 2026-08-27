@@ -20,7 +20,7 @@ describe("PrestamoService", () => {
   let rutaRepo: { findOne: jest.Mock };
   let clienteRepo: { findOne: jest.Mock; save: jest.Mock };
   let configRepo: { findOne: jest.Mock };
-  let prestamoRepo: { create: jest.Mock };
+  let prestamoRepo: { create: jest.Mock; find: jest.Mock };
   let cuotaRepo: { find: jest.Mock; count: jest.Mock };
   let manager: { save: jest.Mock };
   let queryRunner: {
@@ -82,7 +82,7 @@ describe("PrestamoService", () => {
     rutaRepo = { findOne: jest.fn() };
     clienteRepo = { findOne: jest.fn(), save: jest.fn(async (c: Cliente) => c) };
     configRepo = { findOne: jest.fn() };
-    prestamoRepo = { create: jest.fn() };
+    prestamoRepo = { create: jest.fn(), find: jest.fn() };
     cuotaRepo = { find: jest.fn(), count: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -397,6 +397,48 @@ describe("PrestamoService", () => {
       await service.crear(1, baseInput, adminContext, fechaOtorgado);
 
       expect(cliente.colorRiesgo).toBe("rojo");
+    });
+  });
+
+
+  describe("listarPorCliente", () => {
+    const adminCtx = { rol: "admin" as const, sub: 1 };
+    const ruta = { id: 10, socioId: 3, cobradorId: 4, estatus: "activo" };
+    const cliente = { id: 1, nombre: "Ana", apellido: "Ruiz" };
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it("lista los préstamos del cliente con sus cuotas", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
+      (clienteRepo.findOne as jest.Mock).mockResolvedValue(cliente);
+      (prestamoRepo.find as jest.Mock).mockResolvedValue([
+        {
+          id: 7,
+          rutaId: 10,
+          clienteId: 1,
+          valor: 1000,
+          numCuotas: 8,
+          tipoInteres: 20,
+          diasEntreCuotas: 1,
+          fechaOtorgado: new Date(),
+          estatus: "vigente",
+          cuotas: [{ numeroCuota: 1, valorEsperado: 150, fechaVencimiento: "2026-08-10", estatus: "pendiente" }],
+        },
+      ]);
+
+      const res = await service.listarPorCliente(10, 1, adminCtx);
+
+      expect(prestamoRepo.find).toHaveBeenCalledWith(expect.objectContaining({
+        where: { ruta: { id: 10 }, cliente: { id: 1 } },
+        relations: { cuotas: true },
+      }));
+      expect(res[0].cuotas[0].valorEsperado).toBe(150);
+    });
+
+    it("lanza 404 si el cliente no pertenece a la ruta", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
+      (clienteRepo.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(service.listarPorCliente(10, 999, adminCtx)).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -334,6 +334,62 @@ export class ClienteService {
     };
   }
 
+  async listar(rutaId: number, requester: RequesterCarteraContext): Promise<ClientePublic[]> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+    const clientes = await this.repo.find({
+      where: { ruta: { id: rutaId } },
+      order: { id: "ASC" },
+    });
+    return clientes.map((cliente) => this.toPublic(cliente, rutaId));
+  }
+
+  async listarCambios(
+    rutaId: number,
+    estado: CambioClienteEstado | undefined,
+    requester: RequesterCarteraContext,
+  ): Promise<ClienteCambioPublic[]> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+    const cambios = await this.cambioRepo.find({
+      where: {
+        cliente: { ruta: { id: rutaId } },
+        ...(estado ? { estado } : {}),
+      },
+      relations: { cliente: true },
+      order: { createdAt: "DESC" },
+    });
+    return cambios.map((cambio) => this.toCambioPublic(cambio));
+  }
+
+  async setEstatus(
+    rutaId: number,
+    clienteId: number,
+    estatus: ClienteEstatus,
+    requester: RequesterCarteraContext,
+  ): Promise<ClientePublic> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+    const cliente = await this.repo.findOne({
+      where: { id: clienteId, ruta: { id: rutaId } },
+    });
+    if (!cliente) {
+      throw new NotFoundException("El cliente no existe");
+    }
+    cliente.estatus = estatus;
+    const saved = await this.repo.save(cliente);
+    return this.toPublic(saved, rutaId);
+  }
+
   private toPublic(cliente: Cliente, rutaId: number): ClientePublic {
     const { latitud, longitud } = fromPoint(cliente.ubicacion);
     const domicilio = cliente.ubicacionDomicilio ? fromPoint(cliente.ubicacionDomicilio) : null;

@@ -34,10 +34,10 @@ describe("ClienteService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockClienteRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockClienteRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() };
   const mockConfigRepo = { findOne: jest.fn() };
   const mockEvidenciaRepo = { create: jest.fn(), save: jest.fn() };
-  const mockCambioRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockCambioRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() };
   const mockPermisosSocio = { tienePermiso: jest.fn() };
   const mockDataSource = {
     transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
@@ -517,5 +517,69 @@ describe("ClienteService", () => {
 
     expect(cambioRepo.save).toHaveBeenCalledTimes(2);
     expect(clienteRepo.save).not.toHaveBeenCalled();
+  });
+
+
+  describe("listar / listarCambios / setEstatus", () => {
+    const adminCtx = { rol: "admin" as const, sub: 1 };
+    const ruta = { id: 10, socioId: 3, cobradorId: 4, estatus: "activo" };
+
+    const clienteFilas = [
+      { id: 1, rutaId: 10, nombre: "Ana", apellido: "Ruiz", ubicacion: { coordinates: [-63.2, -17.8] }, ubicacionDomicilio: null },
+    ];
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it("lista los clientes de la ruta en orden id ASC", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
+      (mockClienteRepo.find as jest.Mock).mockResolvedValue(clienteFilas);
+
+      const res = await service.listar(10, adminCtx);
+
+      expect(mockRutaRepo.findOne).toHaveBeenCalledWith({ where: { id: 10 } });
+      expect(mockClienteRepo.find).toHaveBeenCalledWith({
+        where: { ruta: { id: 10 } },
+        order: { id: "ASC" },
+      });
+      expect(res[0].nombre).toBe("Ana");
+    });
+
+    it("lanza 404 si la ruta no existe al listar", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(service.listar(999, adminCtx)).rejects.toThrow(NotFoundException);
+    });
+
+    it("lista los cambios de cliente filtrados por estado", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
+      (mockCambioRepo.find as jest.Mock).mockResolvedValue([
+        { id: 5, clienteId: 1, camposPropuestos: { negocio: "X" }, estado: "pendiente", solicitadoPorRol: "socio", solicitadoPorId: 3, revisadoPor: null, revisadoEn: null, motivoRechazo: null, createdAt: new Date() },
+      ]);
+
+      const res = await service.listarCambios(10, "pendiente", adminCtx);
+
+      expect(mockCambioRepo.find).toHaveBeenCalledWith(expect.objectContaining({
+        where: { cliente: { ruta: { id: 10 } }, estado: "pendiente" },
+        relations: { cliente: true },
+      }));
+      expect(res[0].estado).toBe("pendiente");
+    });
+
+    it("cambia el estatus del cliente", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
+      (mockClienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, estatus: "activo", ubicacion: { coordinates: [-63.2, -17.8] }, ubicacionDomicilio: null });
+      (mockClienteRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cliente>) => e);
+
+      const res = await service.setEstatus(10, 1, "bloqueado", adminCtx);
+
+      expect(mockClienteRepo.findOne).toHaveBeenCalledWith({ where: { id: 1, ruta: { id: 10 } } });
+      expect(mockClienteRepo.save).toHaveBeenCalledWith(expect.objectContaining({ estatus: "bloqueado" }));
+      expect(res.estatus).toBe("bloqueado");
+    });
+
+    it("lanza 404 si el cliente no existe al cambiar estatus", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
+      (mockClienteRepo.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(service.setEstatus(10, 999, "bloqueado", adminCtx)).rejects.toThrow(NotFoundException);
+    });
   });
 });

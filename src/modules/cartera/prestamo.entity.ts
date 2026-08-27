@@ -4,11 +4,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   RelationId,
 } from "typeorm";
 import { Ruta } from "../rutas/ruta.entity";
 import { Cliente } from "./cliente.entity";
+import { Cuota } from "./cuota.entity";
 import { numericTransformer } from "../../common/numeric-transformer";
 
 export const PRESTAMO_ESTATUS = ["vigente", "liquidado", "cancelado"] as const;
@@ -67,4 +69,7 @@ export class Prestamo {
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
+
+  @OneToMany(() => Cuota, (cuota) => cuota.prestamo)
+  cuotas?: Cuota[];
 }

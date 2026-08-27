@@ -253,6 +253,44 @@ export class PrestamoService {
     });
   }
 
+  async listarPorCliente(
+    rutaId: number,
+    clienteId: number,
+    requester: RequesterPrestamoContext,
+  ): Promise<PrestamoPublic[]> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+    const cliente = await this.clienteRepo.findOne({
+      where: { id: clienteId, ruta: { id: rutaId } },
+    });
+    if (!cliente) {
+      throw new NotFoundException("El cliente no existe");
+    }
+
+    const prestamos = await this.prestamoRepo.find({
+      where: { ruta: { id: rutaId }, cliente: { id: clienteId } },
+      relations: { cuotas: true },
+      order: { id: "ASC", cuotas: { numeroCuota: "ASC" } },
+    });
+    return prestamos.map((prestamo) =>
+      this.toPublic(
+        prestamo,
+        (prestamo.cuotas ?? []).map((c) => ({
+          numeroCuota: c.numeroCuota,
+          valorEsperado: c.valorEsperado,
+          fechaVencimiento: c.fechaVencimiento,
+          estatus: c.estatus,
+        })),
+        rutaId,
+        clienteId,
+        prestamo.tipoInteres,
+      ),
+    );
+  }
+
   private toPublic(
     prestamo: Prestamo,
     cuotas: CuotaGenerada[],
