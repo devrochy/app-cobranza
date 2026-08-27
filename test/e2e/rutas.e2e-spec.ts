@@ -503,4 +503,111 @@ describe("Registro y gestión de rutas (e2e)", () => {
 
     expect(res.status).toBe(401);
   });
+
+
+  describe("GET /rutas (listado)", () => {
+    let rutaBloqueadaId: number;
+
+    beforeAll(async () => {
+      // El test de cascada previo deja CB-RT-1 bloqueado; se reactiva para
+      // poder crear una ruta con él en este bloque.
+      await request(app.getHttpServer())
+        .patch(`/cobradores/${cobradorId}/estatus`)
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .send({ estatus: "activo" });
+
+      // Desacopla el filtro por estatus del orden de los tests: garantiza que
+      // "Ruta E2E" esté activa al ejecutar este bloque (el test de reasignación
+      // previo también la deja activa, pero no debe depender de eso).
+      await request(app.getHttpServer())
+        .patch(`/rutas/${rutaId}/estatus`)
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .send({ estatus: "activo" });
+
+      const creada = await request(app.getHttpServer())
+        .post("/rutas")
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .send({
+          nombre: "Ruta Bloqueada",
+          socioId,
+          cobradorId,
+          tipoInteres: 20,
+          numCuotas: 8,
+          moneda: "BOB",
+          saldoInicial: 500,
+          costoCobro: 200,
+        });
+      rutaBloqueadaId = creada.body.id as number;
+      await request(app.getHttpServer())
+        .patch(`/rutas/${rutaBloqueadaId}/estatus`)
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .send({ estatus: "bloqueado" });
+    });
+
+    afterAll(async () => {
+      await rutaRepo.delete({ id: rutaBloqueadaId });
+    });
+
+    it("devuelve todas las rutas como admin", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/rutas")
+        .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+      expect(res.status).toBe(200);
+      const nombres = res.body.map((r: { nombre: string }) => r.nombre);
+      expect(nombres).toContain("Ruta E2E");
+      expect(nombres).toContain("Ruta Bloqueada");
+    });
+
+    it("filtra por busqueda (ILIKE)", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/rutas")
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .query({ busqueda: "Ruta E2E" });
+
+      expect(res.status).toBe(200);
+      const nombres = res.body.map((r: { nombre: string }) => r.nombre);
+      expect(nombres).toContain("Ruta E2E");
+      expect(nombres).not.toContain("Ruta Bloqueada");
+    });
+
+    it("filtra por estatus", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/rutas")
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .query({ estatus: "bloqueado" });
+
+      expect(res.status).toBe(200);
+      const nombres = res.body.map((r: { nombre: string }) => r.nombre);
+      expect(nombres).toContain("Ruta Bloqueada");
+      expect(nombres).not.toContain("Ruta E2E");
+    });
+
+    it("rechaza un estatus inválido con 400", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/rutas")
+        .set("Authorization", `Bearer ${accessTokenAdmin}`)
+        .query({ estatus: "pendiente" });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("responde 401 sin token", async () => {
+      const res = await request(app.getHttpServer()).get("/rutas");
+      expect(res.status).toBe(401);
+    });
+
+    it("responde 403 como socio (admin-only)", async () => {
+      const login = await request(app.getHttpServer())
+        .post("/auth/socio/login")
+        .send({ usuario: "socio-rt-1", password: "password-seguro" });
+      const tokenSocio = login.body.accessToken as string;
+
+      const res = await request(app.getHttpServer())
+        .get("/rutas")
+        .set("Authorization", `Bearer ${tokenSocio}`);
+
+      expect(res.status).toBe(403);
+    });
+  });
 });
