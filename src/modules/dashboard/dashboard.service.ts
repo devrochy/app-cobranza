@@ -67,11 +67,10 @@ export class DashboardService {
     const inicioMesStr = formatDate(inicioMes);
 
     const rutaIds = await this.resolverRutaIds(filtros);
+    // TypeORM no resuelve RelationId (`rutaId`) en filtros de sum/count: se usa
+    // siempre la relación `ruta.id`. `rutasActivas` filtra por `id` (es Ruta).
     const filtroRuta = rutaIds ? { ruta: { id: In(rutaIds) } } : {};
-    const filtroRutaId = rutaIds ? { rutaId: In(rutaIds) } : {};
     const filtroRutaEsId = rutaIds ? { id: In(rutaIds) } : {};
-    // Pago/Abono no tienen ruta directa: se filtra vía la relación `ruta.id`
-    // de sus entidades padre (RelationId no resuelve en filtros anidados).
     const filtroPago = rutaIds ? { cliente: { ruta: { id: In(rutaIds) } } } : {};
     const filtroAbono = rutaIds ? { prestamo: { ruta: { id: In(rutaIds) } } } : {};
 
@@ -110,11 +109,11 @@ export class DashboardService {
         aprobado: true,
         estado: "activo",
         fechaHora: MoreThanOrEqual(inicioMes),
-        ...filtroRutaId,
+        ...filtroRuta,
       }),
       this.liquidacionRepo.sum("comisionValor", {
         fecha: MoreThanOrEqual(inicioMesStr),
-        ...filtroRutaId,
+        ...filtroRuta,
       }),
     ]);
 
@@ -129,10 +128,10 @@ export class DashboardService {
           where: { estatus: "activo", ...filtroSocio },
         }),
         this.clienteRepo.count({
-          where: { estatus: "activo", ...filtroRutaId },
+          where: { estatus: "activo", ...filtroRuta },
         }),
         this.prestamoRepo.count({
-          where: { estatus: "vigente", ...filtroRutaId },
+          where: { estatus: "vigente", ...filtroRuta },
         }),
       ]);
 

@@ -223,7 +223,7 @@ describe("DashboardService", () => {
     expect(gastoRepo.sum).toHaveBeenCalledWith(
       "valor",
       expect.objectContaining({
-        rutaId: expect.any(Object),
+        ruta: expect.any(Object),
         aprobado: true,
         estado: "activo",
       }),

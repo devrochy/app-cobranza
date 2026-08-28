@@ -27,7 +27,7 @@
 
 ## Decisiones tomadas durante la implementación
 - Los filtros se aplican en las queries de agregación (sum/count) con `In`, sin joins explícitos.
-- Pago/Abono no tienen relación directa a Ruta: se filtran vía la relación `ruta.id` de sus entidades padre (`cliente.ruta.id` / `prestamo.ruta.id`). **Lección del e2e (CI):** los `RelationId` (`rutaId`) no resuelven en filtros anidados de TypeORM — solo en el nivel superior de una entidad.
+- Pago/Abono no tienen relación directa a Ruta: se filtran vía la relación `ruta.id` de sus entidades padre (`cliente.ruta.id` / `prestamo.ruta.id`). **Lección del e2e (CI):** TypeORM no resuelve `RelationId` (`rutaId`) en filtros de `sum`/`count` — ni anidados ni en el nivel superior de la entidad (falló en `Cliente` y `Gasto`). El servicio usa SIEMPRE la relación `ruta.id`; `rutasActivas` filtra por `id: In` (es la entidad Ruta).
 - `rutasActivas` filtra por `id: In` (Ruta no tiene `rutaId`); `sociosActivos` con filtro de ruta deriva los socios de las rutas filtradas.
 
 ## Ambigüedades resueltas con el usuario
