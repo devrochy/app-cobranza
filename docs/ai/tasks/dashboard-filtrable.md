@@ -1,8 +1,10 @@
 # Tarea: dashboard-filtrable
 
 - **Origen:** Petición del usuario (panel admin `app-cobranza-admin`, mejora de producto P5): el dashboard consolidado es global; se quiere filtrar por ruta o socio.
-- **Estado:** en progreso
+- **Estado:** completada / mergeada (PR #69)
 - **Fecha inicio:** 2026-08-28
+- **Fecha merge:** 2026-08-28
+- **Commit del squash:** `6a637e8` (`feat(dashboard): permitir filtrar el dashboard por ruta y socio (#69)`)
 
 ## Objetivo
 `GET /dashboard` acepta `?rutaId=` y `?socioId=` (opcionales) y agrega los indicadores sobre ese subconjunto (admin-only, igual que hoy).
