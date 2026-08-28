@@ -19,8 +19,10 @@ describe("DashboardService", () => {
   let abonoRepo: Repository<Abono>;
   let gastoRepo: Repository<Gasto>;
   let liquidacionRepo: Repository<Liquidacion>;
+  let rutaRepo: Repository<Ruta>;
+  let socioRepo: Repository<Socio>;
 
-  const mockRepo = () => ({ sum: jest.fn(), count: jest.fn() });
+  const mockRepo = () => ({ sum: jest.fn(), count: jest.fn(), find: jest.fn() });
 
   const repos = {
     prestamo: mockRepo(),
@@ -57,6 +59,8 @@ describe("DashboardService", () => {
     abonoRepo = module.get(getRepositoryToken(Abono));
     gastoRepo = module.get(getRepositoryToken(Gasto));
     liquidacionRepo = module.get(getRepositoryToken(Liquidacion));
+    rutaRepo = module.get(getRepositoryToken(Ruta));
+    socioRepo = module.get(getRepositoryToken(Socio));
   });
 
   it("consolida los indicadores financieros", async () => {
@@ -187,5 +191,75 @@ describe("DashboardService", () => {
     const inicioSemana = (llamadas[1][1].fechaHora as unknown as { _value?: Date })._value;
     expect(inicioDia?.toISOString()).toBe("2026-08-26T00:00:00.000Z");
     expect(inicioSemana?.toISOString()).toBe("2026-08-20T00:00:00.000Z");
+  });
+
+  it("filtra por rutaId en todos los agregados", async () => {
+    (repos.cuota.sum as jest.Mock).mockResolvedValue(null);
+    (repos.cuota.count as jest.Mock).mockResolvedValue(0);
+    (repos.pago.sum as jest.Mock).mockResolvedValue(null);
+    (repos.abono.sum as jest.Mock).mockResolvedValue(null);
+    (repos.gasto.sum as jest.Mock).mockResolvedValue(null);
+    (repos.liquidacion.sum as jest.Mock).mockResolvedValue(null);
+    (repos.ruta.count as jest.Mock).mockResolvedValue(0);
+    (repos.socio.count as jest.Mock).mockResolvedValue(0);
+    (repos.cliente.count as jest.Mock).mockResolvedValue(0);
+    (repos.prestamo.count as jest.Mock).mockResolvedValue(0);
+    (repos.ruta.find as jest.Mock).mockResolvedValue([{ id: 6, socioId: 3 }]);
+
+    await service.obtener(new Date("2026-08-26T00:00:00Z"), { rutaId: 6 });
+
+    expect(cuotaRepo.sum).toHaveBeenCalledWith(
+      "valorEsperado",
+      expect.objectContaining({
+        prestamo: expect.objectContaining({ ruta: expect.any(Object) }),
+      }),
+    );
+    expect(pagoRepo.sum).toHaveBeenCalledWith(
+      "valor",
+      expect.objectContaining({
+        cliente: expect.objectContaining({ ruta: expect.any(Object) }),
+      }),
+    );
+    expect(gastoRepo.sum).toHaveBeenCalledWith(
+      "valor",
+      expect.objectContaining({
+        ruta: expect.any(Object),
+        aprobado: true,
+        estado: "activo",
+      }),
+    );
+    expect(rutaRepo.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: expect.any(Object) }),
+      }),
+    );
+  });
+
+  it("filtra por socioId resolviendo sus rutas", async () => {
+    (repos.cuota.sum as jest.Mock).mockResolvedValue(null);
+    (repos.cuota.count as jest.Mock).mockResolvedValue(0);
+    (repos.pago.sum as jest.Mock).mockResolvedValue(null);
+    (repos.abono.sum as jest.Mock).mockResolvedValue(null);
+    (repos.gasto.sum as jest.Mock).mockResolvedValue(null);
+    (repos.liquidacion.sum as jest.Mock).mockResolvedValue(null);
+    (repos.ruta.count as jest.Mock).mockResolvedValue(0);
+    (repos.socio.count as jest.Mock).mockResolvedValue(0);
+    (repos.cliente.count as jest.Mock).mockResolvedValue(0);
+    (repos.prestamo.count as jest.Mock).mockResolvedValue(0);
+    (repos.ruta.find as jest.Mock).mockResolvedValue([
+      { id: 6, socioId: 3 },
+      { id: 7, socioId: 3 },
+    ]);
+
+    await service.obtener(new Date("2026-08-26T00:00:00Z"), { socioId: 3 });
+
+    expect(repos.ruta.find).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { socio: { id: 3 } } }),
+    );
+    expect(socioRepo.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ estatus: "activo" }),
+      }),
+    );
   });
 });

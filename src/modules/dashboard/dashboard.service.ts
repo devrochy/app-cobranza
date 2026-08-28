@@ -32,6 +32,7 @@ export interface DashboardPublic {
  * - cobradoDia/cobradoSemana: suma de pagos + abonos con fecha_hora en el día / últimos 7 días.
  * - gastosPeriodo: suma de gastos aprobados del mes actual.
  * - comisionesPeriodo: suma de comisión de liquidaciones del mes actual.
+ * Admite filtros opcionales `rutaId`/`socioId` para acotar los agregados.
  */
 @Injectable()
 export class DashboardService {
@@ -56,28 +57,51 @@ export class DashboardService {
     private readonly clienteRepo: Repository<Cliente>,
   ) {}
 
-  async obtener(hoy: Date = new Date()): Promise<DashboardPublic> {
+  async obtener(
+    hoy: Date = new Date(),
+    filtros: { rutaId?: number; socioId?: number } = {},
+  ): Promise<DashboardPublic> {
     const inicioDia = this.inicioDeDia(hoy);
     const inicioSemana = this.restarDias(inicioDia, 6);
     const inicioMes = this.inicioDeMes(hoy);
     const inicioMesStr = formatDate(inicioMes);
 
+    const rutaIds = await this.resolverRutaIds(filtros);
+    // TypeORM no resuelve RelationId (`rutaId`) en filtros de sum/count: se usa
+    // siempre la relación `ruta.id`. `rutasActivas` filtra por `id` (es Ruta).
+    const filtroRuta = rutaIds ? { ruta: { id: In(rutaIds) } } : {};
+    const filtroRutaEsId = rutaIds ? { id: In(rutaIds) } : {};
+    const filtroPago = rutaIds ? { cliente: { ruta: { id: In(rutaIds) } } } : {};
+    const filtroAbono = rutaIds ? { prestamo: { ruta: { id: In(rutaIds) } } } : {};
+
     const [carteraActiva, moraTotal] = await Promise.all([
       this.cuotaRepo.sum("valorEsperado", {
         estatus: In(["pendiente", "atrasada"]),
-        prestamo: { estatus: "vigente" },
+        prestamo: { estatus: "vigente", ...filtroRuta },
       }),
       this.cuotaRepo.sum("valorEsperado", {
         estatus: "atrasada",
-        prestamo: { estatus: "vigente" },
+        prestamo: { estatus: "vigente", ...filtroRuta },
       }),
     ]);
 
     const [pagosDia, abonosDia, pagosSemana, abonosSemana] = await Promise.all([
-      this.pagoRepo.sum("valor", { fechaHora: MoreThanOrEqual(inicioDia) }),
-      this.abonoRepo.sum("valor", { fechaHora: MoreThanOrEqual(inicioDia) }),
-      this.pagoRepo.sum("valor", { fechaHora: MoreThanOrEqual(inicioSemana) }),
-      this.abonoRepo.sum("valor", { fechaHora: MoreThanOrEqual(inicioSemana) }),
+      this.pagoRepo.sum("valor", {
+        fechaHora: MoreThanOrEqual(inicioDia),
+        ...filtroPago,
+      }),
+      this.abonoRepo.sum("valor", {
+        fechaHora: MoreThanOrEqual(inicioDia),
+        ...filtroAbono,
+      }),
+      this.pagoRepo.sum("valor", {
+        fechaHora: MoreThanOrEqual(inicioSemana),
+        ...filtroPago,
+      }),
+      this.abonoRepo.sum("valor", {
+        fechaHora: MoreThanOrEqual(inicioSemana),
+        ...filtroAbono,
+      }),
     ]);
 
     const [gastosPeriodo, comisionesPeriodo] = await Promise.all([
@@ -85,16 +109,31 @@ export class DashboardService {
         aprobado: true,
         estado: "activo",
         fechaHora: MoreThanOrEqual(inicioMes),
+        ...filtroRuta,
       }),
-      this.liquidacionRepo.sum("comisionValor", { fecha: MoreThanOrEqual(inicioMesStr) }),
+      this.liquidacionRepo.sum("comisionValor", {
+        fecha: MoreThanOrEqual(inicioMesStr),
+        ...filtroRuta,
+      }),
     ]);
 
-    const [rutasActivas, sociosActivos, clientesActivos, prestamosVigentes] = await Promise.all([
-      this.rutaRepo.count({ where: { estatus: "activo" } }),
-      this.socioRepo.count({ where: { estatus: "activo" } }),
-      this.clienteRepo.count({ where: { estatus: "activo" } }),
-      this.prestamoRepo.count({ where: { estatus: "vigente" } }),
-    ]);
+    const socioIds = await this.resolverSocioIds(rutaIds, filtros.socioId);
+    const filtroSocio = socioIds ? { id: In(socioIds) } : {};
+    const [rutasActivas, sociosActivos, clientesActivos, prestamosVigentes] =
+      await Promise.all([
+        this.rutaRepo.count({
+          where: { estatus: "activo", ...filtroRutaEsId },
+        }),
+        this.socioRepo.count({
+          where: { estatus: "activo", ...filtroSocio },
+        }),
+        this.clienteRepo.count({
+          where: { estatus: "activo", ...filtroRuta },
+        }),
+        this.prestamoRepo.count({
+          where: { estatus: "vigente", ...filtroRuta },
+        }),
+      ]);
 
     return {
       carteraActiva: Number(carteraActiva ?? 0),
@@ -108,6 +147,40 @@ export class DashboardService {
       clientesActivos,
       prestamosVigentes,
     };
+  }
+
+  private async resolverRutaIds(filtros: {
+    rutaId?: number;
+    socioId?: number;
+  }): Promise<number[] | undefined> {
+    if (filtros.rutaId) {
+      return [filtros.rutaId];
+    }
+    if (filtros.socioId) {
+      const rutas = await this.rutaRepo.find({
+        where: { socio: { id: filtros.socioId } },
+      });
+      return rutas.map((r) => r.id);
+    }
+    return undefined;
+  }
+
+  private async resolverSocioIds(
+    rutaIds: number[] | undefined,
+    socioId: number | undefined,
+  ): Promise<number[] | undefined> {
+    if (socioId) {
+      return [socioId];
+    }
+    if (rutaIds) {
+      // `select` con RelationId no resuelve en TypeORM: se cargan las rutas y
+      // se lee `socioId` desde la entidad (columna persistida).
+      const rutas = await this.rutaRepo.find({
+        where: { id: In(rutaIds) },
+      });
+      return [...new Set(rutas.map((r) => r.socioId))];
+    }
+    return undefined;
   }
 
   private inicioDeDia(fecha: Date): Date {

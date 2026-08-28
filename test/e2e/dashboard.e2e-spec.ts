@@ -173,6 +173,16 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     expect(res.body.rutasActivas).toBeGreaterThanOrEqual(1);
   });
 
+  it("GET /dashboard?rutaId= filtra por ruta (admin)", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/dashboard?rutaId=${rutaId}`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+    expect(res.status).toBe(200);
+    expect(typeof res.body.carteraActiva).toBe("number");
+    expect(res.body.rutasActivas).toBeGreaterThanOrEqual(1);
+  });
+
   it("GET /conversaciones-ia/panel (admin) devuelve el monitoreo", async () => {
     const res = await request(app.getHttpServer())
       .get("/conversaciones-ia/panel")
