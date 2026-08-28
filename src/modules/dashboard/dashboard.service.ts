@@ -158,7 +158,7 @@ export class DashboardService {
     }
     if (filtros.socioId) {
       const rutas = await this.rutaRepo.find({
-        where: { socioId: filtros.socioId },
+        where: { socio: { id: filtros.socioId } },
       });
       return rutas.map((r) => r.id);
     }
@@ -173,9 +173,10 @@ export class DashboardService {
       return [socioId];
     }
     if (rutaIds) {
+      // `select` con RelationId no resuelve en TypeORM: se cargan las rutas y
+      // se lee `socioId` desde la entidad (columna persistida).
       const rutas = await this.rutaRepo.find({
         where: { id: In(rutaIds) },
-        select: { socioId: true },
       });
       return [...new Set(rutas.map((r) => r.socioId))];
     }

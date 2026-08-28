@@ -254,7 +254,7 @@ describe("DashboardService", () => {
     await service.obtener(new Date("2026-08-26T00:00:00Z"), { socioId: 3 });
 
     expect(repos.ruta.find).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { socioId: 3 } }),
+      expect.objectContaining({ where: { socio: { id: 3 } } }),
     );
     expect(socioRepo.count).toHaveBeenCalledWith(
       expect.objectContaining({
