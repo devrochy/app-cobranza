@@ -108,6 +108,23 @@ export class InyeccionesService {
     return this.toPublic(saved, rutaId);
   }
 
+  async listar(
+    rutaId: number,
+    requester: RequesterInyeccionContext,
+  ): Promise<InyeccionPublic[]> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const inyecciones = await this.repo.find({
+      where: { ruta: { id: rutaId }, estado: "activa" },
+      order: { fechaHora: "DESC" },
+    });
+    return inyecciones.map((inyeccion) => this.toPublic(inyeccion, rutaId));
+  }
+
   private toPublic(inyeccion: Inyeccion, rutaId: number): InyeccionPublic {
     return {
       id: inyeccion.id,
