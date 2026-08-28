@@ -39,8 +39,23 @@ describe("DashboardController", () => {
   });
 
   it("dashboard delega en el servicio", async () => {
-    await controller.dashboard();
+    await controller.dashboard({} as never);
     expect(dashboard.obtener).toHaveBeenCalled();
+  });
+
+  it("pasa rutaId y socioId del query al servicio", async () => {
+    await controller.dashboard({ rutaId: 6, socioId: 3 } as never);
+
+    expect(dashboard.obtener).toHaveBeenCalledWith(
+      expect.any(Date),
+      { rutaId: 6, socioId: 3 },
+    );
+  });
+
+  it("pasa filtros vacíos cuando el query no trae nada", async () => {
+    await controller.dashboard({} as never);
+
+    expect(dashboard.obtener).toHaveBeenCalledWith(expect.any(Date), {});
   });
 
   it("monitoreo IA delega en el servicio", async () => {

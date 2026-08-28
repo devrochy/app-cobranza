@@ -1,8 +1,9 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { DashboardService } from "./dashboard.service";
 import { MonitoreoIaService } from "./monitoreo-ia.service";
+import { ListarDashboardDto } from "./dto/listar-dashboard.dto";
 
 /**
  * Endpoints del panel admin (Épica 5). Admin-only: sin @PermisoRequerido, el
@@ -17,8 +18,11 @@ export class DashboardController {
 
   @Get("dashboard")
   @UseGuards(JwtAuthGuard, PermisoGuard)
-  dashboard() {
-    return this.dashboardService.obtener();
+  dashboard(@Query() dto: ListarDashboardDto) {
+    return this.dashboardService.obtener(new Date(), {
+      rutaId: dto.rutaId,
+      socioId: dto.socioId,
+    });
   }
 
   @Get("conversaciones-ia/panel")

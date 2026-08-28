@@ -1,0 +1,47 @@
+# Tarea: dashboard-filtrable
+
+- **Origen:** Petición del usuario (panel admin `app-cobranza-admin`, mejora de producto P5): el dashboard consolidado es global; se quiere filtrar por ruta o socio.
+- **Estado:** en progreso
+- **Fecha inicio:** 2026-08-28
+
+## Objetivo
+`GET /dashboard` acepta `?rutaId=` y `?socioId=` (opcionales) y agrega los indicadores sobre ese subconjunto (admin-only, igual que hoy).
+
+## Fuera de alcance
+- Gráficos/series históricas (el endpoint sigue devolviendo el snapshot; los gráficos son decisión del panel).
+- Filtro por fecha/período.
+
+## Bloques (checklist TDD)
+
+- [x] Bloque 1: DTO `ListarDashboardDto` (rutaId?, socioId?) + controller pasa los query params.
+  - **Hecho (2026-08-28):** `dto/listar-dashboard.dto.ts` (ints opcionales, min 1); controller `dashboard(@Query() dto)` → `service.obtener(new Date(), { rutaId, socioId })`. Spec actualizado (3 tests: delega, pasa filtros, filtros vacíos).
+  - Test(s): `src/modules/dashboard/dashboard.controller.spec.ts`.
+- [x] Bloque 2: `DashboardService.obtener(hoy, filtros)` filtra por `rutaId`/`socioId` en todos los agregados.
+  - **Hecho (2026-08-28):** `resolverRutaIds` (rutaId → [id]; socioId → rutas del socio; ninguno → undefined). Filtros: cuotas vía `prestamo.ruta.id`; pagos vía `cliente.rutaId` (Pago no tiene ruta directa); abonos vía `prestamo.rutaId`; gastos/liquidaciones vía `rutaId`; conteos vía `rutaId`/`id` de socio. `resolverSocioIds` deriva los socios de las rutas filtradas. Spec: 2 tests nuevos (filtro por rutaId y por socioId). `scripts/check.sh` verde (726 tests).
+  - Test(s): `src/modules/dashboard/dashboard.service.spec.ts` + e2e (`test/e2e/dashboard.e2e-spec.ts`, filtro por rutaId).
+
+## Contratos
+- `GET /dashboard?rutaId=6` → indicadores solo de la ruta 6.
+- `GET /dashboard?socioId=3` → indicadores de las rutas del socio 3.
+- Sin filtros → comportamiento actual (global).
+
+## Decisiones tomadas durante la implementación
+- Los filtros se aplican en las queries de agregación (sum/count) con `In`, sin joins explícitos.
+- Pago no tiene relación directa a Ruta: se filtra vía `pago.cliente.rutaId`; Abono vía `abono.prestamo.rutaId`.
+- `sociosActivos` con filtro de ruta deriva los socios de las rutas filtradas.
+
+## Ambigüedades resueltas con el usuario
+- Coordinar la tarea backend del dashboard filtrable (opción del usuario tras el mapa).
+
+## Resultado final
+- Comandos ejecutados para verificar:
+  - `scripts/check.sh` → OK (726 tests, 85 suites).
+  - `scripts/test-e2e.sh` → no ejecutado localmente (BD caída); el e2e nuevo corre en CI.
+- Archivos modificados:
+  - `src/modules/dashboard/dto/listar-dashboard.dto.ts` (nuevo).
+  - `src/modules/dashboard/dashboard.controller.ts` — `dashboard(@Query() dto)`.
+  - `src/modules/dashboard/dashboard.service.ts` — `obtener(hoy, filtros)` + `resolverRutaIds`/`resolverSocioIds`.
+  - Specs: `dashboard.controller.spec.ts`, `dashboard.service.spec.ts`, `test/e2e/dashboard.e2e-spec.ts`.
+  - `docs/ai/tasks/dashboard-filtrable.md`.
+- Pendientes/seguimiento:
+  - El panel (`app-cobranza-admin`) debe pasar `?rutaId=`/`?socioId=` y una librería de gráficos (decisión del usuario).
