@@ -69,9 +69,11 @@ export class DashboardService {
     const rutaIds = await this.resolverRutaIds(filtros);
     const filtroRuta = rutaIds ? { ruta: { id: In(rutaIds) } } : {};
     const filtroRutaId = rutaIds ? { rutaId: In(rutaIds) } : {};
-    // Pago no tiene ruta directa (vía Cliente); Abono la tiene vía Prestamo.
-    const filtroPago = rutaIds ? { cliente: { rutaId: In(rutaIds) } } : {};
-    const filtroAbono = rutaIds ? { prestamo: { rutaId: In(rutaIds) } } : {};
+    const filtroRutaEsId = rutaIds ? { id: In(rutaIds) } : {};
+    // Pago/Abono no tienen ruta directa: se filtra vía la relación `ruta.id`
+    // de sus entidades padre (RelationId no resuelve en filtros anidados).
+    const filtroPago = rutaIds ? { cliente: { ruta: { id: In(rutaIds) } } } : {};
+    const filtroAbono = rutaIds ? { prestamo: { ruta: { id: In(rutaIds) } } } : {};
 
     const [carteraActiva, moraTotal] = await Promise.all([
       this.cuotaRepo.sum("valorEsperado", {
@@ -121,7 +123,7 @@ export class DashboardService {
     const [rutasActivas, sociosActivos, clientesActivos, prestamosVigentes] =
       await Promise.all([
         this.rutaRepo.count({
-          where: { estatus: "activo", ...filtroRutaId },
+          where: { estatus: "activo", ...filtroRutaEsId },
         }),
         this.socioRepo.count({
           where: { estatus: "activo", ...filtroSocio },

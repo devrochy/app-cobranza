@@ -217,7 +217,7 @@ describe("DashboardService", () => {
     expect(pagoRepo.sum).toHaveBeenCalledWith(
       "valor",
       expect.objectContaining({
-        cliente: expect.objectContaining({ rutaId: expect.any(Object) }),
+        cliente: expect.objectContaining({ ruta: expect.any(Object) }),
       }),
     );
     expect(gastoRepo.sum).toHaveBeenCalledWith(
@@ -230,7 +230,7 @@ describe("DashboardService", () => {
     );
     expect(rutaRepo.count).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ rutaId: expect.any(Object) }),
+        where: expect.objectContaining({ id: expect.any(Object) }),
       }),
     );
   });
