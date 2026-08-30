@@ -21,7 +21,7 @@ describe("InyeccionesService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockInyRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockInyRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() };
   const mockCajaService = {
     aplicarMovimiento: jest.fn(async () => ({
       rutaId: 1,
@@ -238,6 +238,43 @@ describe("InyeccionesService", () => {
       await expect(service.eliminar(1, 10, socioContext)).rejects.toThrow(
         ForbiddenException,
       );
+    });
+  });
+
+  describe("listar", () => {
+    it("lista solo las inyecciones activas DESC", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (inyRepo.find as jest.Mock).mockResolvedValue([
+        {
+          id: 1,
+          rutaId: 1,
+          valor: 1500,
+          comentario: "Aporte",
+          fechaHora: new Date("2026-08-12T10:00:00Z"),
+          estado: "activa",
+        },
+      ]);
+
+      const result = await service.listar(1, adminContext);
+
+      expect(inyRepo.find).toHaveBeenCalledWith({
+        where: { ruta: { id: 1 }, estado: "activa" },
+        order: { fechaHora: "DESC" },
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].comentario).toBe("Aporte");
+    });
+
+    it("lanza NotFoundException al listar si la ruta no existe", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.listar(999, adminContext)).rejects.toThrow(NotFoundException);
+    });
+
+    it("un socio no puede listar inyecciones de una ruta ajena -> 403", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
+
+      await expect(service.listar(1, socioContext)).rejects.toThrow(ForbiddenException);
     });
   });
 });

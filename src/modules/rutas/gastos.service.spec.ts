@@ -19,8 +19,8 @@ describe("GastosService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockGastoRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn() };
-  const mockEvidenciaRepo = { create: jest.fn(), save: jest.fn() };
+  const mockGastoRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn() };
+  const mockEvidenciaRepo = { find: jest.fn(), create: jest.fn(), save: jest.fn() };
   const mockCajaService = { aplicarMovimiento: jest.fn() };
   const mockPermisosSocio = { tienePermiso: jest.fn() };
   const mockDataSource = {
@@ -282,5 +282,64 @@ describe("GastosService", () => {
 
     expect(gasto.estado).toBe("eliminado");
     expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
+  });
+
+  it("lista solo los gastos activos DESC con sus evidencias", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    const gastoActivo = gastoFixture();
+    (gastoRepo.find as jest.Mock).mockResolvedValue([gastoActivo]);
+    (evidenciaRepo.find as jest.Mock).mockResolvedValue([
+      {
+        id: 1,
+        gastoId: 1,
+        nombreOriginal: "factura.pdf",
+        mimetype: "application/pdf",
+        tamaño: 1024,
+        rutaArchivo: "/uploads/gastos/abc.pdf",
+      },
+    ]);
+
+    const result = await service.listar(1, adminContext);
+
+    expect(gastoRepo.find).toHaveBeenCalledWith({
+      where: { ruta: { id: 1 }, estado: "activo" },
+      order: { fechaHora: "DESC" },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(1);
+    expect(result[0].evidencias).toHaveLength(1);
+    expect(result[0].evidencias[0].nombreOriginal).toBe("factura.pdf");
+  });
+
+  it("lanza NotFoundException al listar si la ruta no existe", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.listar(999, adminContext)).rejects.toThrow(NotFoundException);
+  });
+
+  it("devuelve evidencias vacías si el gasto no tiene", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (gastoRepo.find as jest.Mock).mockResolvedValue([gastoFixture()]);
+    (evidenciaRepo.find as jest.Mock).mockResolvedValue([]);
+
+    const result = await service.listar(1, adminContext);
+
+    expect(result[0].evidencias).toEqual([]);
+  });
+
+  it("no consulta evidencias si la lista de gastos está vacía", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (gastoRepo.find as jest.Mock).mockResolvedValue([]);
+
+    const result = await service.listar(1, adminContext);
+
+    expect(result).toEqual([]);
+    expect(evidenciaRepo.find).not.toHaveBeenCalled();
+  });
+
+  it("un socio no puede listar gastos de una ruta ajena -> 403", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
+
+    await expect(service.listar(1, socioContext)).rejects.toThrow(ForbiddenException);
   });
 });

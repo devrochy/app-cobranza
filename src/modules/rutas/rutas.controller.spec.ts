@@ -54,6 +54,7 @@ describe("RutasController", () => {
   const mockInyeccionesService = {
     crear: jest.fn(),
     eliminar: jest.fn(),
+    listar: jest.fn(),
   };
 
   const mockCajaService = {
@@ -64,6 +65,7 @@ describe("RutasController", () => {
     registrar: jest.fn(),
     aprobar: jest.fn(),
     eliminar: jest.fn(),
+    listar: jest.fn(),
   };
 
   const mockRutasNotasService = {
@@ -313,6 +315,28 @@ describe("RutasController", () => {
     await controller.eliminarGasto(1, 5, req);
 
     expect(gastosService.eliminar).toHaveBeenCalledWith(1, 5, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al listar los gastos de la ruta", async () => {
+    (gastosService.listar as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarGastos(1, req);
+
+    expect(gastosService.listar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
+  });
+
+  it("delega al listar las inyecciones de la ruta", async () => {
+    (inyeccionesService.listar as jest.Mock).mockResolvedValue([]);
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+
+    await controller.listarInyecciones(1, req);
+
+    expect(inyeccionesService.listar).toHaveBeenCalledWith(1, { rol: "admin", sub: 1 });
   });
 
   it("delega al crear una nota de ruta", async () => {

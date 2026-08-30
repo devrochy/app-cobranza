@@ -103,6 +103,19 @@ export class RutasController {
     });
   }
 
+  @Get(":id/inyecciones")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarInyecciones(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.inyeccionesService.listar(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
   @Get(":id/ruta-config")
   @PermisoRequerido("configurar_ruta")
   @UseGuards(JwtAuthGuard, PermisoGuard)
@@ -210,6 +223,19 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.gastosService.registrar(id, dto, files ?? [], {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/gastos")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarGastos(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.gastosService.listar(id, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

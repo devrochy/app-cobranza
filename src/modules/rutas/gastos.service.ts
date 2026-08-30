@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
@@ -40,6 +40,16 @@ export interface GastoPublic {
   aprobadoPor: number | null;
   estado: GastoEstado;
   fechaHora: Date;
+  evidencias: GastoEvidenciaPublic[];
+}
+
+export interface GastoEvidenciaPublic {
+  id: number;
+  gastoId: number;
+  nombreOriginal: string;
+  mimetype: string;
+  tamaño: number;
+  rutaArchivo: string;
 }
 
 @Injectable()
@@ -201,6 +211,40 @@ export class GastosService {
     return this.toPublic(eliminado);
   }
 
+  async listar(
+    rutaId: number,
+    requester: RequesterGastoContext,
+  ): Promise<GastoPublic[]> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const gastos = await this.gastoRepo.find({
+      where: { ruta: { id: rutaId }, estado: "activo" },
+      order: { fechaHora: "DESC" },
+    });
+
+    const evidencias = gastos.length
+      ? await this.evidenciaRepo.find({
+          where: { gastoId: In(gastos.map((g) => g.id)) },
+          order: { id: "ASC" },
+        })
+      : [];
+    const evidenciasPorGasto = new Map<number, GastoEvidenciaPublic[]>();
+    for (const evidencia of evidencias) {
+      const lista = evidenciasPorGasto.get(evidencia.gastoId) ?? [];
+      lista.push(this.evidenciaToPublic(evidencia));
+      evidenciasPorGasto.set(evidencia.gastoId, lista);
+    }
+
+    return gastos.map((gasto) => ({
+      ...this.toPublic(gasto),
+      evidencias: evidenciasPorGasto.get(gasto.id) ?? [],
+    }));
+  }
+
   private async assertPuedeAprobar(
     ruta: Ruta,
     requester: RequesterGastoContext,
@@ -227,6 +271,18 @@ export class GastosService {
       aprobadoPor: gasto.aprobadoPor,
       estado: gasto.estado,
       fechaHora: gasto.fechaHora,
+      evidencias: [],
+    };
+  }
+
+  private evidenciaToPublic(evidencia: GastoEvidencia): GastoEvidenciaPublic {
+    return {
+      id: evidencia.id,
+      gastoId: evidencia.gastoId,
+      nombreOriginal: evidencia.nombreOriginal,
+      mimetype: evidencia.mimetype,
+      tamaño: evidencia.tamaño,
+      rutaArchivo: evidencia.rutaArchivo,
     };
   }
 }
