@@ -44,7 +44,7 @@ export class CobradoresController {
   }
 
   @Get()
-  @PermisoRequerido("editar_permisos")
+  @PermisoRequerido("ver_reportes")
   @UseGuards(JwtAuthGuard, PermisoGuard)
   listar(@Req() req: Request & { user: AuthTokenPayload }) {
     const socioId = req.user.rol === "socio" ? req.user.sub : undefined;

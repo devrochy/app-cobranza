@@ -34,9 +34,16 @@ export class SociosController {
   }
 
   @Get()
+  @PermisoRequerido("ver_reportes")
   @UseGuards(JwtAuthGuard, PermisoGuard)
-  listar(@Query() query: ListarSociosDto) {
-    return this.sociosService.listar(query);
+  listar(
+    @Query() query: ListarSociosDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.sociosService.listar(query, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
   }
 
   @Get(":id")

@@ -142,13 +142,16 @@ describe("SociosController", () => {
     expect(service.obtener).toHaveBeenCalledWith(1);
   });
 
-  it("delega en el servicio al listar socios con los filtros del query", async () => {
+  it("delega en el servicio al listar socios con los filtros del query y el contexto", async () => {
     (service.listar as jest.Mock).mockResolvedValue([{ id: 1 }]);
     const query: ListarSociosDto = { busqueda: "juan", estatus: "activo" };
+    const req = { user: { sub: 1, rol: "socio", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
 
-    await controller.listar(query);
+    await controller.listar(query, req);
 
-    expect(service.listar).toHaveBeenCalledWith(query);
+    expect(service.listar).toHaveBeenCalledWith(query, { rol: "socio", sub: 1 });
   });
 
   it("delega en el servicio al actualizar la configuración del socio", async () => {
