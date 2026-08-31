@@ -1,6 +1,7 @@
 import { Body, Controller, Inject, Post, UseGuards } from "@nestjs/common";
 import { IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { PermisoGuard } from "../auth/permiso.guard";
 import { WHATSAPP_GATEWAY, WhatsappGateway } from "./whatsapp-gateway.interface";
 import { AsistenteIaService } from "./asistente-ia.service";
 
@@ -22,9 +23,11 @@ export class RecibirMensajeDto {
  * Recibe un mensaje entrante "como si viniera del cliente", lo persiste (emisor
  * cliente) y delega al asistente conversacional para responder (HU-27). En Fase
  * 2 se sustituye por el webhook real de la Cloud API.
+ * Admin-only (sin @PermisoRequerido): evita que socio/cobrador inyecten
+ * mensajes como si fueran del cliente.
  */
 @Controller("whatsapp/simulado")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermisoGuard)
 export class WhatsappSimuladoController {
   constructor(
     @Inject(WHATSAPP_GATEWAY) private readonly gateway: WhatsappGateway,
