@@ -121,4 +121,18 @@ export class CobradorController {
   ) {
     return this.cobradorService.obtenerTarjeta(rutaId, clienteId, this.requester(req));
   }
+
+  @Get("rutas/:rutaId/clientes/:clienteId/prestamos")
+  @CobradorPermisoRequerido("ver_cartera")
+  listarPrestamosDeCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.listarPrestamosDeCliente(
+      rutaId,
+      clienteId,
+      this.requester(req),
+    );
+  }
 }

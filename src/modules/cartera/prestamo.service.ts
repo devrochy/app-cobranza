@@ -38,6 +38,7 @@ export interface RequesterPrestamoContext {
 }
 
 export interface CuotaPublic {
+  id: number;
   numeroCuota: number;
   valorEsperado: number;
   fechaVencimiento: string;
@@ -163,6 +164,7 @@ export class PrestamoService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     let prestamo: Prestamo;
+    let cuotasPublic: CuotaPublic[] = [];
     try {
       prestamo = this.prestamoRepo.create({
         cliente: { id: cliente.id } as Cliente,
@@ -189,7 +191,14 @@ export class PrestamoService {
         fechaVencimiento: c.fechaVencimiento,
         estatus: c.estatus,
       }));
-      await queryRunner.manager.save(Cuota, filasCuotas);
+      const cuotasGuardadas = await queryRunner.manager.save(Cuota, filasCuotas);
+      cuotasPublic = cuotasGuardadas.map((c) => ({
+        id: c.id,
+        numeroCuota: c.numeroCuota,
+        valorEsperado: c.valorEsperado,
+        fechaVencimiento: c.fechaVencimiento,
+        estatus: c.estatus,
+      }));
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -210,7 +219,7 @@ export class PrestamoService {
       this.logger.warn(`No se pudo actualizar el color de riesgo del cliente ${cliente.id}`);
     }
 
-    return this.toPublic(prestamo, cuotas, rutaId, cliente.id, tipoInteres);
+    return this.toPublic(prestamo, cuotasPublic, rutaId, cliente.id, tipoInteres);
   }
 
   private async saldoVigente(clienteId: number): Promise<number> {
@@ -279,6 +288,7 @@ export class PrestamoService {
       this.toPublic(
         prestamo,
         (prestamo.cuotas ?? []).map((c) => ({
+          id: c.id,
           numeroCuota: c.numeroCuota,
           valorEsperado: c.valorEsperado,
           fechaVencimiento: c.fechaVencimiento,
@@ -293,7 +303,7 @@ export class PrestamoService {
 
   private toPublic(
     prestamo: Prestamo,
-    cuotas: CuotaGenerada[],
+    cuotas: CuotaPublic[],
     rutaId: number,
     clienteId: number,
     tipoInteres: number,
