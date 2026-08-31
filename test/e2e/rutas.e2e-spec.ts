@@ -597,7 +597,7 @@ describe("Registro y gestión de rutas (e2e)", () => {
       expect(res.status).toBe(401);
     });
 
-    it("responde 403 como socio (admin-only)", async () => {
+    it("un socio ve solo sus rutas (ownership)", async () => {
       const login = await request(app.getHttpServer())
         .post("/auth/socio/login")
         .send({ usuario: "socio-rt-1", password: "password-seguro" });
@@ -607,7 +607,10 @@ describe("Registro y gestión de rutas (e2e)", () => {
         .get("/rutas")
         .set("Authorization", `Bearer ${tokenSocio}`);
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
+      const rutas = res.body as { socioId: number }[];
+      expect(rutas.length).toBeGreaterThan(0);
+      expect(rutas.every((r) => r.socioId === socioId)).toBe(true);
     });
   });
 });

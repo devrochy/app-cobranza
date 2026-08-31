@@ -570,5 +570,16 @@ describe("RutasService", () => {
 
       expect(qb.andWhere).not.toHaveBeenCalled();
     });
+
+    it("un socio solo ve sus rutas (ownership)", async () => {
+      const qb = mockQueryBuilder([ruta1]);
+      (rutaRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({}, { rol: "socio", sub: 7 });
+
+      expect(qb.andWhere).toHaveBeenCalledWith("ruta.socio_id = :socioId", {
+        socioId: 7,
+      });
+    });
   });
 });

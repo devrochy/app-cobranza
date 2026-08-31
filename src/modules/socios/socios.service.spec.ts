@@ -557,5 +557,16 @@ describe("SociosService", () => {
 
       expect(qb.andWhere).not.toHaveBeenCalled();
     });
+
+    it("un socio solo ve su propio perfil (ownership)", async () => {
+      const qb = mockQueryBuilder([socio1]);
+      (repo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listar({}, { rol: "socio", sub: 7 });
+
+      expect(qb.andWhere).toHaveBeenCalledWith("socio.id = :socioId", {
+        socioId: 7,
+      });
+    });
   });
 });
