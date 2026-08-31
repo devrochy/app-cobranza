@@ -367,6 +367,19 @@ describe("API del cobrador para la APK (e2e)", () => {
     expect(res.body.clienteId).toBe(cliente1Id);
   });
 
+  it("GET /cobrador/rutas/:id/clientes/:clienteId/prestamos -> 200 con cuotas", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${ruta1Id}/clientes/${cliente1Id}/prestamos`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    const prestamo = res.body.find((p: { id: number }) => p.id === prestamo1Id);
+    expect(prestamo).toBeDefined();
+    expect(Array.isArray(prestamo.cuotas)).toBe(true);
+    expect(prestamo.cuotas[0].id).toBeGreaterThan(0);
+  });
+
   it("GET /cobrador/rutas/:id/dia de una ruta ajena -> 403 (ownership)", async () => {
     const res = await request(app.getHttpServer())
       .get(`/cobrador/rutas/${ruta2Id}/dia`)
