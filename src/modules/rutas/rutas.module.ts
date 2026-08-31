@@ -38,6 +38,6 @@ import { RutasService } from "./rutas.service";
   ],
   controllers: [RutasController],
   providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService, RutasNotasService, LiquidacionesService, RutasResumenService, RutaOptimizacionService, ListaClientesDelDiaService, TrayectoriasService],
-  exports: [RutasService, CajaService, ListaClientesDelDiaService, RutaOptimizacionService],
+  exports: [RutasService, RutaConfigService, InyeccionesService, GastosService, RutasNotasService, LiquidacionesService, TrayectoriasService, CajaService, ListaClientesDelDiaService, RutaOptimizacionService],
 })
 export class RutasModule {}
