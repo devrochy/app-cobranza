@@ -462,6 +462,33 @@ describe("LiquidacionesService - historial y exportación", () => {
     await expect(service.listar(1, socioContext)).rejects.toThrow(ForbiddenException);
   });
 
+  it("listarGlobal de admin trae liquidaciones de todas las rutas con rutaNombre", async () => {
+    (liquidacionRepo.find as jest.Mock).mockResolvedValue([
+      { ...liquidacionFixture(), ruta: { id: 1, nombre: "Ruta Centro" } },
+    ]);
+
+    const result = await service.listarGlobal(adminContext);
+
+    expect(liquidacionRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {}, relations: { ruta: true }, order: { fecha: "DESC" } }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].rutaNombre).toBe("Ruta Centro");
+  });
+
+  it("listarGlobal de un socio solo trae liquidaciones de sus rutas", async () => {
+    (liquidacionRepo.find as jest.Mock).mockResolvedValue([]);
+
+    await service.listarGlobal({ rol: "socio", sub: 7 });
+
+    expect(liquidacionRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ruta: { socio: { id: 7 } } },
+        relations: { ruta: true },
+      }),
+    );
+  });
+
   it("exportar lanza NotFoundException si la liquidación no existe en la ruta", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     (liquidacionRepo.findOne as jest.Mock).mockResolvedValue(null);

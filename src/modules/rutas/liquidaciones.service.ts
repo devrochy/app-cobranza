@@ -46,6 +46,10 @@ export interface LiquidacionPublic {
   createdAt: Date;
 }
 
+export interface LiquidacionGlobalPublic extends LiquidacionPublic {
+  rutaNombre: string;
+}
+
 export interface LiquidacionExport {
   buffer: Buffer;
   filename: string;
@@ -158,6 +162,22 @@ export class LiquidacionesService {
       order: { fecha: "DESC" },
     });
     return filas.map((l) => this.toPublic(l));
+  }
+
+  async listarGlobal(
+    requester: RequesterLiquidacionContext,
+  ): Promise<LiquidacionGlobalPublic[]> {
+    const where =
+      requester.rol === "socio" ? { ruta: { socio: { id: requester.sub } } } : {};
+    const filas = await this.liquidacionRepo.find({
+      where,
+      relations: { ruta: true },
+      order: { fecha: "DESC" },
+    });
+    return filas.map((l) => ({
+      ...this.toPublic(l),
+      rutaNombre: l.ruta.nombre,
+    }));
   }
 
   async exportar(

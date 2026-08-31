@@ -27,6 +27,7 @@ import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { ReporteDiario } from "./reporte-diario.entity";
 import { TrayectoriasService } from "./trayectorias.service";
 import { RutasController } from "./rutas.controller";
+import { ReportesGlobalController } from "./reportes-global.controller";
 import { RutasService } from "./rutas.service";
 
 @Module({
@@ -36,7 +37,7 @@ import { RutasService } from "./rutas.service";
     JwtModule.register({}),
     SociosModule,
   ],
-  controllers: [RutasController],
+  controllers: [RutasController, ReportesGlobalController],
   providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService, RutasNotasService, LiquidacionesService, RutasResumenService, RutaOptimizacionService, ListaClientesDelDiaService, TrayectoriasService],
   exports: [RutasService, RutaConfigService, InyeccionesService, GastosService, RutasNotasService, LiquidacionesService, TrayectoriasService, CajaService, ListaClientesDelDiaService, RutaOptimizacionService],
 })

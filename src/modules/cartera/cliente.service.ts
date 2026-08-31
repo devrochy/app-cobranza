@@ -60,6 +60,16 @@ export interface ClientePublic {
   createdAt: Date;
 }
 
+export interface ClienteGlobalPublic extends ClientePublic {
+  rutaNombre: string;
+}
+
+export interface ListarClientesGlobalFiltros {
+  busqueda?: string;
+  estatus?: ClienteEstatus;
+  colorRiesgo?: ColorRiesgo;
+}
+
 export interface ActualizarClienteInput {
   nombre?: string;
   apellido?: string;
@@ -345,6 +355,38 @@ export class ClienteService {
       order: { id: "ASC" },
     });
     return clientes.map((cliente) => this.toPublic(cliente, rutaId));
+  }
+
+  async listarGlobal(
+    requester: RequesterCarteraContext,
+    filtros: ListarClientesGlobalFiltros = {},
+  ): Promise<ClienteGlobalPublic[]> {
+    const qb = this.repo
+      .createQueryBuilder("cliente")
+      .innerJoinAndSelect("cliente.ruta", "ruta")
+      .orderBy("cliente.id", "ASC");
+    if (requester.rol === "socio") {
+      qb.andWhere("ruta.socio_id = :socioId", { socioId: requester.sub });
+    }
+    if (filtros.estatus) {
+      qb.andWhere("cliente.estatus = :estatus", { estatus: filtros.estatus });
+    }
+    if (filtros.colorRiesgo) {
+      qb.andWhere("cliente.colorRiesgo = :riesgo", { riesgo: filtros.colorRiesgo });
+    }
+    const busqueda = filtros.busqueda?.trim();
+    if (busqueda) {
+      qb.andWhere(
+        "(cliente.nombre ILIKE :termino OR cliente.apellido ILIKE :termino OR " +
+          "cliente.telefono_whatsapp ILIKE :termino OR cliente.negocio ILIKE :termino)",
+        { termino: `%${busqueda}%` },
+      );
+    }
+    const clientes = await qb.getMany();
+    return clientes.map((cliente) => ({
+      ...this.toPublic(cliente, cliente.rutaId),
+      rutaNombre: cliente.ruta.nombre,
+    }));
   }
 
   async listarCambios(

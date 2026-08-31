@@ -8,6 +8,7 @@ import { ReglasNegociacionIaModule } from "../reglas-negociacion-ia/reglas-negoc
 import { Ruta } from "../rutas/ruta.entity";
 import { RutaConfig } from "../rutas/ruta-config.entity";
 import { CarteraController } from "./cartera.controller";
+import { CarteraGlobalController } from "./cartera-global.controller";
 import { ClienteService } from "./cliente.service";
 import { Cliente } from "./cliente.entity";
 import { Cuota } from "./cuota.entity";
@@ -48,7 +49,7 @@ import { AsistenteIaService } from "./asistente-ia.service";
     RutasModule,
     ReglasNegociacionIaModule,
   ],
-  controllers: [CarteraController, WhatsappSimuladoController],
+  controllers: [CarteraController, CarteraGlobalController, WhatsappSimuladoController],
   providers: [
     ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService, ClienteTarjetaService, NavegacionClienteService,
     WhatsappSimuladoGateway, NotificacionesService, NotificacionesJob, ConversacionChatService, EstadoCuentaService, PromesasPagoService, AsistenteIaService,
