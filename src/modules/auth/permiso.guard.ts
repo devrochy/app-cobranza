@@ -18,7 +18,8 @@ export const ACCESO_DENEGADO = "Acceso denegado";
  * (que adjunta el payload en request.user).
  * - Sin @PermisoRequerido en la ruta: solo rol admin.
  * - Con @PermisoRequerido(X): admin pasa siempre; socio necesita X habilitado
- *   en su matriz socio_permisos (si no → 403).
+ *   en su matriz socio_permisos (si no → 403). Los cobradores se autorizan con
+ *   CobradorPermisoGuard (ver src/modules/auth/cobrador-permiso.guard.ts).
  */
 @Injectable()
 export class PermisoGuard implements CanActivate {
