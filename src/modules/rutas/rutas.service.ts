@@ -216,8 +216,14 @@ export class RutasService {
     return this.toPublic(saved);
   }
 
-  async listar(filtros: ListarRutasFiltros = {}): Promise<RutaPublic[]> {
+  async listar(
+    filtros: ListarRutasFiltros = {},
+    requester?: RequesterContext,
+  ): Promise<RutaPublic[]> {
     const qb = this.repo.createQueryBuilder("ruta");
+    if (requester?.rol === "socio") {
+      qb.andWhere("ruta.socio_id = :socioId", { socioId: requester.sub });
+    }
     const busqueda = filtros.busqueda?.trim();
     if (busqueda) {
       qb.andWhere(

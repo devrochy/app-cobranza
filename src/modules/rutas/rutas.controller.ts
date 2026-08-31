@@ -70,9 +70,16 @@ export class RutasController {
   }
 
   @Get()
+  @PermisoRequerido("ver_reportes")
   @UseGuards(JwtAuthGuard, PermisoGuard)
-  listar(@Query() query: ListarRutasDto) {
-    return this.rutasService.listar(query);
+  listar(
+    @Query() query: ListarRutasDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.rutasService.listar(query, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
   }
 
   @Post(":id/inyecciones")

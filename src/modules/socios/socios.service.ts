@@ -172,8 +172,14 @@ export class SociosService {
     return this.toPublic(socio);
   }
 
-  async listar(filtros: ListarSociosFiltros = {}): Promise<SocioPublic[]> {
+  async listar(
+    filtros: ListarSociosFiltros = {},
+    requester?: { rol: RolUsuario; sub: number },
+  ): Promise<SocioPublic[]> {
     const qb = this.repo.createQueryBuilder("socio");
+    if (requester?.rol === "socio") {
+      qb.andWhere("socio.id = :socioId", { socioId: requester.sub });
+    }
     const busqueda = filtros.busqueda?.trim();
     if (busqueda) {
       qb.andWhere(
