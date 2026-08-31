@@ -184,6 +184,26 @@ describe("Registro y aprobación de gastos (e2e)", () => {
     expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual + gasto!.valor);
   });
 
+  it("GET /rutas/:id/gastos lista los gastos activos con sus evidencias", async () => {
+    const crear = await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/gastos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .field("descripcion", "Listable")
+      .field("valor", "15")
+      .attach("evidencias", Buffer.from("pdf-data"), "listable.pdf");
+    expect(crear.status).toBe(201);
+
+    const res = await request(app.getHttpServer())
+      .get(`/rutas/${rutaId}/gastos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+    expect(res.status).toBe(200);
+    const gasto = res.body.find((g: { id: number; descripcion: string }) => g.id === crear.body.id);
+    expect(gasto).toBeDefined();
+    expect(gasto.evidencias).toHaveLength(1);
+    expect(gasto.evidencias[0].nombreOriginal).toBe("listable.pdf");
+  });
+
   it("POST /rutas/:id/gastos sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/gastos`)

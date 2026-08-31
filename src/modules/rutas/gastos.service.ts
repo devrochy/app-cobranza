@@ -228,7 +228,7 @@ export class GastosService {
 
     const evidencias = gastos.length
       ? await this.evidenciaRepo.find({
-          where: { gastoId: In(gastos.map((g) => g.id)) },
+          where: { gasto: { id: In(gastos.map((g) => g.id)) } },
           order: { id: "ASC" },
         })
       : [];
