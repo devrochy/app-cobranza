@@ -138,6 +138,13 @@ Formato de cada entrada:
 - Descripción: el ADR de PostGIS cita HU-49/55/59 que existen en el PRD consolidado (PR #19, sin mergear). Asegurar que la PR #19 (docs) se mergee antes o junto para que las referencias sean válidas.
 - Prioridad sugerida: baja
 
+## Ruta con solo JwtAuthGuard alcanzable por cobradores (whatsapp-simulado)
+- Detectado en: docs/ai/tasks/login-cobrador.md (revisión code-reviewer)
+- Fecha: 2026-08-31
+- Descripción: `POST /whatsapp/simulado/recibir` (whatsapp-simulado.controller.ts:27) tiene solo `JwtAuthGuard` sin `PermisoGuard` ni chequeo de rol en el servicio. Con el login de cobrador habilitado (nuevo), un cobrador con token válido puede inyectar un mensaje como "cliente" en cualquier `conversacionId` y disparar el asistente IA. El gap ya existía para socios, pero ahora hay una población nueva (cobradores) que puede explotarlo. Requisito de la tarea `acceso-cobrador-dominio` antes de que la APK use el login en producción.
+- Prioridad sugerida: media
+- Estado: pendiente (webhook simulado de Fase 1; se sustituye por Cloud API real en Fase 2).
+
 ## ACCESO_DENEGADO duplicado con permiso.guard
 - Detectado en: docs/ai/tasks/refactor-helpers.md (revisión code-reviewer PR #21)
 - Fecha: 2026-08-17
