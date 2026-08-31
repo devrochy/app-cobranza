@@ -149,4 +149,21 @@ describe("CobradoresPermisosService", () => {
       );
     });
   });
+
+  describe("tienePermiso", () => {
+    it("devuelve true si el cobrador tiene el permiso habilitado", async () => {
+      permisoRepo.findOne.mockResolvedValue({ permiso: "registrar_pago", habilitado: true });
+
+      await expect(service.tienePermiso(1, "registrar_pago")).resolves.toBe(true);
+      expect(permisoRepo.findOne).toHaveBeenCalledWith({
+        where: { cobrador: { id: 1 }, permiso: "registrar_pago", habilitado: true },
+      });
+    });
+
+    it("devuelve false si el permiso está deshabilitado o ausente", async () => {
+      permisoRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.tienePermiso(1, "eliminar_pago")).resolves.toBe(false);
+    });
+  });
 });

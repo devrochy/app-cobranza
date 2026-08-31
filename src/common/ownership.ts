@@ -9,15 +9,19 @@ export interface RequesterOwned {
 }
 
 /**
- * Verifica que un requester socio sea dueño del recurso (ruta) antes de
- * operar sobre él. Los administradores siempre pasan; los cobradores se
- * autorizan por otro mecanismo (no alcanzan estos servicios aún).
+ * Verifica que un requester socio/cobrador sea dueño del recurso (ruta) antes
+ * de operar sobre él. Los administradores siempre pasan.
+ * - socio: la ruta debe pertenecer a su socioId.
+ * - cobrador: la ruta debe estar asignada a su cobradorId (APK).
  */
 export function assertOwned(
-  ruta: { socioId: number },
+  ruta: { socioId: number; cobradorId?: number },
   requester: RequesterOwned,
 ): void {
   if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
+    throw new ForbiddenException(ACCESO_DENEGADO);
+  }
+  if (requester.rol === "cobrador" && ruta.cobradorId !== requester.sub) {
     throw new ForbiddenException(ACCESO_DENEGADO);
   }
 }

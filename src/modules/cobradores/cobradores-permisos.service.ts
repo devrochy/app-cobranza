@@ -85,6 +85,16 @@ export class CobradoresPermisosService {
     }
   }
 
+  async tienePermiso(
+    cobradorId: number,
+    permiso: CobradorPermisoNombre,
+  ): Promise<boolean> {
+    const fila = await this.permisoRepo.findOne({
+      where: { cobrador: { id: cobradorId }, permiso, habilitado: true },
+    });
+    return fila !== null;
+  }
+
   private async assertCobradorExists(cobradorId: number): Promise<Cobrador> {
     const cobrador = await this.cobradorRepo.findOne({ where: { id: cobradorId } });
     if (!cobrador) {
