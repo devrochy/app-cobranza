@@ -11,5 +11,6 @@
  */
 const base = (process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/app_cobranza?schema=public");
 process.env.DATABASE_URL = base.replace(/\/app_cobranza\?/, "/app_cobranza_e2e?");
+process.env.SEED_TEST_DATA = "false";
 process.env.TYPEORM_RETRY_ATTEMPTS = "1";
 process.env.TYPEORM_RETRY_DELAY = "500";

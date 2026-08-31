@@ -34,7 +34,7 @@ describe("ClienteService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockClienteRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockClienteRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), createQueryBuilder: jest.fn() };
   const mockConfigRepo = { findOne: jest.fn() };
   const mockEvidenciaRepo = { create: jest.fn(), save: jest.fn() };
   const mockCambioRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() };
@@ -580,6 +580,86 @@ describe("ClienteService", () => {
       (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
       (mockClienteRepo.findOne as jest.Mock).mockResolvedValue(null);
       await expect(service.setEstatus(10, 999, "bloqueado", adminCtx)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("listarGlobal", () => {
+    const clienteGlobal = {
+      id: 1,
+      rutaId: 10,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      latitud: -17.78,
+      longitud: -63.18,
+      latitudDomicilio: null,
+      longitudDomicilio: null,
+      topeMaximoDeuda: null,
+      estatus: "activo",
+      colorRiesgo: "verde",
+      createdAt: new Date(),
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      ruta: { id: 10, nombre: "Ruta Centro" },
+    };
+
+    function mockQueryBuilder(rows: unknown[]) {
+      return {
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(rows),
+      };
+    }
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("admin ve clientes de todas las rutas con rutaNombre", async () => {
+      const qb = mockQueryBuilder([clienteGlobal]);
+      (mockClienteRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const res = await service.listarGlobal({ rol: "admin", sub: 0 }, {});
+
+      expect(mockClienteRepo.createQueryBuilder).toHaveBeenCalledWith("cliente");
+      expect(qb.andWhere).not.toHaveBeenCalled();
+      expect(res).toHaveLength(1);
+      expect(res[0].rutaNombre).toBe("Ruta Centro");
+    });
+
+    it("un socio solo ve clientes de sus rutas", async () => {
+      const qb = mockQueryBuilder([clienteGlobal]);
+      (mockClienteRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listarGlobal({ rol: "socio", sub: 7 }, {});
+
+      expect(qb.andWhere).toHaveBeenCalledWith("ruta.socio_id = :socioId", {
+        socioId: 7,
+      });
+    });
+
+    it("aplica filtros de estatus, color de riesgo y busqueda", async () => {
+      const qb = mockQueryBuilder([]);
+      (mockClienteRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listarGlobal({ rol: "admin", sub: 0 }, {
+        busqueda: "juan",
+        estatus: "activo",
+        colorRiesgo: "rojo",
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith("cliente.estatus = :estatus", {
+        estatus: "activo",
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith("cliente.colorRiesgo = :riesgo", {
+        riesgo: "rojo",
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining("ILIKE"),
+        { termino: "%juan%" },
+      );
     });
   });
 });
