@@ -1,0 +1,179 @@
+import { NotFoundException } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
+import { ClienteTarjetaService } from "../cartera/cliente-tarjeta.service";
+import { VisitasService } from "../cartera/visitas.service";
+import { Ruta } from "../rutas/ruta.entity";
+import { RutaConfigService } from "../rutas/ruta-config.service";
+import { GastosService } from "../rutas/gastos.service";
+import { ListaClientesDelDiaService } from "../rutas/lista-clientes-dia.service";
+import { RutaOptimizacionService } from "../rutas/ruta-optimizacion.service";
+import { TrayectoriasService } from "../rutas/trayectorias.service";
+import { CobradorService } from "./cobrador.service";
+
+describe("CobradorService", () => {
+  let service: CobradorService;
+  let rutaRepo: { find: jest.Mock };
+  let rutaConfig: { getMatriz: jest.Mock };
+  let permisos: { getMatriz: jest.Mock };
+  let listaClientes: { obtener: jest.Mock };
+  let optimizacion: { consultar: jest.Mock };
+  let visitas: { registrar: jest.Mock };
+  let gastos: { registrar: jest.Mock };
+  let trayectorias: { registrarReal: jest.Mock };
+  let tarjeta: { obtener: jest.Mock };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    rutaRepo = { find: jest.fn() };
+    rutaConfig = { getMatriz: jest.fn() };
+    permisos = { getMatriz: jest.fn() };
+    listaClientes = { obtener: jest.fn() };
+    optimizacion = { consultar: jest.fn() };
+    visitas = { registrar: jest.fn() };
+    gastos = { registrar: jest.fn() };
+    trayectorias = { registrarReal: jest.fn() };
+    tarjeta = { obtener: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CobradorService,
+        { provide: getRepositoryToken(Ruta), useValue: rutaRepo },
+        { provide: RutaConfigService, useValue: rutaConfig },
+        { provide: CobradoresPermisosService, useValue: permisos },
+        { provide: ListaClientesDelDiaService, useValue: listaClientes },
+        { provide: RutaOptimizacionService, useValue: optimizacion },
+        { provide: VisitasService, useValue: visitas },
+        { provide: GastosService, useValue: gastos },
+        { provide: TrayectoriasService, useValue: trayectorias },
+        { provide: ClienteTarjetaService, useValue: tarjeta },
+      ],
+    }).compile();
+
+    service = module.get(CobradorService);
+  });
+
+  describe("misRutas", () => {
+    it("devuelve array vacío si el cobrador no tiene rutas", async () => {
+      rutaRepo.find.mockResolvedValue([]);
+
+      await expect(service.misRutas(20)).resolves.toEqual([]);
+      expect(rutaRepo.find).toHaveBeenCalledWith({
+        where: { cobrador: { id: 20 } },
+        order: { id: "ASC" },
+      });
+    });
+
+    it("compone config y permisos por cada ruta del cobrador", async () => {
+      rutaRepo.find.mockResolvedValue([
+        { id: 6, nombre: "Ruta Centro", estatus: "activo" },
+      ]);
+      const config = { rutaId: 6, periodoLiquidacion: "diario" };
+      rutaConfig.getMatriz.mockResolvedValue(config);
+      const matriz = [{ permiso: "ver_cartera", habilitado: true }];
+      permisos.getMatriz.mockResolvedValue(matriz);
+
+      const result = await service.misRutas(20);
+
+      expect(result).toEqual([
+        {
+          id: 6,
+          nombre: "Ruta Centro",
+          estatus: "activo",
+          config,
+          permisos: matriz,
+        },
+      ]);
+      expect(rutaConfig.getMatriz).toHaveBeenCalledWith(6, {
+        rol: "cobrador",
+        sub: 20,
+      });
+      expect(permisos.getMatriz).toHaveBeenCalledWith(20);
+    });
+  });
+
+  describe("dia", () => {
+    it("compone los clientes del día y el trayecto planificado", async () => {
+      const requester = { rol: "cobrador" as const, sub: 20 };
+      const clientes = [{ clienteId: 1, nombre: "Juan Pérez", enTrayecto: true, color: "azul" }];
+      const trayectos = { ordenClientes: [{ clienteId: 1 }], distanciaEstimadaKm: 3 };
+      listaClientes.obtener.mockResolvedValue(clientes);
+      optimizacion.consultar.mockResolvedValue(trayectos);
+
+      const result = await service.dia(6, requester);
+
+      expect(result.clientes).toEqual(clientes);
+      expect(result.trayectos).toEqual(trayectos);
+      expect(listaClientes.obtener).toHaveBeenCalledWith(6, requester);
+      expect(optimizacion.consultar).toHaveBeenCalledWith(6, requester);
+    });
+
+    it("devuelve trayectos null si no hay trayecto planificado", async () => {
+      const requester = { rol: "cobrador" as const, sub: 20 };
+      listaClientes.obtener.mockResolvedValue([]);
+      optimizacion.consultar.mockRejectedValue(new NotFoundException());
+
+      const result = await service.dia(6, requester);
+
+      expect(result.clientes).toEqual([]);
+      expect(result.trayectos).toBeNull();
+    });
+  });
+
+  describe("operaciones (delegación a servicios de dominio)", () => {
+    const requester = { rol: "cobrador" as const, sub: 20 };
+
+    it("registrarVisita delega en VisitasService", async () => {
+      const input = { prestamoId: 1, clienteId: 1, resultado: "pago" as const };
+      visitas.registrar.mockResolvedValue({ id: 1, resultado: "pago" });
+
+      await expect(service.registrarVisita(6, input, requester)).resolves.toEqual({
+        id: 1,
+        resultado: "pago",
+      });
+      expect(visitas.registrar).toHaveBeenCalledWith(6, input, requester);
+    });
+
+    it("registrarGasto delega en GastosService con los archivos", async () => {
+      const input = { descripcion: "Combustible", valor: 50 };
+      const archivos = [
+        {
+          originalname: "a.jpg",
+          mimetype: "image/jpeg",
+          size: 1000,
+          filename: "x.jpg",
+          path: "/tmp/x.jpg",
+        },
+      ];
+      gastos.registrar.mockResolvedValue({ id: 1, descripcion: "Combustible" });
+
+      await expect(service.registrarGasto(6, input, archivos, requester)).resolves.toEqual({
+        id: 1,
+        descripcion: "Combustible",
+      });
+      expect(gastos.registrar).toHaveBeenCalledWith(6, input, archivos, requester);
+    });
+
+    it("registrarTrayectoriaReal delega en TrayectoriasService", async () => {
+      const puntos = [{ latitud: -17.78, longitud: -63.18 }];
+      trayectorias.registrarReal.mockResolvedValue({ id: 1, tipo: "real" });
+
+      await expect(service.registrarTrayectoriaReal(6, puntos, requester)).resolves.toEqual({
+        id: 1,
+        tipo: "real",
+      });
+      expect(trayectorias.registrarReal).toHaveBeenCalledWith(6, puntos, requester);
+    });
+
+    it("obtenerTarjeta delega en ClienteTarjetaService", async () => {
+      tarjeta.obtener.mockResolvedValue({ clienteId: 1, nombre: "Juan" });
+
+      await expect(service.obtenerTarjeta(6, 1, requester)).resolves.toEqual({
+        clienteId: 1,
+        nombre: "Juan",
+      });
+      expect(tarjeta.obtener).toHaveBeenCalledWith(6, 1, requester);
+    });
+  });
+});

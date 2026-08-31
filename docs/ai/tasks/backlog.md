@@ -145,6 +145,13 @@ Formato de cada entrada:
 - Prioridad sugerida: media
 - Estado: pendiente (webhook simulado de Fase 1; se sustituye por Cloud API real en Fase 2).
 
+## Casos borde de la API del cobrador sin test directo (endurecimiento)
+- Detectado en: docs/ai/tasks/cobrador-apk-api.md (revisión code-reviewer)
+- Fecha: 2026-08-31
+- Descripción: la API `/cobrador` cubre flujo feliz + 403 ownership + 403 permiso, pero no tests directos de: gasto con mimetype inválido (400), gastos sin archivos (201, `files ?? []`), trayectoria-real con <2 puntos (400 por `ArrayMinSize`), tarjeta de cliente de otra ruta (404), `mis-rutas` sin `ver_cartera` (403), 401 sin token. Cubiertos por la lógica existente (DTOs/servicios/guards), pero conviene endurecer.
+- Prioridad sugerida: baja
+- Estado: pendiente.
+
 ## ACCESO_DENEGADO duplicado con permiso.guard
 - Detectado en: docs/ai/tasks/refactor-helpers.md (revisión code-reviewer PR #21)
 - Fecha: 2026-08-17
