@@ -17,6 +17,7 @@ describe("AuthController", () => {
   const mockAuthService = {
     login: jest.fn(),
     loginSocio: jest.fn(),
+    loginCobrador: jest.fn(),
     refresh: jest.fn(),
   };
 
@@ -64,6 +65,22 @@ describe("AuthController", () => {
 
     expect(authService.loginSocio).toHaveBeenCalledWith("socio1", "s3cret");
     expect(result.socio.usuario).toBe("socio1");
+  });
+
+  it("loginCobrador delega al servicio", async () => {
+    const pair = { accessToken: "a", refreshToken: "r" };
+    (authService.loginCobrador as jest.Mock).mockResolvedValue({
+      ...pair,
+      cobrador: { id: 20, usuario: "cobrador1", nombre: "Carlos", apellido: "López" },
+    });
+
+    const result = await controller.loginCobrador({
+      usuario: "cobrador1",
+      password: "s3cret",
+    });
+
+    expect(authService.loginCobrador).toHaveBeenCalledWith("cobrador1", "s3cret");
+    expect(result.cobrador.usuario).toBe("cobrador1");
   });
 
   it("refresh delega al servicio", async () => {

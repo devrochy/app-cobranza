@@ -5,6 +5,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
+import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { AuthService } from "./auth.service";
 
@@ -12,6 +13,7 @@ describe("AuthService", () => {
   let service: AuthService;
   let repo: Repository<AdminUser>;
   let socioRepo: Repository<Socio>;
+  let cobradorRepo: Repository<Cobrador>;
 
   const PLAIN_PASSWORD = "s3cret-password";
   let hash: string;
@@ -21,6 +23,10 @@ describe("AuthService", () => {
   };
 
   const mockSocioRepo = {
+    findOne: jest.fn(),
+  };
+
+  const mockCobradorRepo = {
     findOne: jest.fn(),
   };
 
@@ -68,6 +74,23 @@ describe("AuthService", () => {
     } as Socio;
   }
 
+  function cobradorFixture(overrides: Partial<Cobrador> = {}): Cobrador {
+    return {
+      id: 20,
+      socioId: 10,
+      usuario: "cobrador1",
+      passwordHash: hash,
+      nombre: "Carlos",
+      apellido: "López",
+      correo: "carlos@correo.com",
+      telefono: "+59171111111",
+      codigo: "CB001",
+      estatus: "activo",
+      createdAt: new Date(),
+      ...overrides,
+    } as Cobrador;
+  }
+
   beforeAll(async () => {
     hash = await new PasswordService().hash(PLAIN_PASSWORD, 4);
   });
@@ -79,6 +102,7 @@ describe("AuthService", () => {
         AuthService,
         { provide: getRepositoryToken(AdminUser), useValue: mockRepo },
         { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
+        { provide: getRepositoryToken(Cobrador), useValue: mockCobradorRepo },
         { provide: ConfigService, useValue: mockConfig },
         { provide: JwtService, useValue: new JwtService() },
         PasswordService,
@@ -88,6 +112,7 @@ describe("AuthService", () => {
     service = module.get(AuthService);
     repo = module.get(getRepositoryToken(AdminUser));
     socioRepo = module.get(getRepositoryToken(Socio));
+    cobradorRepo = module.get(getRepositoryToken(Cobrador));
   });
 
   async function decodeToken(token: string): Promise<Record<string, unknown>> {
@@ -192,6 +217,54 @@ describe("AuthService", () => {
     });
   });
 
+  describe("loginCobrador", () => {
+    it("devuelve tokens con rol cobrador para credenciales válidas de un cobrador activo", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+
+      const result = await service.loginCobrador("cobrador1", PLAIN_PASSWORD);
+
+      expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toBeDefined();
+
+      const accessPayload = await decodeToken(result.accessToken);
+      expect(accessPayload.sub).toBe(20);
+      expect(accessPayload.usuario).toBe("cobrador1");
+      expect(accessPayload.tipo).toBe("access");
+      expect(accessPayload.rol).toBe("cobrador");
+
+      const refreshPayload = await decodeToken(result.refreshToken);
+      expect(refreshPayload.rol).toBe("cobrador");
+
+      expect(result.cobrador.usuario).toBe("cobrador1");
+    });
+
+    it("rechaza con contraseña incorrecta", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+
+      await expect(
+        service.loginCobrador("cobrador1", "wrong-password"),
+      ).rejects.toThrow("Credenciales inválidas");
+    });
+
+    it("rechaza con el mismo error si el cobrador no existe", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.loginCobrador("ghost", PLAIN_PASSWORD),
+      ).rejects.toThrow("Credenciales inválidas");
+    });
+
+    it("rechaza a un cobrador bloqueado", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(
+        cobradorFixture({ estatus: "bloqueado" }),
+      );
+
+      await expect(
+        service.loginCobrador("cobrador1", PLAIN_PASSWORD),
+      ).rejects.toThrow("Credenciales inválidas");
+    });
+  });
+
   describe("refresh", () => {
     it("rota el refresh token y devuelve un par nuevo con jti distinto", async () => {
       (repo.findOne as jest.Mock).mockResolvedValue(adminFixture());
@@ -284,6 +357,52 @@ describe("AuthService", () => {
       const jwt = new JwtService();
       const validRefresh = jwt.sign(
         { sub: 10, rol: "socio", tipo: "refresh", jti: "abc" },
+        { secret: "test-refresh-secret", expiresIn: "7d" },
+      );
+
+      await expect(service.refresh(validRefresh)).rejects.toThrow(
+        "Refresh token inválido",
+      );
+    });
+
+    it("rota un token de cobrador consultando la tabla de cobradores y preservando rol", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+      const jwt = new JwtService();
+      const validRefresh = jwt.sign(
+        { sub: 20, rol: "cobrador", tipo: "refresh", jti: "abc" },
+        { secret: "test-refresh-secret", expiresIn: "7d" },
+      );
+
+      const rotated = await service.refresh(validRefresh);
+
+      expect(cobradorRepo.findOne).toHaveBeenCalled();
+      const newAccess = await decodeToken(rotated.accessToken);
+      const newRefresh = await decodeToken(rotated.refreshToken);
+      expect(newAccess.rol).toBe("cobrador");
+      expect(newAccess.sub).toBe(20);
+      expect(newRefresh.rol).toBe("cobrador");
+    });
+
+    it("rechaza el refresh de un cobrador bloqueado", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(
+        cobradorFixture({ estatus: "bloqueado" }),
+      );
+      const jwt = new JwtService();
+      const validRefresh = jwt.sign(
+        { sub: 20, rol: "cobrador", tipo: "refresh", jti: "abc" },
+        { secret: "test-refresh-secret", expiresIn: "7d" },
+      );
+
+      await expect(service.refresh(validRefresh)).rejects.toThrow(
+        "Refresh token inválido",
+      );
+    });
+
+    it("rechaza el refresh si el cobrador ya no existe", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(null);
+      const jwt = new JwtService();
+      const validRefresh = jwt.sign(
+        { sub: 999, rol: "cobrador", tipo: "refresh", jti: "abc" },
         { secret: "test-refresh-secret", expiresIn: "7d" },
       );
 

@@ -27,6 +27,11 @@ export class AuthController {
     return this.authService.loginSocio(dto.usuario, dto.password);
   }
 
+  @Post("cobrador/login")
+  loginCobrador(@Body() dto: LoginDto) {
+    return this.authService.loginCobrador(dto.usuario, dto.password);
+  }
+
   @Post("refresh")
   refresh(@Body() dto: RefreshDto) {
     return this.authService.refresh(dto.refreshToken);
