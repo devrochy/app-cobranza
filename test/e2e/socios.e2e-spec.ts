@@ -345,7 +345,13 @@ describe("Socios (e2e)", () => {
       expect(res.status).toBe(401);
     });
 
-    it("responde 403 como socio (admin-only)", async () => {
+    it("un socio con ver_reportes ve solo su propio perfil", async () => {
+      const propio = await socioRepo.findOne({ where: { codigo: "SC-E2E-001" } });
+      await request(app.getHttpServer())
+        .put(`/socios/${propio!.id}/permisos`)
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ matriz: { ver_reportes: true } });
+
       const login = await request(app.getHttpServer())
         .post("/auth/socio/login")
         .send({ usuario: "socio-e2e", password: "password-seguro" });
@@ -355,7 +361,9 @@ describe("Socios (e2e)", () => {
         .get("/socios")
         .set("Authorization", `Bearer ${tokenSocio}`);
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
+      const codigos = res.body.map((s: { codigo: string }) => s.codigo);
+      expect(codigos).toEqual(["SC-E2E-001"]);
     });
   });
 });

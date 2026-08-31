@@ -105,7 +105,13 @@ describe("Matriz de permisos de cobrador gestionada por el socio (e2e)", () => {
     await request(app.getHttpServer())
       .put(`/socios/${socio1Id}/permisos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ matriz: { editar_permisos: true, registrar_cobrador: true } });
+      .send({
+        matriz: {
+          ver_reportes: true,
+          editar_permisos: true,
+          registrar_cobrador: true,
+        },
+      });
 
     const cobrador1 = await cobradorRepo.save({
       socio: { id: socio1Id },
@@ -159,7 +165,7 @@ describe("Matriz de permisos de cobrador gestionada por el socio (e2e)", () => {
     expect(codigos).toContain("CB-CP-2");
   });
 
-  it("GET /cobradores como socio con editar_permisos devuelve solo sus colaboradores", async () => {
+  it("GET /cobradores como socio con ver_reportes devuelve solo sus colaboradores", async () => {
     const res = await request(app.getHttpServer())
       .get("/cobradores")
       .set("Authorization", `Bearer ${tokenSocio1}`);
@@ -252,7 +258,7 @@ describe("Matriz de permisos de cobrador gestionada por el socio (e2e)", () => {
     expect(res.status).toBe(403);
   });
 
-  it("GET /cobradores como socio SIN editar_permisos -> 403", async () => {
+  it("GET /cobradores como socio SIN ver_reportes -> 403", async () => {
     const res = await request(app.getHttpServer())
       .get("/cobradores")
       .set("Authorization", `Bearer ${tokenSocio2}`);
