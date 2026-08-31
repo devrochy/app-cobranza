@@ -127,6 +127,19 @@ describe("Login cobrador (e2e)", () => {
     expect(payload.rol).toBe("cobrador");
   });
 
+  it("POST /whatsapp/simulado/recibir -> 403 para un cobrador autenticado (admin-only)", async () => {
+    const login = await request(app.getHttpServer())
+      .post("/auth/cobrador/login")
+      .send({ usuario: cobradorPayload.usuario, password: PASSWORD });
+
+    const res = await request(app.getHttpServer())
+      .post("/whatsapp/simulado/recibir")
+      .set("Authorization", `Bearer ${login.body.accessToken}`)
+      .send({ conversacionId: 1, contenido: "hola" });
+
+    expect(res.status).toBe(403);
+  });
+
   it("POST /auth/refresh rechaza a un cobrador bloqueado (revalidación de estado)", async () => {
     const login = await request(app.getHttpServer())
       .post("/auth/cobrador/login")
