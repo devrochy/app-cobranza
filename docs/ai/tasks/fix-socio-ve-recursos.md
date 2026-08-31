@@ -35,5 +35,7 @@ Además, `RutasService.listar`/`SociosService.listar` no filtraban por ownership
   - `src/modules/socios/socios.service.ts`, `socios.controller.ts` (+ specs).
   - `src/modules/cobradores/cobradores.controller.ts`.
   - `test/e2e/rutas.e2e-spec.ts` — test de ownership.
+  - `test/e2e/cobrador-permisos.e2e-spec.ts` — socio con `ver_reportes` (antes `editar_permisos`) para listar cobradores.
+  - `test/e2e/socios.e2e-spec.ts` — socio con `ver_reportes` ve solo su propio perfil (antes admin-only).
   - `docs/ai/tasks/fix-socio-ve-recursos.md`.
 - Pendientes/seguimiento: verificar en el panel que la navegación del socio (rutas/cobradores/cartera) funciona de punta a punta.
