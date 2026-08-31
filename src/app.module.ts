@@ -15,6 +15,7 @@ import { ReglasNegociacionIaModule } from "./modules/reglas-negociacion-ia/regla
 import { SecurityModule } from "./modules/security/security.module";
 import { SincronizacionOfflineModule } from "./modules/sincronizacion-offline/sincronizacion-offline.module";
 import { SociosModule } from "./modules/socios/socios.module";
+import { TestDataModule } from "./modules/test-data/test-data.module";
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { SociosModule } from "./modules/socios/socios.module";
     SincronizacionOfflineModule,
     DashboardModule,
     HealthModule,
+    TestDataModule,
   ],
 })
 export class AppModule {}
