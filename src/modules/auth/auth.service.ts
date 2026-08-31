@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
+import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 
 export interface AuthTokenPair {
@@ -24,6 +25,15 @@ export interface LoginResult extends AuthTokenPair {
 
 export interface SocioLoginResult extends AuthTokenPair {
   socio: {
+    id: number;
+    usuario: string;
+    nombre: string;
+    apellido: string;
+  };
+}
+
+export interface CobradorLoginResult extends AuthTokenPair {
+  cobrador: {
     id: number;
     usuario: string;
     nombre: string;
@@ -63,6 +73,8 @@ export class AuthService {
     private readonly repo: Repository<AdminUser>,
     @InjectRepository(Socio)
     private readonly socioRepo: Repository<Socio>,
+    @InjectRepository(Cobrador)
+    private readonly cobradorRepo: Repository<Cobrador>,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly password: PasswordService,
@@ -138,6 +150,41 @@ export class AuthService {
     };
   }
 
+  async loginCobrador(usuario: string, password: string): Promise<CobradorLoginResult> {
+    const cobrador = await this.cobradorRepo.findOne({
+      where: { usuario },
+      select: {
+        id: true,
+        usuario: true,
+        passwordHash: true,
+        estatus: true,
+        nombre: true,
+        apellido: true,
+      },
+    });
+
+    if (!cobrador) {
+      await this.password.compare(password, DUMMY_PASSWORD_HASH);
+      throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
+    }
+
+    const passwordOk = await this.password.compare(password, cobrador.passwordHash);
+    if (cobrador.estatus !== "activo" || !passwordOk) {
+      throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
+    }
+
+    const tokens = await this.issueTokens("cobrador", cobrador);
+    return {
+      ...tokens,
+      cobrador: {
+        id: cobrador.id,
+        usuario: cobrador.usuario,
+        nombre: cobrador.nombre,
+        apellido: cobrador.apellido,
+      },
+    };
+  }
+
   async refresh(refreshToken: string): Promise<AuthTokenPair> {
     let payload: AuthTokenPayload;
     try {
@@ -161,6 +208,17 @@ export class AuthService {
         throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
       }
       return this.issueTokens("socio", socio);
+    }
+
+    if (payload.rol === "cobrador") {
+      const cobrador = await this.cobradorRepo.findOne({
+        where: { id: payload.sub },
+        select: { id: true, usuario: true, estatus: true },
+      });
+      if (!cobrador || cobrador.estatus !== "activo") {
+        throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
+      }
+      return this.issueTokens("cobrador", cobrador);
     }
 
     const admin = await this.repo.findOne({

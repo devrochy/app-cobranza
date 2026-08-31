@@ -3,6 +3,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { SecurityModule } from "../security/security.module";
 import { AdminUser } from "../admin-users/admin-user.entity";
+import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { SociosModule } from "../socios/socios.module";
 import { AuthController } from "./auth.controller";
@@ -12,7 +13,7 @@ import { PermisoGuard } from "./permiso.guard";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AdminUser, Socio]),
+    TypeOrmModule.forFeature([AdminUser, Socio, Cobrador]),
     JwtModule.register({}),
     SecurityModule,
     SociosModule,
