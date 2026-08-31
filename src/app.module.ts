@@ -8,6 +8,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { CarteraModule } from "./modules/cartera/cartera.module";
 import { CobrosSocioModule } from "./modules/cobros-socio/cobros-socio.module";
 import { CobradoresModule } from "./modules/cobradores/cobradores.module";
+import { CobradorModule } from "./modules/cobrador/cobrador.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { HealthModule } from "./modules/health/health.module";
 import { RutasModule } from "./modules/rutas/rutas.module";
@@ -31,6 +32,7 @@ import { TestDataModule } from "./modules/test-data/test-data.module";
     SecurityModule,
     SociosModule,
     CobradoresModule,
+    CobradorModule,
     RutasModule,
     CarteraModule,
     CobrosSocioModule,
