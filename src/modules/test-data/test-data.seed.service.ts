@@ -7,6 +7,7 @@ import { Socio } from "../socios/socio.entity";
 import { SociosService } from "../socios/socios.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CobradoresService } from "../cobradores/cobradores.service";
+import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { RutasService } from "../rutas/rutas.service";
 import { RutaConfigService } from "../rutas/ruta-config.service";
 import { GastosService } from "../rutas/gastos.service";
@@ -46,6 +47,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     private readonly sociosService: SociosService,
     private readonly permisosSocio: PermisosSocioService,
     private readonly cobradoresService: CobradoresService,
+    private readonly cobradoresPermisos: CobradoresPermisosService,
     private readonly rutasService: RutasService,
     private readonly rutaConfigService: RutaConfigService,
     private readonly clienteService: ClienteService,
@@ -141,6 +143,28 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       codigo: "TEST-CB-002",
       estatus: "activo",
     });
+
+    // Permisos de la APK para los cobradores de prueba (ver_cartera y
+    // operaciones de campo). Sin ellos, la APK recibe 403 en todos sus
+    // endpoints (matriz cobrador_permisos vacía → todo deshabilitado).
+    const permisosApk = {
+      registrar_prestamo: false,
+      registrar_pago: true,
+      registrar_abono: false,
+      registrar_gasto: true,
+      registrar_no_pago: true,
+      anotar_notas_ruta: true,
+      actualizar_cliente: false,
+      eliminar_prestamo: false,
+      eliminar_pago: false,
+      eliminar_abono: false,
+      eliminar_gasto: false,
+      registrar_inyeccion: false,
+      ver_cartera: true,
+      generar_reporte: true,
+    };
+    await this.cobradoresPermisos.setMatriz(cobradorA.id, permisosApk);
+    await this.cobradoresPermisos.setMatriz(cobradorB.id, permisosApk);
 
     // Ruta A: fotos de cliente requeridas + fechas editables (préstamos atrasados → mora).
     const rutaA = await this.rutasService.create(

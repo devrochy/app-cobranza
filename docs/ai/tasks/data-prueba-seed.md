@@ -18,7 +18,7 @@ Poblar la BD local del backend con datos sintéticos (`test-`/`fixture-`) e idem
   - **Hecho (2026-08-31):** `TestDataModule` + `TestDataSeedService` (OnApplicationBootstrap con `setTimeout` para correr tras el admin seed). Se ampliaron exports de `RutasModule`/`CarteraModule`. Guard adicional: no corre si `NODE_ENV=production`.
 - [x] Bloque 2: orquestación del seed.
   - Test(s): `test-data.seed.service.spec.ts` (happy path: llama a servicios con contexto admin, aprobar gasto, liquidación, reporte diario).
-  - **Hecho (2026-08-31):** socio+permisos, 2 cobradores, 2 rutas (ruta A con fotos requeridas + fechas editables), 16 clientes (8 con fotos), 14 préstamos (6 atrasados → mora), pagos de cuotas, gastos (1 con evidencia, 1 aprobado), inyecciones, notas, 1 liquidación, reporte diario.
+  - **Hecho (2026-08-31):** socio+permisos, 2 cobradores (con `cobrador_permisos` para la APK: ver_cartera, registrar_pago, registrar_no_pago, registrar_gasto, generar_reporte, anotar_notas_ruta), 2 rutas (ruta A con fotos requeridas + fechas editables), 16 clientes (8 con fotos), 14 préstamos (6 atrasados → mora), pagos de cuotas, gastos (1 con evidencia, 1 aprobado), inyecciones, notas, 1 liquidación, reporte diario.
 - [x] Bloque 3: ejecución contra el backend local.
   - **Hecho (2026-08-31):** `SEED_TEST_DATA=true` en `.env` local (gitignored) + `.env.example` documentado. Se levantó colima + Postgres y el backend; el seed cargó y se verificó en BD: 1 socio, 2 cobradores, 2 rutas, 16 clientes, 14 préstamos, 96 cuotas (15 atrasadas, 6 pagadas), 6 pagos, 2 gastos, 2 inyecciones, 1 nota, 1 liquidación, reporte diario con trayectorias.
 
@@ -27,6 +27,7 @@ Poblar la BD local del backend con datos sintéticos (`test-`/`fixture-`) e idem
 - Requester admin: `{ rol: "admin", sub: <adminId> }` (se toma el admin activo; si no hay, se salta — el admin seed lo crea).
 - Ruta A con `reconocimientoFacialActivo`/`registroDocumentoCliente` (fotos requeridas en el panel) y `permitirCambioFechaPrestamo` (préstamos atrasados → mora).
 - Pagos de cuotas "hoy" para que el dashboard muestre cobradoDia/Semana > 0.
+- `cobrador_permisos` de los cobradores de prueba vía `CobradoresPermisosService.setMatriz` (sin esto, la APK recibe 403 en todos sus endpoints por matriz vacía).
 - Evidencias de gasto/fotos: metadatos placeholder (sin archivo real; no hay endpoint de descarga).
 
 ## Ambigüedades resueltas con el usuario
