@@ -9,7 +9,6 @@ export const TIPO_EVENTO_SYNC = [
   "pago",
   "abono",
   "gasto",
-  "promesa_pago",
   "cambio_cliente",
 ] as const;
 
@@ -33,8 +32,9 @@ const UUID_REGEX =
 /**
  * Ingestión de eventos offline (HU-64). Deduplica idempotentemente por
  * `(dispositivo, evento_id_cliente)` y registra cada evento en
- * `sincronizacion_offline` (estado `sincronizado`). En el MVP los eventos se
- * registran pero NO se aplican al dominio (Fase 2).
+ * `sincronizacion_offline` con estado `pendiente` (el ack al dispositivo es
+ * `sincronizado` = aceptado). La aplicación al dominio la hace
+ * `AplicarEventosOfflineService` (on-ingest y job de reintentos).
  */
 @Injectable()
 export class SincronizacionOfflineService {
@@ -71,8 +71,8 @@ export class SincronizacionOfflineService {
             eventoIdCliente: evento.eventoIdCliente,
             tipoEvento: evento.tipoEvento,
             payloadJson: evento.payload ?? null,
-            estado: "sincronizado",
-            syncedAt: new Date(),
+            estado: "pendiente",
+            syncedAt: null,
           }),
         );
         resultados.push({ eventoIdCliente: evento.eventoIdCliente, estado: "sincronizado" });

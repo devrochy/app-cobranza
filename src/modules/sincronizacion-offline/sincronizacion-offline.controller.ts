@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
+import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service";
 import { DeviceApiKeyGuard, RequestWithDevice } from "./device-api-key.guard";
 import { DevicesService } from "./devices.service";
 import { RegistrarDispositivoDto } from "./dto/registrar-dispositivo.dto";
@@ -18,6 +19,7 @@ export class SincronizacionOfflineController {
   constructor(
     private readonly devicesService: DevicesService,
     private readonly sincronizacionOfflineService: SincronizacionOfflineService,
+    private readonly aplicarEventosOfflineService: AplicarEventosOfflineService,
     private readonly snapshotDiaService: SnapshotDiaService,
   ) {}
 
@@ -29,8 +31,19 @@ export class SincronizacionOfflineController {
 
   @Post("sync-offline/eventos")
   @UseGuards(DeviceApiKeyGuard)
-  sincronizar(@Body() dto: SincronizarEventosDto, @Req() req: RequestWithDevice) {
-    return this.sincronizacionOfflineService.ingestir(req.device!, dto.eventos);
+  async sincronizar(
+    @Body() dto: SincronizarEventosDto,
+    @Req() req: RequestWithDevice,
+  ) {
+    const resultados = await this.sincronizacionOfflineService.ingestir(
+      req.device!,
+      dto.eventos,
+    );
+    // Aplica los eventos aceptados al dominio (Fase B: offline-first).
+    await this.aplicarEventosOfflineService.aplicarPendientesDeDispositivo(
+      req.device!,
+    );
+    return resultados;
   }
 
   @Get("sync-offline/dia")

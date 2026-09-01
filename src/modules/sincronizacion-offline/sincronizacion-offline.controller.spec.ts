@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { DeviceApiKeyGuard } from "./device-api-key.guard";
+import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service";
 import { DevicesService } from "./devices.service";
 import { SincronizacionOfflineService } from "./sincronizacion-offline.service";
 import { SincronizacionOfflineController } from "./sincronizacion-offline.controller";
@@ -19,6 +20,7 @@ describe("SincronizacionOfflineController", () => {
 
   const mockDevices = { registrar: jest.fn(), autenticar: jest.fn() };
   const mockSync = { ingestir: jest.fn() };
+  const mockAplicar = { aplicarPendientesDeDispositivo: jest.fn() };
   const mockSnapshot = { obtenerSnapshot: jest.fn() };
 
   const deviceReq = { device: { id: 3, rutaId: 5 } } as never;
@@ -30,6 +32,7 @@ describe("SincronizacionOfflineController", () => {
       providers: [
         { provide: DevicesService, useValue: mockDevices },
         { provide: SincronizacionOfflineService, useValue: mockSync },
+        { provide: AplicarEventosOfflineService, useValue: mockAplicar },
         { provide: SnapshotDiaService, useValue: mockSnapshot },
         DeviceApiKeyGuard,
         JwtAuthGuard,
@@ -52,7 +55,7 @@ describe("SincronizacionOfflineController", () => {
     expect(devices.registrar).toHaveBeenCalledWith({ rutaId: 5 });
   });
 
-  it("sincronizar eventos usa el dispositivo del guard", async () => {
+  it("sincronizar eventos usa el dispositivo del guard y aplica los aceptados", async () => {
     await controller.sincronizar(
       { eventos: [{ eventoIdCliente: "11111111-1111-4111-8111-111111111111", tipoEvento: "visita", payload: {} }] },
       deviceReq,
@@ -61,6 +64,7 @@ describe("SincronizacionOfflineController", () => {
       { id: 3, rutaId: 5 },
       [{ eventoIdCliente: "11111111-1111-4111-8111-111111111111", tipoEvento: "visita", payload: {} }],
     );
+    expect(mockAplicar.aplicarPendientesDeDispositivo).toHaveBeenCalledWith({ id: 3, rutaId: 5 });
   });
 
   it("obtener snapshot del día delega con el dispositivo", async () => {

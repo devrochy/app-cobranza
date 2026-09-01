@@ -4,6 +4,8 @@ import { ConfigService } from "@nestjs/config";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Socio } from "../socios/socio.entity";
 import { Cuota } from "../cartera/cuota.entity";
+import { Device } from "../sincronizacion-offline/device.entity";
+import { PasswordService } from "../security/password.service";
 import { SociosService } from "../socios/socios.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CobradoresService } from "../cobradores/cobradores.service";
@@ -65,6 +67,8 @@ describe("TestDataSeedService", () => {
         { provide: getRepositoryToken(AdminUser), useValue: mockAdminRepo },
         { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
         { provide: getRepositoryToken(Cuota), useValue: mockCuotaRepo },
+        { provide: getRepositoryToken(Device), useValue: { create: jest.fn((v: unknown) => v), save: jest.fn() } },
+        { provide: PasswordService, useValue: { hash: jest.fn().mockResolvedValue("hash") } },
         { provide: SociosService, useValue: mockSociosService },
         { provide: PermisosSocioService, useValue: mockPermisosSocio },
         { provide: CobradoresService, useValue: mockCobradoresService },

@@ -8,6 +8,8 @@ import { SociosService } from "../socios/socios.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CobradoresService } from "../cobradores/cobradores.service";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
+import { PasswordService } from "../security/password.service";
+import { Device } from "../sincronizacion-offline/device.entity";
 import { RutasService } from "../rutas/rutas.service";
 import { RutaConfigService } from "../rutas/ruta-config.service";
 import { GastosService } from "../rutas/gastos.service";
@@ -44,6 +46,9 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     private readonly socioRepo: Repository<Socio>,
     @InjectRepository(Cuota)
     private readonly cuotaRepo: Repository<Cuota>,
+    @InjectRepository(Device)
+    private readonly deviceRepo: Repository<Device>,
+    private readonly password: PasswordService,
     private readonly sociosService: SociosService,
     private readonly permisosSocio: PermisosSocioService,
     private readonly cobradoresService: CobradoresService,
@@ -189,6 +194,25 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         permitirCambioFechaPrestamo: true,
       },
       requester,
+    );
+
+    // Dispositivo vinculado al cobrador A para probar el modo offline de la APK
+    // (HU-64). API key conocida: <codigo>.<secreto> — el codigo es fijo para que
+    // la APK de prueba pueda usarla desde .env.local.
+    const deviceCodigo = "00000000-0000-4000-8000-000000000001";
+    const deviceSecreto = "test-device-secreto";
+    await this.deviceRepo.save(
+      this.deviceRepo.create({
+        codigo: deviceCodigo,
+        apiKeyHash: await this.password.hash(deviceSecreto),
+        cobradorId: cobradorA.id,
+        rutaId: rutaA.id,
+        estado: "activo",
+        fechaVinculacion: new Date(),
+      }),
+    );
+    this.logger.log(
+      `Device de prueba APK: api key = ${deviceCodigo}.${deviceSecreto}`,
     );
 
     const rutaB = await this.rutasService.create(

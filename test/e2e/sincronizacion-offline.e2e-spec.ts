@@ -10,6 +10,8 @@ import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
 import { Device } from "../../src/modules/sincronizacion-offline/device.entity";
 import { SincronizacionOffline } from "../../src/modules/sincronizacion-offline/sincronizacion-offline.entity";
 import { Ruta } from "../../src/modules/rutas/ruta.entity";
+import { Gasto } from "../../src/modules/rutas/gasto.entity";
+import { GastoEvidencia } from "../../src/modules/rutas/gasto-evidencia.entity";
 import { Socio } from "../../src/modules/socios/socio.entity";
 
 describe("Sincronización offline (e2e)", () => {
@@ -20,6 +22,8 @@ describe("Sincronización offline (e2e)", () => {
   let rutaRepo: Repository<Ruta>;
   let deviceRepo: Repository<Device>;
   let syncRepo: Repository<SincronizacionOffline>;
+  let gastoRepo: Repository<Gasto>;
+  let evidenciaRepo: Repository<GastoEvidencia>;
   let accessTokenAdmin: string;
   let rutaId: number;
   let apiKey: string;
@@ -53,9 +57,13 @@ describe("Sincronización offline (e2e)", () => {
     rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
     deviceRepo = moduleFixture.get(getRepositoryToken(Device));
     syncRepo = moduleFixture.get(getRepositoryToken(SincronizacionOffline));
+    gastoRepo = moduleFixture.get(getRepositoryToken(Gasto));
+    evidenciaRepo = moduleFixture.get(getRepositoryToken(GastoEvidencia));
 
-    await socioRepo.delete({ codigo: "SC-SYNC-1" });
+    // Orden seguro por FK: primero cobradores, luego socios (si un run previo
+    // dejó el cobrador, borrarlo antes evita violar la FK de socio).
     await cobradorRepo.delete({ codigo: "CB-SYNC-1" });
+    await socioRepo.delete({ codigo: "SC-SYNC-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,
@@ -113,6 +121,10 @@ describe("Sincronización offline (e2e)", () => {
     if (deviceId) {
       await syncRepo.delete({ dispositivo: { id: deviceId } });
     }
+    // El on-ingest aplica el evento `gasto` de prueba → limpiar gastos/evidencias
+    // antes de borrar la ruta (FK).
+    await evidenciaRepo.createQueryBuilder().delete().execute();
+    await gastoRepo.createQueryBuilder().delete().execute();
     await deviceRepo.delete({ rutaId });
     await rutaRepo.delete({ id: rutaId });
     await cobradorRepo.delete({ codigo: "CB-SYNC-1" });
@@ -140,7 +152,7 @@ describe("Sincronización offline (e2e)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("POST /sync-offline/eventos ingiere eventos y persiste como sincronizado", async () => {
+  it("POST /sync-offline/eventos ingiere eventos (ack) y los deja listos para aplicar", async () => {
     const res = await request(app.getHttpServer())
       .post("/sync-offline/eventos")
       .set("x-device-key", apiKey)
@@ -158,7 +170,10 @@ describe("Sincronización offline (e2e)", () => {
     ]);
 
     const fila = await syncRepo.findOne({ where: { dispositivo: { id: deviceId }, eventoIdCliente: UUID_A } });
-    expect(fila?.estado).toBe("sincronizado");
+    // On-ingest: el evento se ingiere (ack) y luego se intenta aplicar al dominio.
+    // Este payload de prueba no tiene préstamo válido → queda en `error` con motivo.
+    expect(fila?.estado).toBe("error");
+    expect(fila?.errorMotivo).toBeTruthy();
     expect((fila?.payloadJson as { resultado: string }).resultado).toBe("pago");
   });
 
