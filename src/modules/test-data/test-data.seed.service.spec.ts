@@ -7,6 +7,7 @@ import { Cuota } from "../cartera/cuota.entity";
 import { SociosService } from "../socios/socios.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CobradoresService } from "../cobradores/cobradores.service";
+import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { RutasService } from "../rutas/rutas.service";
 import { RutaConfigService } from "../rutas/ruta-config.service";
 import { GastosService } from "../rutas/gastos.service";
@@ -44,6 +45,7 @@ describe("TestDataSeedService", () => {
   const mockSociosService = { create: jest.fn() };
   const mockPermisosSocio = { setMatriz: jest.fn() };
   const mockCobradoresService = { create: jest.fn() };
+  const mockCobradoresPermisos = { setMatriz: jest.fn() };
   const mockRutasService = { create: jest.fn() };
   const mockRutaConfigService = { setMatriz: jest.fn() };
   const mockClienteService = { crear: jest.fn() };
@@ -66,6 +68,7 @@ describe("TestDataSeedService", () => {
         { provide: SociosService, useValue: mockSociosService },
         { provide: PermisosSocioService, useValue: mockPermisosSocio },
         { provide: CobradoresService, useValue: mockCobradoresService },
+        { provide: CobradoresPermisosService, useValue: mockCobradoresPermisos },
         { provide: RutasService, useValue: mockRutasService },
         { provide: RutaConfigService, useValue: mockRutaConfigService },
         { provide: ClienteService, useValue: mockClienteService },
