@@ -10,7 +10,12 @@ import {
 } from "typeorm";
 import { Device } from "./device.entity";
 
-export const SYNC_EVENTO_ESTADO = ["pendiente", "sincronizado", "error"] as const;
+export const SYNC_EVENTO_ESTADO = [
+  "pendiente",
+  "procesando",
+  "sincronizado",
+  "error",
+] as const;
 export type SyncEventoEstado = (typeof SYNC_EVENTO_ESTADO)[number];
 
 /**
@@ -44,6 +49,12 @@ export class SincronizacionOffline {
 
   @Column({ type: "varchar", default: "pendiente" })
   estado!: SyncEventoEstado;
+
+  @Column({ name: "error_motivo", type: "varchar", nullable: true })
+  errorMotivo!: string | null;
+
+  @Column({ type: "int", default: 0 })
+  reintentos!: number;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
