@@ -19,6 +19,7 @@ Exponer un controller `GET/POST /cobrador/...` para la APK (modo en línea) que 
 5. `POST /cobrador/rutas/:rutaId/gastos` (`registrar_gasto`) → gasto con evidencias (multipart).
 6. `POST /cobrador/rutas/:rutaId/trayectoria-real` (`generar_reporte`) → trayectoria GPS.
 7. `GET /cobrador/rutas/:rutaId/clientes/:clienteId/tarjeta` (`ver_cartera`) → estado de cuenta.
+8. `GET /cobrador/rutas/:rutaId/clientes/:clienteId/prestamos` (`ver_cartera`) → préstamos con cuotas (id incl.) del cliente (la APK necesita `cuotaId` para registrar pagos).
 
 ## Bloques (checklist TDD)
 - [x] Bloque 1: `CobradorService.misRutas(cobradorId)` — lista rutas por `cobradorId`, compone config + permisos. Orden de rutas por id. Si sin rutas → array vacío.

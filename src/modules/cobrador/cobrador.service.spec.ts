@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { ClienteTarjetaService } from "../cartera/cliente-tarjeta.service";
+import { PrestamoService } from "../cartera/prestamo.service";
 import { VisitasService } from "../cartera/visitas.service";
 import { Ruta } from "../rutas/ruta.entity";
 import { RutaConfigService } from "../rutas/ruta-config.service";
@@ -20,6 +21,7 @@ describe("CobradorService", () => {
   let listaClientes: { obtener: jest.Mock };
   let optimizacion: { consultar: jest.Mock };
   let visitas: { registrar: jest.Mock };
+  let prestamos: { listarPorCliente: jest.Mock };
   let gastos: { registrar: jest.Mock };
   let trayectorias: { registrarReal: jest.Mock };
   let tarjeta: { obtener: jest.Mock };
@@ -32,6 +34,7 @@ describe("CobradorService", () => {
     listaClientes = { obtener: jest.fn() };
     optimizacion = { consultar: jest.fn() };
     visitas = { registrar: jest.fn() };
+    prestamos = { listarPorCliente: jest.fn() };
     gastos = { registrar: jest.fn() };
     trayectorias = { registrarReal: jest.fn() };
     tarjeta = { obtener: jest.fn() };
@@ -45,6 +48,7 @@ describe("CobradorService", () => {
         { provide: ListaClientesDelDiaService, useValue: listaClientes },
         { provide: RutaOptimizacionService, useValue: optimizacion },
         { provide: VisitasService, useValue: visitas },
+        { provide: PrestamoService, useValue: prestamos },
         { provide: GastosService, useValue: gastos },
         { provide: TrayectoriasService, useValue: trayectorias },
         { provide: ClienteTarjetaService, useValue: tarjeta },
@@ -174,6 +178,15 @@ describe("CobradorService", () => {
         nombre: "Juan",
       });
       expect(tarjeta.obtener).toHaveBeenCalledWith(6, 1, requester);
+    });
+
+    it("listarPrestamosDeCliente delega en PrestamoService", async () => {
+      prestamos.listarPorCliente.mockResolvedValue([{ id: 1 }]);
+
+      await expect(
+        service.listarPrestamosDeCliente(6, 1, requester),
+      ).resolves.toEqual([{ id: 1 }]);
+      expect(prestamos.listarPorCliente).toHaveBeenCalledWith(6, 1, requester);
     });
   });
 });

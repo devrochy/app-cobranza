@@ -23,6 +23,7 @@ describe("CobradorController", () => {
     registrarGasto: jest.fn(),
     registrarTrayectoriaReal: jest.fn(),
     obtenerTarjeta: jest.fn(),
+    listarPrestamosDeCliente: jest.fn(),
   };
 
   function req(sub = 20): Request & { user: AuthTokenPayload } {
@@ -129,5 +130,15 @@ describe("CobradorController", () => {
 
     await expect(controller.obtenerTarjeta(6, 2, req())).resolves.toEqual({ clienteId: 2 });
     expect(service.obtenerTarjeta).toHaveBeenCalledWith(6, 2, { rol: "cobrador", sub: 20 });
+  });
+
+  it("listarPrestamosDeCliente delega con ruta, cliente y requester", async () => {
+    mockService.listarPrestamosDeCliente.mockResolvedValue([{ id: 1 }]);
+
+    await expect(controller.listarPrestamosDeCliente(6, 2, req())).resolves.toEqual([{ id: 1 }]);
+    expect(service.listarPrestamosDeCliente).toHaveBeenCalledWith(6, 2, {
+      rol: "cobrador",
+      sub: 20,
+    });
   });
 });
