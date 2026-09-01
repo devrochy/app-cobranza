@@ -34,20 +34,22 @@ describe("SincronizacionOfflineService", () => {
     repo = module.get(getRepositoryToken(SincronizacionOffline));
   });
 
-  it("persiste un evento nuevo como sincronizado y lo reporta", async () => {
+  it("persiste un evento nuevo como pendiente (aplicación diferida) y lo reporta como sincronizado", async () => {
     (repo.findOne as jest.Mock).mockResolvedValue(null);
 
     const resultados = await service.ingestir(device, [
       { eventoIdCliente: UUID, tipoEvento: "visita", payload: { rutaId: 1 } },
     ]);
 
+    // El ack al dispositivo es "sincronizado" (aceptado con dedup).
     expect(resultados).toEqual([{ eventoIdCliente: UUID, estado: "sincronizado" }]);
     const guardado = (mockRepo.save as jest.Mock).mock.calls[0][0] as Partial<SincronizacionOffline>;
     expect(guardado.dispositivoId).toBe(1);
     expect(guardado.eventoIdCliente).toBe(UUID);
     expect(guardado.tipoEvento).toBe("visita");
-    expect(guardado.estado).toBe("sincronizado");
-    expect(guardado.syncedAt).toBeInstanceOf(Date);
+    // El estado en BD queda "pendiente" hasta que el procesador lo aplique.
+    expect(guardado.estado).toBe("pendiente");
+    expect(guardado.syncedAt).toBeNull();
   });
 
   it("no vuelve a persistir un evento duplicado (mismo dispositivo + eventoIdCliente)", async () => {
