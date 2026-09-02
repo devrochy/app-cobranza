@@ -8,6 +8,7 @@ import { VisitasService } from "../cartera/visitas.service";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { Ruta } from "../rutas/ruta.entity";
 import { GastosService } from "../rutas/gastos.service";
+import { TrayectoriasService } from "../rutas/trayectorias.service";
 import { Device } from "./device.entity";
 import { SincronizacionOffline } from "./sincronizacion-offline.entity";
 import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service";
@@ -23,6 +24,7 @@ describe("AplicarEventosOfflineService", () => {
   let gastos: { registrar: jest.Mock };
   let clienteService: { actualizar: jest.Mock };
   let evidencias: { persistir: jest.Mock };
+  let trayectorias: { registrarReal: jest.Mock };
   let permisosCobrador: { tienePermiso: jest.Mock };
 
   const device: Device = { id: 1, rutaId: 1779 } as Device;
@@ -65,6 +67,7 @@ describe("AplicarEventosOfflineService", () => {
     gastos = { registrar: jest.fn() };
     clienteService = { actualizar: jest.fn() };
     evidencias = { persistir: jest.fn() };
+    trayectorias = { registrarReal: jest.fn() };
     permisosCobrador = { tienePermiso: jest.fn().mockResolvedValue(true) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -78,6 +81,7 @@ describe("AplicarEventosOfflineService", () => {
         { provide: GastosService, useValue: gastos },
         { provide: ClienteService, useValue: clienteService },
         { provide: EvidenciasOfflineService, useValue: evidencias },
+        { provide: TrayectoriasService, useValue: trayectorias },
         { provide: CobradoresPermisosService, useValue: permisosCobrador },
       ],
     }).compile();
@@ -209,6 +213,61 @@ describe("AplicarEventosOfflineService", () => {
       estado: "error",
       errorMotivo: expect.stringContaining("no soportado"),
     });
+  });
+
+  it("aplica una trayectoria offline y exige el permiso generar_reporte", async () => {
+    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    const puntos = [
+      { latitud: -17.78, longitud: -63.18 },
+      { latitud: -17.79, longitud: -63.19 },
+    ];
+    const e = evento({ tipoEvento: "trayectoria", payloadJson: { puntos } });
+    trayectorias.registrarReal.mockResolvedValue({ id: 1, tipo: "real" });
+
+    await service.aplicarEventosDeDispositivo(device, [e]);
+
+    expect(permisosCobrador.tienePermiso).toHaveBeenCalledWith(20, "generar_reporte");
+    expect(trayectorias.registrarReal).toHaveBeenCalledWith(1779, puntos, requester);
+    expect(repo.update).toHaveBeenCalledWith(1, {
+      estado: "sincronizado",
+      syncedAt: expect.any(Date),
+      errorMotivo: null,
+    });
+  });
+
+  it("rechaza una trayectoria con menos de 2 puntos (payload inválido)", async () => {
+    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    const e = evento({ tipoEvento: "trayectoria", payloadJson: { puntos: [{ latitud: -17.78, longitud: -63.18 }] } });
+
+    await service.aplicarEventosDeDispositivo(device, [e]);
+
+    expect(repo.update).toHaveBeenCalledWith(1, {
+      estado: "error",
+      errorMotivo: expect.stringContaining("Payload inválido"),
+    });
+    expect(trayectorias.registrarReal).not.toHaveBeenCalled();
+  });
+
+  it("marca error si el cobrador no tiene el permiso generar_reporte", async () => {
+    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    permisosCobrador.tienePermiso.mockResolvedValue(false);
+    const e = evento({
+      tipoEvento: "trayectoria",
+      payloadJson: {
+        puntos: [
+          { latitud: -17.78, longitud: -63.18 },
+          { latitud: -17.79, longitud: -63.19 },
+        ],
+      },
+    });
+
+    await service.aplicarEventosDeDispositivo(device, [e]);
+
+    expect(repo.update).toHaveBeenCalledWith(1, {
+      estado: "error",
+      errorMotivo: expect.stringContaining("generar_reporte"),
+    });
+    expect(trayectorias.registrarReal).not.toHaveBeenCalled();
   });
 
   it("aplicarPendientesDeDispositivo procesa los eventos pendientes/error del device", async () => {

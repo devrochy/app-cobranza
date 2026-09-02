@@ -14,8 +14,10 @@ import { VisitasService } from "../cartera/visitas.service";
 import { CobradorPermisoNombre } from "../cobradores/cobrador-permiso.entity";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
+import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-real.dto";
 import { Ruta } from "../rutas/ruta.entity";
 import { GastosService } from "../rutas/gastos.service";
+import { TrayectoriasService } from "../rutas/trayectorias.service";
 import { Device } from "./device.entity";
 import { EvidenciasOfflineService } from "./evidencias-offline.service";
 import { SincronizacionOffline } from "./sincronizacion-offline.entity";
@@ -25,6 +27,7 @@ const DTO_POR_TIPO: Record<string, new () => object> = {
   pago: RegistrarPagoDto,
   abono: RegistrarAbonoDto,
   gasto: RegistrarGastoDto,
+  trayectoria: RegistrarTrayectoriaRealDto,
 };
 
 const PERMISO_POR_TIPO: Partial<Record<string, CobradorPermisoNombre>> = {
@@ -32,6 +35,7 @@ const PERMISO_POR_TIPO: Partial<Record<string, CobradorPermisoNombre>> = {
   abono: "registrar_abono",
   gasto: "registrar_gasto",
   cambio_cliente: "actualizar_cliente",
+  trayectoria: "generar_reporte",
 };
 
 const MAX_REINTENTOS = 5;
@@ -55,6 +59,7 @@ export class AplicarEventosOfflineService {
     private readonly pagosService: PagosService,
     private readonly abonosService: AbonosService,
     private readonly gastosService: GastosService,
+    private readonly trayectoriasService: TrayectoriasService,
     private readonly clienteService: ClienteService,
     private readonly evidenciasService: EvidenciasOfflineService,
     private readonly permisosCobrador: CobradoresPermisosService,
@@ -212,6 +217,11 @@ export class AplicarEventosOfflineService {
           input: never;
         };
         await this.clienteService.actualizar(rutaId, clienteId, input, requester);
+        return;
+      }
+      case "trayectoria": {
+        const { puntos } = payload as { puntos: { latitud: number; longitud: number }[] };
+        await this.trayectoriasService.registrarReal(rutaId, puntos, requester);
         return;
       }
       default:
