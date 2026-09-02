@@ -3,7 +3,10 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { ConfigService } from "@nestjs/config";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Socio } from "../socios/socio.entity";
+import { Cobrador } from "../cobradores/cobrador.entity";
+import { Ruta } from "../rutas/ruta.entity";
 import { Cuota } from "../cartera/cuota.entity";
+import { Prestamo } from "../cartera/prestamo.entity";
 import { Device } from "../sincronizacion-offline/device.entity";
 import { PasswordService } from "../security/password.service";
 import { SociosService } from "../socios/socios.service";
@@ -29,11 +32,14 @@ describe("TestDataSeedService", () => {
   let adminRepo: { findOne: jest.Mock };
   let socioRepo: { findOne: jest.Mock };
   let cuotaRepo: { find: jest.Mock; findOne: jest.Mock };
+  let cobradorRepo: { find: jest.Mock };
+  let rutaRepo: { find: jest.Mock };
+  let prestamoRepo: { count: jest.Mock };
   let sociosService: { create: jest.Mock };
   let permisosSocio: { setMatriz: jest.Mock };
   let cobradoresService: { create: jest.Mock };
   let rutasService: { create: jest.Mock };
-  let clienteService: { crear: jest.Mock };
+  let clienteService: { crear: jest.Mock; listar: jest.Mock };
   let prestamoService: { crear: jest.Mock };
   let pagosService: { registrarPagoDeCuota: jest.Mock };
   let abonosService: { registrarAbono: jest.Mock };
@@ -46,13 +52,16 @@ describe("TestDataSeedService", () => {
   const mockAdminRepo = { findOne: jest.fn() };
   const mockSocioRepo = { findOne: jest.fn() };
   const mockCuotaRepo = { find: jest.fn(), findOne: jest.fn() };
+  const mockCobradorRepo = { find: jest.fn() };
+  const mockRutaRepo = { find: jest.fn() };
+  const mockPrestamoRepo = { count: jest.fn() };
   const mockSociosService = { create: jest.fn() };
   const mockPermisosSocio = { setMatriz: jest.fn() };
   const mockCobradoresService = { create: jest.fn() };
   const mockCobradoresPermisos = { setMatriz: jest.fn() };
   const mockRutasService = { create: jest.fn() };
   const mockRutaConfigService = { setMatriz: jest.fn() };
-  const mockClienteService = { crear: jest.fn() };
+  const mockClienteService = { crear: jest.fn(), listar: jest.fn() };
   const mockPrestamoService = { crear: jest.fn() };
   const mockPagosService = { registrarPagoDeCuota: jest.fn() };
   const mockAbonosService = { registrarAbono: jest.fn() };
@@ -70,6 +79,9 @@ describe("TestDataSeedService", () => {
         { provide: getRepositoryToken(AdminUser), useValue: mockAdminRepo },
         { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
         { provide: getRepositoryToken(Cuota), useValue: mockCuotaRepo },
+        { provide: getRepositoryToken(Cobrador), useValue: mockCobradorRepo },
+        { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
+        { provide: getRepositoryToken(Prestamo), useValue: mockPrestamoRepo },
         { provide: getRepositoryToken(Device), useValue: { create: jest.fn((v: unknown) => v), save: jest.fn() } },
         { provide: PasswordService, useValue: { hash: jest.fn().mockResolvedValue("hash") } },
         { provide: SociosService, useValue: mockSociosService },
@@ -99,6 +111,9 @@ describe("TestDataSeedService", () => {
     adminRepo = mockAdminRepo;
     socioRepo = mockSocioRepo;
     cuotaRepo = mockCuotaRepo;
+    cobradorRepo = mockCobradorRepo;
+    rutaRepo = mockRutaRepo;
+    prestamoRepo = mockPrestamoRepo;
     sociosService = mockSociosService;
     permisosSocio = mockPermisosSocio;
     cobradoresService = mockCobradoresService;
@@ -132,13 +147,16 @@ describe("TestDataSeedService", () => {
     expect(sociosService.create).not.toHaveBeenCalled();
   });
 
-  it("es idempotente: se omite si ya existe el socio marcador", async () => {
+  it("no re-crea el socio si ya existe el marcador, solo sincroniza", async () => {
     adminRepo.findOne.mockResolvedValue({ id: 5, estado: "activo" });
-    socioRepo.findOne.mockResolvedValue({ id: 1 });
+    socioRepo.findOne.mockResolvedValue({ id: 1, usuario: "test-socio-1" });
+    cobradorRepo.find.mockResolvedValue([{ id: 2 }]);
+    rutaRepo.find.mockResolvedValue([]);
 
     await service.bootstrap();
 
     expect(sociosService.create).not.toHaveBeenCalled();
+    expect(mockCobradoresPermisos.setMatriz).toHaveBeenCalled();
   });
 
   it("carga la data de prueba con contexto de admin cuando aplica", async () => {
@@ -160,6 +178,10 @@ describe("TestDataSeedService", () => {
       expect.objectContaining({ usuario: "test-socio-1", codigo: "TEST-SC-001" }),
     );
     expect(permisosSocio.setMatriz).toHaveBeenCalledWith(1, expect.objectContaining({ configurar_ruta: true }));
+    expect(mockCobradoresPermisos.setMatriz).toHaveBeenCalledWith(
+      2,
+      expect.objectContaining({ registrar_prestamo: true, registrar_abono: true, ver_cartera: true }),
+    );
     expect(mockRutaConfigService.setMatriz).toHaveBeenCalledWith(
       10,
       expect.objectContaining({
@@ -191,5 +213,47 @@ describe("TestDataSeedService", () => {
       { rol: "admin", sub: 5 },
     );
     expect(trayectoriasService.generarReporteDiario).toHaveBeenCalledWith(10, { rol: "admin", sub: 5 });
+  });
+
+  it("re-sincroniza permisos APK y siembra cartera cuando el socio ya existe sin préstamos", async () => {
+    adminRepo.findOne.mockResolvedValue({ id: 5, estado: "activo" });
+    socioRepo.findOne.mockResolvedValue({ id: 1, usuario: "test-socio-1" });
+    cobradorRepo.find.mockResolvedValue([{ id: 2 }, { id: 3 }]);
+    rutaRepo.find.mockResolvedValue([{ id: 10, nombre: "test-Ruta Centro" }]);
+    prestamoRepo.count.mockResolvedValue(0);
+    clienteService.listar.mockResolvedValue([{ id: 11 }, { id: 12 }]);
+    cuotaRepo.find.mockResolvedValue([{ id: 1, valorEsperado: 100 }]);
+    cuotaRepo.findOne.mockResolvedValue({ id: 2, prestamoId: 200, valorEsperado: 100 });
+
+    await service.bootstrap();
+
+    expect(sociosService.create).not.toHaveBeenCalled();
+    expect(mockCobradoresPermisos.setMatriz).toHaveBeenCalledWith(
+      2,
+      expect.objectContaining({ registrar_prestamo: true }),
+    );
+    expect(mockCobradoresPermisos.setMatriz).toHaveBeenCalledWith(
+      3,
+      expect.objectContaining({ registrar_prestamo: true }),
+    );
+    expect(prestamoService.crear).toHaveBeenCalled();
+    expect(pagosService.registrarPagoDeCuota).toHaveBeenCalled();
+    expect(abonosService.registrarAbono).toHaveBeenCalled();
+  });
+
+  it("no duplica cartera cuando el socio ya existe y tiene préstamos", async () => {
+    adminRepo.findOne.mockResolvedValue({ id: 5, estado: "activo" });
+    socioRepo.findOne.mockResolvedValue({ id: 1, usuario: "test-socio-1" });
+    cobradorRepo.find.mockResolvedValue([{ id: 2 }]);
+    rutaRepo.find.mockResolvedValue([{ id: 10, nombre: "test-Ruta Centro" }]);
+    prestamoRepo.count.mockResolvedValue(3);
+
+    await service.bootstrap();
+
+    expect(prestamoService.crear).not.toHaveBeenCalled();
+    expect(mockCobradoresPermisos.setMatriz).toHaveBeenCalledWith(
+      2,
+      expect.objectContaining({ registrar_prestamo: true }),
+    );
   });
 });
