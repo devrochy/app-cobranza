@@ -91,7 +91,7 @@ describe("CobradorService", () => {
 
     it("compone config y permisos por cada ruta del cobrador", async () => {
       rutaRepo.find.mockResolvedValue([
-        { id: 6, nombre: "Ruta Centro", estatus: "activo" },
+        { id: 6, nombre: "Ruta Centro", estatus: "activo", tipoInteres: 20, numCuotas: 8 },
       ]);
       const config = { rutaId: 6, periodoLiquidacion: "diario" };
       rutaConfig.getMatriz.mockResolvedValue(config);
@@ -105,6 +105,8 @@ describe("CobradorService", () => {
           id: 6,
           nombre: "Ruta Centro",
           estatus: "activo",
+          tipoInteres: 20,
+          numCuotas: 8,
           config,
           permisos: matriz,
         },

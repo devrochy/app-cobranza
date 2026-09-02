@@ -23,6 +23,8 @@ export interface RutaApkPublic {
   id: number;
   nombre: string;
   estatus: string;
+  tipoInteres: number;
+  numCuotas: number;
   config: RutaConfigPublic;
   permisos: PermisoCobradorEstado[];
 }
@@ -71,6 +73,8 @@ export class CobradorService {
           id: ruta.id,
           nombre: ruta.nombre,
           estatus: ruta.estatus,
+          tipoInteres: ruta.tipoInteres,
+          numCuotas: ruta.numCuotas,
           config,
           permisos,
         };
