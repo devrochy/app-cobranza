@@ -2,6 +2,8 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Socio } from "../socios/socio.entity";
 import { SociosService } from "../socios/socios.service";
@@ -30,6 +32,14 @@ import { ArchivoSubido } from "../cartera/cliente.service";
 
 const PASSWORD_PRUEBA = "test-password";
 const MARCADOR_SOCIO = "test-socio-1";
+
+// JPEG de 1x1 px (en base64) para los placeholders de fotos de clientes del
+// seed: se escribe en uploads/clientes/ para que el servidor estático pueda
+// servirlo y la foto del cliente cargue en APK/panel.
+const JPEG_PLACEHOLDER = Buffer.from(
+  "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EB//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EB//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EB//2Q==",
+  "base64",
+);
 
 /**
  * Matriz de permisos de la APK para los cobradores de prueba (ver_cartera +
@@ -563,12 +573,19 @@ export class TestDataSeedService implements OnApplicationBootstrap {
   }
 
   private evidenciaCliente(tipo: "foto_facial" | "documento_frente", nombre: string) {
+    // Crea un placeholder JPEG real en disco para que el servidor estático
+    // (/uploads/*) pueda servirlo y la APK/panel muestren la foto del cliente.
+    const rutaDisco = join(process.cwd(), "uploads", "clientes", nombre);
+    mkdirSync(dirname(rutaDisco), { recursive: true });
+    if (!existsSync(rutaDisco)) {
+      writeFileSync(rutaDisco, JPEG_PLACEHOLDER);
+    }
     return {
       tipo,
       archivo: {
         originalname: nombre,
         mimetype: "image/jpeg",
-        size: 1024,
+        size: JPEG_PLACEHOLDER.length,
         filename: nombre,
         path: `/uploads/clientes/${nombre}`,
       } as ArchivoSubido,

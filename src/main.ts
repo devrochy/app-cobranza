@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { join } from "path";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
@@ -27,6 +28,8 @@ async function bootstrap(): Promise<void> {
       process.env.NODE_ENV ?? "development",
     ),
   });
+  // Sirve las evidencias/fotos subidas (gastos y clientes) en /uploads/*.
+  app.useStaticAssets(join(process.cwd(), "uploads"), { prefix: "/uploads/" });
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
