@@ -6,6 +6,7 @@ import { AbonosService } from "../cartera/abonos.service";
 import { ClienteTarjetaService } from "../cartera/cliente-tarjeta.service";
 import { CuotaService } from "../cartera/cuota.service";
 import { PrestamoService } from "../cartera/prestamo.service";
+import { RutasAperturaService } from "../rutas/rutas-apertura.service";
 import { VisitasService } from "../cartera/visitas.service";
 import { Ruta } from "../rutas/ruta.entity";
 import { RutaConfigService } from "../rutas/ruta-config.service";
@@ -29,6 +30,7 @@ describe("CobradorService", () => {
   let tarjeta: { obtener: jest.Mock };
   let cuotas: { editarCuota: jest.Mock; eliminarCuota: jest.Mock };
   let abonos: { eliminarAbono: jest.Mock };
+  let aperturas: { registrar: jest.Mock };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -44,6 +46,7 @@ describe("CobradorService", () => {
     tarjeta = { obtener: jest.fn() };
     cuotas = { editarCuota: jest.fn(), eliminarCuota: jest.fn() };
     abonos = { eliminarAbono: jest.fn() };
+    aperturas = { registrar: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,6 +63,7 @@ describe("CobradorService", () => {
         { provide: ClienteTarjetaService, useValue: tarjeta },
         { provide: CuotaService, useValue: cuotas },
         { provide: AbonosService, useValue: abonos },
+        { provide: RutasAperturaService, useValue: aperturas },
       ],
     }).compile();
 
@@ -266,6 +270,16 @@ describe("CobradorService", () => {
         service.eliminarAbono(6, 30, ctx, requester),
       ).resolves.toEqual({ id: 30 });
       expect(abonos.eliminarAbono).toHaveBeenCalledWith(6, 30, ctx, requester);
+    });
+
+    it("registrarApertura delega en RutasAperturaService con coords y requester", async () => {
+      const coords = { latitud: -17.78, longitud: -63.18 };
+      aperturas.registrar.mockResolvedValue({ id: 1, rutaId: 6 });
+
+      await expect(
+        service.registrarApertura(6, coords, requester),
+      ).resolves.toEqual({ id: 1, rutaId: 6 });
+      expect(aperturas.registrar).toHaveBeenCalledWith(6, coords, requester, expect.any(Date));
     });
   });
 });

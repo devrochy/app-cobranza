@@ -29,6 +29,7 @@ describe("CobradorController", () => {
     editarCuota: jest.fn(),
     eliminarCuota: jest.fn(),
     eliminarAbono: jest.fn(),
+    registrarApertura: jest.fn(),
   };
 
   function req(sub = 20): Request & { user: AuthTokenPayload } {
@@ -211,6 +212,21 @@ describe("CobradorController", () => {
       6,
       30,
       { password: "secreto", motivo: "error" },
+      { rol: "cobrador", sub: 20 },
+    );
+  });
+
+  it("apertura delega en registrarApertura con las coordenadas y el requester", async () => {
+    const dto = { latitud: -17.78, longitud: -63.18 };
+    mockService.registrarApertura.mockResolvedValue({ id: 1, rutaId: 6 });
+
+    await expect(controller.registrarApertura(6, dto, req())).resolves.toEqual({
+      id: 1,
+      rutaId: 6,
+    });
+    expect(service.registrarApertura).toHaveBeenCalledWith(
+      6,
+      { latitud: -17.78, longitud: -63.18 },
       { rol: "cobrador", sub: 20 },
     );
   });
