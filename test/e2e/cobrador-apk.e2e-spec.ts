@@ -417,6 +417,29 @@ describe("API del cobrador para la APK (e2e)", () => {
     expect(res.status).toBe(403);
   });
 
+  it("POST /cobrador/rutas/:id/trayecto genera el trayecto planificado del día", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta1Id}/trayecto`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`);
+
+    expect(res.status).toBe(201);
+    expect(Array.isArray(res.body)).toBe(true);
+
+    const dia = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${ruta1Id}/dia`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`);
+    expect(dia.status).toBe(200);
+    expect(dia.body.trayectos).not.toBeNull();
+  });
+
+  it("POST /cobrador/rutas/:id/trayecto de una ruta ajena -> 403 (ownership)", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta2Id}/trayecto`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`);
+
+    expect(res.status).toBe(403);
+  });
+
   it("GET /cobrador/rutas/:id/clientes -> 200 con la lista completa de la ruta", async () => {
     const res = await request(app.getHttpServer())
       .get(`/cobrador/rutas/${ruta1Id}/clientes`)

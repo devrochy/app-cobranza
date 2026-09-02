@@ -24,7 +24,7 @@ describe("CobradorService", () => {
   let rutaConfig: { getMatriz: jest.Mock };
   let permisos: { getMatriz: jest.Mock };
   let listaClientes: { obtener: jest.Mock };
-  let optimizacion: { consultar: jest.Mock };
+  let optimizacion: { consultar: jest.Mock; generar: jest.Mock };
   let visitas: { registrar: jest.Mock };
   let prestamos: { listarPorCliente: jest.Mock; crear: jest.Mock };
   let gastos: { registrar: jest.Mock };
@@ -42,7 +42,7 @@ describe("CobradorService", () => {
     rutaConfig = { getMatriz: jest.fn() };
     permisos = { getMatriz: jest.fn() };
     listaClientes = { obtener: jest.fn() };
-    optimizacion = { consultar: jest.fn() };
+    optimizacion = { consultar: jest.fn(), generar: jest.fn() };
     visitas = { registrar: jest.fn() };
     prestamos = { listarPorCliente: jest.fn(), crear: jest.fn() };
     gastos = { registrar: jest.fn() };
@@ -307,6 +307,15 @@ describe("CobradorService", () => {
         service.obtenerEstadoCuentaPrestamo(6, 200, requester),
       ).resolves.toEqual(estado);
       expect(estadoCuenta.obtener).toHaveBeenCalledWith(6, 200, requester);
+    });
+
+    it("generarTrayecto delega en RutaOptimizacionService.generar", async () => {
+      optimizacion.generar.mockResolvedValue([[{ clienteId: 1, latitud: 5.07, longitud: -75.52 }]]);
+
+      await expect(
+        service.generarTrayecto(6, requester),
+      ).resolves.toEqual([[{ clienteId: 1, latitud: 5.07, longitud: -75.52 }]]);
+      expect(optimizacion.generar).toHaveBeenCalledWith(6, requester);
     });
   });
 });

@@ -59,6 +59,15 @@ export class CobradorController {
     return this.cobradorService.dia(rutaId, this.requester(req));
   }
 
+  @Post("rutas/:rutaId/trayecto")
+  @CobradorPermisoRequerido("ver_cartera")
+  generarTrayecto(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.generarTrayecto(rutaId, this.requester(req));
+  }
+
   @Post("rutas/:rutaId/apertura")
   @CobradorPermisoRequerido("ver_cartera")
   registrarApertura(

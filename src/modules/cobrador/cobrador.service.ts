@@ -86,6 +86,13 @@ export class CobradorService {
     return { clientes, trayectos };
   }
 
+  async generarTrayecto(
+    rutaId: number,
+    requester: RequesterOwned,
+  ): Promise<TrayectoPublic["ordenClientes"]> {
+    return this.rutaOptimizacionService.generar(rutaId, requester);
+  }
+
   private async consultarTrayecto(
     rutaId: number,
     requester: RequesterOwned,
