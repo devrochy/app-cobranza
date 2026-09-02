@@ -141,7 +141,7 @@ describe("Mapa de clientes del día (e2e)", () => {
       .send({ clienteId: c1Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
 
     // Cliente sin domicilio (solo negocio).
-    await request(app.getHttpServer())
+    const c2 = await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
@@ -152,6 +152,11 @@ describe("Mapa de clientes del día (e2e)", () => {
         latitud: -17.8,
         longitud: -63.2,
       });
+    const c2Id = c2.body.id as number;
+    await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/prestamos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ clienteId: c2Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
   });
 
   afterAll(async () => {

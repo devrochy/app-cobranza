@@ -55,6 +55,6 @@ import { AsistenteIaService } from "./asistente-ia.service";
     WhatsappSimuladoGateway, NotificacionesService, NotificacionesJob, ConversacionChatService, EstadoCuentaService, PromesasPagoService, AsistenteIaService,
     { provide: WHATSAPP_GATEWAY, useExisting: WhatsappSimuladoGateway },
   ],
-  exports: [TypeOrmModule, WHATSAPP_GATEWAY, ClienteService, PrestamoService, PagosService, VisitasService, ClienteTarjetaService, AbonosService, CuotaService],
+  exports: [TypeOrmModule, WHATSAPP_GATEWAY, ClienteService, PrestamoService, PagosService, VisitasService, ClienteTarjetaService, AbonosService, CuotaService, EstadoCuentaService],
 })
 export class CarteraModule {}

@@ -36,7 +36,7 @@ describe("ClienteService", () => {
   const mockRutaRepo = { findOne: jest.fn() };
   const mockClienteRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), createQueryBuilder: jest.fn() };
   const mockConfigRepo = { findOne: jest.fn() };
-  const mockEvidenciaRepo = { create: jest.fn(), save: jest.fn() };
+  const mockEvidenciaRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), find: jest.fn() };
   const mockCambioRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() };
   const mockPermisosSocio = { tienePermiso: jest.fn() };
   const mockDataSource = {
@@ -533,6 +533,9 @@ describe("ClienteService", () => {
     it("lista los clientes de la ruta en orden id ASC", async () => {
       (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
       (mockClienteRepo.find as jest.Mock).mockResolvedValue(clienteFilas);
+      (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([
+        { clienteId: clienteFilas[0].id, tipo: "foto_facial", rutaArchivo: "/uploads/clientes/ana.jpg" },
+      ]);
 
       const res = await service.listar(10, adminCtx);
 
@@ -542,6 +545,7 @@ describe("ClienteService", () => {
         order: { id: "ASC" },
       });
       expect(res[0].nombre).toBe("Ana");
+      expect(res[0].fotoUrl).toBe("/uploads/clientes/ana.jpg");
     });
 
     it("lanza 404 si la ruta no existe al listar", async () => {
@@ -661,5 +665,35 @@ describe("ClienteService", () => {
         { termino: "%juan%" },
       );
     });
+  });
+
+  it("agregarEvidencias guarda la evidencia del cliente existente", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({ reconocimientoFacialActivo: false, registroDocumentoCliente: false } as RutaConfig);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, rutaId: 1 });
+    (evidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (evidenciaRepo.create as jest.Mock).mockImplementation((e: Partial<ClienteEvidencia>) => e as ClienteEvidencia);
+    (evidenciaRepo.save as jest.Mock).mockImplementation(async (e: Partial<ClienteEvidencia>) => ({ id: 9, ...e }) as ClienteEvidencia);
+
+    await service.agregarEvidencias(
+      1,
+      1,
+      [{ tipo: "foto_facial", archivo: archivoFixture() }],
+      adminContext,
+    );
+
+    expect(evidenciaRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: "foto_facial", rutaArchivo: "/uploads/clientes/abc.jpg", clienteId: 1 }),
+    );
+    expect(evidenciaRepo.save).toHaveBeenCalled();
+  });
+
+  it("agregarEvidencias lanza NotFound si el cliente no existe", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      service.agregarEvidencias(1, 999, [{ tipo: "foto_facial", archivo: archivoFixture() }], adminContext),
+    ).rejects.toThrow("El cliente no existe");
   });
 });

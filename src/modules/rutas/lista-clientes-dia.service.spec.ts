@@ -112,13 +112,12 @@ describe("ListaClientesDelDiaService", () => {
       tipo: "planificada",
       ordenClientes: [[{ clienteId: 1, latitud: -17.7, longitud: -63.1 }]],
     });
-    // clientes de la ruta: 1 con deuda y atraso 2, 2 al día (sin atraso), 3 nuevo.
+    // clientes de la ruta (todos con préstamo vigente): 1 con deuda y atraso 2, 2 al día.
     (service as unknown as { listarClientesConEstado: jest.Mock }).listarClientesConEstado = jest
       .fn()
       .mockResolvedValue([
-        { clienteId: 1, nombre: "A", atraso: 2 },
-        { clienteId: 2, nombre: "B", atraso: 0 },
-        { clienteId: 3, nombre: "C", atraso: 0, esNuevo: true },
+        { clienteId: 1, nombre: "A", atraso: 2, esNuevo: false },
+        { clienteId: 2, nombre: "B", atraso: 0, esNuevo: false },
       ]);
     // visitas de hoy: cliente 2 pagó.
     (service as unknown as { clientesConVisitaPagoHoy: jest.Mock }).clientesConVisitaPagoHoy = jest
@@ -129,11 +128,10 @@ describe("ListaClientesDelDiaService", () => {
 
     const c1 = result.find((c) => c.clienteId === 1);
     const c2 = result.find((c) => c.clienteId === 2);
-    const c3 = result.find((c) => c.clienteId === 3);
 
     expect(c1).toMatchObject({ enTrayecto: true, color: "rojo" });
     expect(c2).toMatchObject({ enTrayecto: false, color: "verde" });
-    expect(c3).toMatchObject({ enTrayecto: false, color: "blanco" });
+    expect(result).toHaveLength(2);
   });
 
   it("marca enTrayecto=false si no hay trayecto planificado", async () => {

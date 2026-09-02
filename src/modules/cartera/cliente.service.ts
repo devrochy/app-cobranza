@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
@@ -57,6 +57,7 @@ export interface ClientePublic {
   topeMaximoDeuda: number | null;
   estatus: ClienteEstatus;
   colorRiesgo: ColorRiesgo;
+  fotoUrl: string | null;
   createdAt: Date;
 }
 
@@ -175,6 +176,67 @@ export class ClienteService {
     });
 
     return this.toPublic(saved, rutaId);
+  }
+
+  async agregarEvidencias(
+    rutaId: number,
+    clienteId: number,
+    evidencias: ClienteEvidenciaInput[],
+    requester: RequesterCarteraContext,
+  ): Promise<{ clienteId: number }> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const cliente = await this.repo.findOne({
+      where: { id: clienteId, ruta: { id: rutaId } },
+    });
+    if (!cliente) {
+      throw new NotFoundException("El cliente no existe");
+    }
+
+    const config =
+      (await this.configRepo.findOne({ where: { ruta: { id: rutaId } } })) ??
+      (RutaConfigDefaults as RutaConfig);
+
+    const tiposPresentes = new Set(evidencias.map((e) => e.tipo));
+    if (config.reconocimientoFacialActivo && !tiposPresentes.has("foto_facial")) {
+      throw new BadRequestException("La foto facial es obligatoria");
+    }
+    if (config.registroDocumentoCliente && !tiposPresentes.has("documento_frente")) {
+      throw new BadRequestException("La foto de documento es obligatoria");
+    }
+
+    for (const evidencia of evidencias) {
+      let existente = await this.evidenciaRepo.findOne({
+        where: { cliente: { id: clienteId }, tipo: evidencia.tipo },
+      });
+      if (!existente) {
+        existente = this.evidenciaRepo.create({
+          cliente: { id: clienteId } as ClienteEvidencia["cliente"],
+          clienteId,
+          tipo: evidencia.tipo,
+          rutaArchivo: evidencia.archivo.path,
+          nombreOriginal: evidencia.archivo.originalname,
+          mimetype: evidencia.archivo.mimetype,
+          tamaño: evidencia.archivo.size,
+          creadoPorRol: requester.rol,
+          creadoPorId: requester.sub,
+        });
+      } else {
+        existente.rutaArchivo = evidencia.archivo.path;
+        existente.nombreOriginal = evidencia.archivo.originalname;
+        existente.mimetype = evidencia.archivo.mimetype;
+        existente.tamaño = evidencia.archivo.size;
+        existente.creadoPorRol = requester.rol;
+        existente.creadoPorId = requester.sub;
+      }
+      await this.evidenciaRepo.save(existente);
+    }
+
+    return { clienteId };
   }
 
   async actualizar(
@@ -354,7 +416,31 @@ export class ClienteService {
       where: { ruta: { id: rutaId } },
       order: { id: "ASC" },
     });
-    return clientes.map((cliente) => this.toPublic(cliente, rutaId));
+    const fotos = await this.fotosFacialesDeClientes(clientes.map((c) => c.id));
+    return clientes.map((cliente) =>
+      this.toPublic(cliente, rutaId, fotos.get(cliente.id) ?? null),
+    );
+  }
+
+  private async fotosFacialesDeClientes(
+    clienteIds: number[],
+  ): Promise<Map<number, string>> {
+    if (clienteIds.length === 0) {
+      return new Map();
+    }
+    const evidencias = await this.evidenciaRepo.find({
+      where: {
+        cliente: { id: In(clienteIds) },
+        tipo: "foto_facial",
+      },
+    });
+    const map = new Map<number, string>();
+    for (const e of evidencias) {
+      if (!map.has(e.clienteId)) {
+        map.set(e.clienteId, e.rutaArchivo);
+      }
+    }
+    return map;
   }
 
   async listarGlobal(
@@ -432,7 +518,7 @@ export class ClienteService {
     return this.toPublic(saved, rutaId);
   }
 
-  private toPublic(cliente: Cliente, rutaId: number): ClientePublic {
+  private toPublic(cliente: Cliente, rutaId: number, fotoUrl: string | null = null): ClientePublic {
     const { latitud, longitud } = fromPoint(cliente.ubicacion);
     const domicilio = cliente.ubicacionDomicilio ? fromPoint(cliente.ubicacionDomicilio) : null;
     return {
@@ -449,6 +535,7 @@ export class ClienteService {
       topeMaximoDeuda: cliente.topeMaximoDeuda,
       estatus: cliente.estatus,
       colorRiesgo: cliente.colorRiesgo,
+      fotoUrl,
       createdAt: cliente.createdAt,
     };
   }
