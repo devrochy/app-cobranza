@@ -417,6 +417,61 @@ describe("API del cobrador para la APK (e2e)", () => {
     expect(res.status).toBe(403);
   });
 
+  it("GET /cobrador/rutas/:id/clientes -> 200 con la lista completa de la ruta", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${ruta1Id}/clientes`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    const cliente = res.body.find((c: { id: number }) => c.id === cliente1Id);
+    expect(cliente).toBeDefined();
+    expect(cliente.id).toBe(cliente1Id);
+    expect(cliente.rutaId).toBe(ruta1Id);
+  });
+
+  it("GET /cobrador/rutas/:id/clientes de una ruta ajena -> 403 (ownership)", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${ruta2Id}/clientes`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("GET /cobrador/rutas/:id/prestamos/:prestamoId/estado-cuenta -> 200 con cuotas, saldos y abonos", async () => {
+    const abonoRes = await request(app.getHttpServer())
+      .post(`/rutas/${ruta1Id}/abonos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({
+        prestamoId: prestamo1Id,
+        valor: 50,
+        metodoPago: "efectivo",
+      });
+    expect(abonoRes.status).toBe(201);
+
+    const res = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${ruta1Id}/prestamos/${prestamo1Id}/estado-cuenta`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.prestamoId).toBe(prestamo1Id);
+    expect(res.body.clienteId).toBe(cliente1Id);
+    expect(Array.isArray(res.body.cuotas)).toBe(true);
+    const cuota = res.body.cuotas[0];
+    expect(cuota.cuotaId).toBeGreaterThan(0);
+    expect(typeof cuota.saldoPendiente).toBe("number");
+    expect(typeof cuota.abonosAcumulados).toBe("number");
+    expect(res.body.saldoPendiente).toBeGreaterThanOrEqual(0);
+  });
+
+  it("GET /cobrador/rutas/:id/prestamos/:prestamoId/estado-cuenta de ruta ajena -> 403 (ownership)", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${ruta2Id}/prestamos/${prestamo1Id}/estado-cuenta`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`);
+
+    expect(res.status).toBe(403);
+  });
+
   it("POST /cobrador/rutas/:id/prestamos -> 201 crea préstamo y cuotas", async () => {
     const res = await request(app.getHttpServer())
       .post(`/cobrador/rutas/${ruta1Id}/prestamos`)

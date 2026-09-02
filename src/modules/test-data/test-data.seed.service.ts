@@ -20,6 +20,7 @@ import { TrayectoriasService } from "../rutas/trayectorias.service";
 import { ClienteService } from "../cartera/cliente.service";
 import { PrestamoService } from "../cartera/prestamo.service";
 import { PagosService } from "../cartera/pagos.service";
+import { AbonosService } from "../cartera/abonos.service";
 import { Cuota } from "../cartera/cuota.entity";
 import { ArchivoSubido } from "../cartera/cliente.service";
 
@@ -58,6 +59,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     private readonly clienteService: ClienteService,
     private readonly prestamoService: PrestamoService,
     private readonly pagosService: PagosService,
+    private readonly abonosService: AbonosService,
     private readonly gastosService: GastosService,
     private readonly inyeccionesService: InyeccionesService,
     private readonly notasService: RutasNotasService,
@@ -265,6 +267,10 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     await this.pagarAlgunasCuotas(rutaA.id, requester);
     await this.pagarAlgunasCuotas(rutaB.id, requester);
 
+    // Abono parcial a un préstamo vigente (FIFO imputa a la primera cuota no
+    // pagada) para que el estado de cuenta del cobrador muestre abonos a cuota.
+    await this.registrarAbonoParcial(rutaA.id, requester);
+
     // Gastos (uno con evidencia, uno aprobado) + inyecciones + notas.
     const gasto = await this.gastosService.registrar(
       rutaA.id,
@@ -348,6 +354,24 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         requester,
       );
     }
+  }
+
+  private async registrarAbonoParcial(
+    rutaId: number,
+    requester: { rol: "admin"; sub: number },
+  ): Promise<void> {
+    const cuota = await this.cuotaRepo.findOne({
+      where: { prestamo: { ruta: { id: rutaId } }, estatus: "pendiente" },
+      order: { id: "ASC" },
+    });
+    if (!cuota) {
+      return;
+    }
+    await this.abonosService.registrarAbono(
+      rutaId,
+      { prestamoId: cuota.prestamoId, valor: 100, metodoPago: "efectivo" },
+      requester,
+    );
   }
 
   private evidenciaPlaceholder(nombre: string): ArchivoSubido {

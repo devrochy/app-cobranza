@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ClienteTarjetaService, ClienteTarjetaPublic } from "../cartera/cliente-tarjeta.service";
+import { ClienteService, ClientePublic } from "../cartera/cliente.service";
+import { EstadoCuentaService, EstadoCuentaPrestamoPublic } from "../cartera/estado-cuenta.service";
 import { AbonosService } from "../cartera/abonos.service";
 import { CreatePrestamoInput, PrestamoService, PrestamoPublic } from "../cartera/prestamo.service";
 import { CuotaService } from "../cartera/cuota.service";
@@ -44,6 +46,8 @@ export class CobradorService {
     private readonly gastosService: GastosService,
     private readonly trayectoriasService: TrayectoriasService,
     private readonly clienteTarjetaService: ClienteTarjetaService,
+    private readonly clienteService: ClienteService,
+    private readonly estadoCuentaService: EstadoCuentaService,
     private readonly cuotaService: CuotaService,
     private readonly abonosService: AbonosService,
     private readonly aperturasService: RutasAperturaService,
@@ -135,6 +139,21 @@ export class CobradorService {
     requester: RequesterOwned,
   ): Promise<PrestamoPublic[]> {
     return this.prestamoService.listarPorCliente(rutaId, clienteId, requester);
+  }
+
+  async listarClientesDeRuta(
+    rutaId: number,
+    requester: RequesterOwned,
+  ): Promise<ClientePublic[]> {
+    return this.clienteService.listar(rutaId, requester);
+  }
+
+  async obtenerEstadoCuentaPrestamo(
+    rutaId: number,
+    prestamoId: number,
+    requester: RequesterOwned,
+  ): Promise<EstadoCuentaPrestamoPublic> {
+    return this.estadoCuentaService.obtener(rutaId, prestamoId, requester);
   }
 
   async crearPrestamo(

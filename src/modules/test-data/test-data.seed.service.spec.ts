@@ -20,6 +20,7 @@ import { TrayectoriasService } from "../rutas/trayectorias.service";
 import { ClienteService } from "../cartera/cliente.service";
 import { PrestamoService } from "../cartera/prestamo.service";
 import { PagosService } from "../cartera/pagos.service";
+import { AbonosService } from "../cartera/abonos.service";
 import { TestDataSeedService } from "./test-data.seed.service";
 
 describe("TestDataSeedService", () => {
@@ -27,7 +28,7 @@ describe("TestDataSeedService", () => {
   let config: ConfigService;
   let adminRepo: { findOne: jest.Mock };
   let socioRepo: { findOne: jest.Mock };
-  let cuotaRepo: { find: jest.Mock };
+  let cuotaRepo: { find: jest.Mock; findOne: jest.Mock };
   let sociosService: { create: jest.Mock };
   let permisosSocio: { setMatriz: jest.Mock };
   let cobradoresService: { create: jest.Mock };
@@ -35,6 +36,7 @@ describe("TestDataSeedService", () => {
   let clienteService: { crear: jest.Mock };
   let prestamoService: { crear: jest.Mock };
   let pagosService: { registrarPagoDeCuota: jest.Mock };
+  let abonosService: { registrarAbono: jest.Mock };
   let gastosService: { registrar: jest.Mock; aprobar: jest.Mock };
   let inyeccionesService: { crear: jest.Mock };
   let notasService: { crear: jest.Mock };
@@ -43,7 +45,7 @@ describe("TestDataSeedService", () => {
 
   const mockAdminRepo = { findOne: jest.fn() };
   const mockSocioRepo = { findOne: jest.fn() };
-  const mockCuotaRepo = { find: jest.fn() };
+  const mockCuotaRepo = { find: jest.fn(), findOne: jest.fn() };
   const mockSociosService = { create: jest.fn() };
   const mockPermisosSocio = { setMatriz: jest.fn() };
   const mockCobradoresService = { create: jest.fn() };
@@ -53,6 +55,7 @@ describe("TestDataSeedService", () => {
   const mockClienteService = { crear: jest.fn() };
   const mockPrestamoService = { crear: jest.fn() };
   const mockPagosService = { registrarPagoDeCuota: jest.fn() };
+  const mockAbonosService = { registrarAbono: jest.fn() };
   const mockGastosService = { registrar: jest.fn(), aprobar: jest.fn() };
   const mockInyeccionesService = { crear: jest.fn() };
   const mockNotasService = { crear: jest.fn() };
@@ -78,6 +81,7 @@ describe("TestDataSeedService", () => {
         { provide: ClienteService, useValue: mockClienteService },
         { provide: PrestamoService, useValue: mockPrestamoService },
         { provide: PagosService, useValue: mockPagosService },
+        { provide: AbonosService, useValue: mockAbonosService },
         { provide: GastosService, useValue: mockGastosService },
         { provide: InyeccionesService, useValue: mockInyeccionesService },
         { provide: RutasNotasService, useValue: mockNotasService },
@@ -102,6 +106,7 @@ describe("TestDataSeedService", () => {
     clienteService = mockClienteService;
     prestamoService = mockPrestamoService;
     pagosService = mockPagosService;
+    abonosService = mockAbonosService;
     gastosService = mockGastosService;
     inyeccionesService = mockInyeccionesService;
     notasService = mockNotasService;
@@ -145,6 +150,7 @@ describe("TestDataSeedService", () => {
     clienteService.crear.mockImplementation(async () => ({ id: Math.floor(Math.random() * 1000) }));
     prestamoService.crear.mockResolvedValue({ id: 200 });
     cuotaRepo.find.mockResolvedValue([{ id: 1, valorEsperado: 100 }]);
+    cuotaRepo.findOne.mockResolvedValue({ id: 2, prestamoId: 200, valorEsperado: 100 });
     gastosService.registrar.mockResolvedValue({ id: 300 });
     liquidacionesService.generar.mockResolvedValue({ id: 400 });
 
@@ -170,6 +176,11 @@ describe("TestDataSeedService", () => {
     expect(clienteService.crear).toHaveBeenCalled();
     expect(prestamoService.crear).toHaveBeenCalled();
     expect(pagosService.registrarPagoDeCuota).toHaveBeenCalled();
+    expect(abonosService.registrarAbono).toHaveBeenCalledWith(
+      10,
+      { prestamoId: 200, valor: 100, metodoPago: "efectivo" },
+      { rol: "admin", sub: 5 },
+    );
     expect(gastosService.registrar).toHaveBeenCalled();
     expect(gastosService.aprobar).toHaveBeenCalledWith(10, 300, { rol: "admin", sub: 5 });
     expect(inyeccionesService.crear).toHaveBeenCalled();

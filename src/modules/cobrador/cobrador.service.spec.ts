@@ -4,6 +4,8 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { AbonosService } from "../cartera/abonos.service";
 import { ClienteTarjetaService } from "../cartera/cliente-tarjeta.service";
+import { ClienteService } from "../cartera/cliente.service";
+import { EstadoCuentaService } from "../cartera/estado-cuenta.service";
 import { CuotaService } from "../cartera/cuota.service";
 import { PrestamoService } from "../cartera/prestamo.service";
 import { RutasAperturaService } from "../rutas/rutas-apertura.service";
@@ -28,6 +30,8 @@ describe("CobradorService", () => {
   let gastos: { registrar: jest.Mock };
   let trayectorias: { registrarReal: jest.Mock };
   let tarjeta: { obtener: jest.Mock };
+  let clientes: { listar: jest.Mock };
+  let estadoCuenta: { obtener: jest.Mock };
   let cuotas: { editarCuota: jest.Mock; eliminarCuota: jest.Mock };
   let abonos: { eliminarAbono: jest.Mock };
   let aperturas: { registrar: jest.Mock };
@@ -44,6 +48,8 @@ describe("CobradorService", () => {
     gastos = { registrar: jest.fn() };
     trayectorias = { registrarReal: jest.fn() };
     tarjeta = { obtener: jest.fn() };
+    clientes = { listar: jest.fn() };
+    estadoCuenta = { obtener: jest.fn() };
     cuotas = { editarCuota: jest.fn(), eliminarCuota: jest.fn() };
     abonos = { eliminarAbono: jest.fn() };
     aperturas = { registrar: jest.fn() };
@@ -61,6 +67,8 @@ describe("CobradorService", () => {
         { provide: GastosService, useValue: gastos },
         { provide: TrayectoriasService, useValue: trayectorias },
         { provide: ClienteTarjetaService, useValue: tarjeta },
+        { provide: ClienteService, useValue: clientes },
+        { provide: EstadoCuentaService, useValue: estadoCuenta },
         { provide: CuotaService, useValue: cuotas },
         { provide: AbonosService, useValue: abonos },
         { provide: RutasAperturaService, useValue: aperturas },
@@ -280,6 +288,25 @@ describe("CobradorService", () => {
         service.registrarApertura(6, coords, requester),
       ).resolves.toEqual({ id: 1, rutaId: 6 });
       expect(aperturas.registrar).toHaveBeenCalledWith(6, coords, requester, expect.any(Date));
+    });
+
+    it("listarClientesDeRuta delega en ClienteService.listar con el requester", async () => {
+      clientes.listar.mockResolvedValue([{ id: 1, rutaId: 6 }]);
+
+      await expect(
+        service.listarClientesDeRuta(6, requester),
+      ).resolves.toEqual([{ id: 1, rutaId: 6 }]);
+      expect(clientes.listar).toHaveBeenCalledWith(6, requester);
+    });
+
+    it("obtenerEstadoCuentaPrestamo delega en EstadoCuentaService.obtener", async () => {
+      const estado = { prestamoId: 200, cuotas: [{ cuotaId: 1, saldoPendiente: 50 }] };
+      estadoCuenta.obtener.mockResolvedValue(estado);
+
+      await expect(
+        service.obtenerEstadoCuentaPrestamo(6, 200, requester),
+      ).resolves.toEqual(estado);
+      expect(estadoCuenta.obtener).toHaveBeenCalledWith(6, 200, requester);
     });
   });
 });

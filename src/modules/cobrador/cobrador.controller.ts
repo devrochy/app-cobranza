@@ -197,6 +197,29 @@ export class CobradorController {
     );
   }
 
+  @Get("rutas/:rutaId/clientes")
+  @CobradorPermisoRequerido("ver_cartera")
+  listarClientesDeRuta(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.listarClientesDeRuta(rutaId, this.requester(req));
+  }
+
+  @Get("rutas/:rutaId/prestamos/:prestamoId/estado-cuenta")
+  @CobradorPermisoRequerido("ver_cartera")
+  estadoCuentaPrestamo(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("prestamoId", ParseIntPipe) prestamoId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.obtenerEstadoCuentaPrestamo(
+      rutaId,
+      prestamoId,
+      this.requester(req),
+    );
+  }
+
   @Get("rutas/:rutaId/clientes/:clienteId/tarjeta")
   @CobradorPermisoRequerido("ver_cartera")
   obtenerTarjeta(
