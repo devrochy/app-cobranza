@@ -613,4 +613,13 @@ describe("Registro y gestión de rutas (e2e)", () => {
       expect(rutas.every((r) => r.socioId === socioId)).toBe(true);
     });
   });
+
+  it("GET /rutas/posiciones como admin -> 200 con array", async () => {
+    const res = await request(app.getHttpServer())
+      .get("/rutas/posiciones")
+      .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
 });

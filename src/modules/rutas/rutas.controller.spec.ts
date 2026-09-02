@@ -20,6 +20,7 @@ import { RutasResumenService } from "./rutas-resumen.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { TrayectoriasService } from "./trayectorias.service";
+import { PosicionCobradorService } from "./posicion-cobrador.service";
 import { RutasController } from "./rutas.controller";
 import { RutasService } from "./rutas.service";
 
@@ -100,6 +101,11 @@ describe("RutasController", () => {
     consultar: jest.fn(),
   };
 
+  const mockPosicionCobradorService = {
+    registrar: jest.fn(),
+    ultimasDelSocio: jest.fn(),
+  };
+
   const baseDto: CreateRutaDto = {
     nombre: "Ruta Centro",
     descripcion: "Zona céntrica",
@@ -128,6 +134,7 @@ describe("RutasController", () => {
         { provide: RutaOptimizacionService, useValue: mockRutaOptimizacionService },
         { provide: ListaClientesDelDiaService, useValue: mockListaClientesDelDiaService },
         { provide: TrayectoriasService, useValue: mockTrayectoriasService },
+        { provide: PosicionCobradorService, useValue: mockPosicionCobradorService },
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,

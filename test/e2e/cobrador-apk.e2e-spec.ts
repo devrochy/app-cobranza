@@ -21,6 +21,7 @@ import { ReporteDiario } from "../../src/modules/rutas/reporte-diario.entity";
 import { Ruta } from "../../src/modules/rutas/ruta.entity";
 import { RutaApertura } from "../../src/modules/rutas/ruta-apertura.entity";
 import { RutaOptimizadaLog } from "../../src/modules/rutas/ruta-optimizada-log.entity";
+import { PosicionCobrador } from "../../src/modules/rutas/posicion-cobrador.entity";
 import { Socio } from "../../src/modules/socios/socio.entity";
 import { AppModule } from "../../src/app.module";
 
@@ -41,6 +42,7 @@ describe("API del cobrador para la APK (e2e)", () => {
   let evidenciaRepo: Repository<GastoEvidencia>;
   let clienteEvidenciaRepo: Repository<ClienteEvidencia>;
   let logRepo: Repository<RutaOptimizadaLog>;
+  let posicionRepo: Repository<PosicionCobrador>;
   let reporteRepo: Repository<ReporteDiario>;
   let cajaRepo: Repository<Caja>;
   let aperturaRepo: Repository<RutaApertura>;
@@ -86,6 +88,7 @@ describe("API del cobrador para la APK (e2e)", () => {
     await evidenciaRepo.createQueryBuilder().delete().execute();
     await clienteEvidenciaRepo.createQueryBuilder().delete().execute();
     await gastoRepo.createQueryBuilder().delete().execute();
+    await posicionRepo.createQueryBuilder().delete().execute();
     await pagoRepo.createQueryBuilder().delete().execute();
     await abonoRepo.createQueryBuilder().delete().execute();
     await promesaRepo.createQueryBuilder().delete().execute();
@@ -131,6 +134,7 @@ describe("API del cobrador para la APK (e2e)", () => {
     evidenciaRepo = moduleFixture.get(getRepositoryToken(GastoEvidencia));
     clienteEvidenciaRepo = moduleFixture.get(getRepositoryToken(ClienteEvidencia));
     logRepo = moduleFixture.get(getRepositoryToken(RutaOptimizadaLog));
+    posicionRepo = moduleFixture.get(getRepositoryToken(PosicionCobrador));
     reporteRepo = moduleFixture.get(getRepositoryToken(ReporteDiario));
     cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
     aperturaRepo = moduleFixture.get(getRepositoryToken(RutaApertura));
@@ -311,6 +315,18 @@ describe("API del cobrador para la APK (e2e)", () => {
     expect(res.body.rutaId).toBe(ruta1Id);
     expect(res.body.fecha).toBeDefined();
     expect(res.body.horaInicio).toBeDefined();
+  });
+
+  it("POST /cobrador/rutas/:id/posicion -> 201 registra la posición del cobrador", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta1Id}/posicion`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ latitud: -17.78, longitud: -63.18 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.rutaId).toBe(ruta1Id);
+    expect(res.body.cobradorId).toBe(cobrador1Id);
+    expect(res.body.latitud).toBe(-17.78);
   });
 
   it("POST /cobrador/rutas/:id/apertura de una ruta ajena -> 403", async () => {

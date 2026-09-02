@@ -15,6 +15,7 @@ import { RutaConfigService } from "../rutas/ruta-config.service";
 import { GastosService } from "../rutas/gastos.service";
 import { ListaClientesDelDiaService } from "../rutas/lista-clientes-dia.service";
 import { RutaOptimizacionService } from "../rutas/ruta-optimizacion.service";
+import { PosicionCobradorService } from "../rutas/posicion-cobrador.service";
 import { TrayectoriasService } from "../rutas/trayectorias.service";
 import { CobradorService } from "./cobrador.service";
 
@@ -35,6 +36,7 @@ describe("CobradorService", () => {
   let cuotas: { editarCuota: jest.Mock; eliminarCuota: jest.Mock };
   let abonos: { eliminarAbono: jest.Mock };
   let aperturas: { registrar: jest.Mock };
+  let posiciones: { registrar: jest.Mock };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -53,6 +55,7 @@ describe("CobradorService", () => {
     cuotas = { editarCuota: jest.fn(), eliminarCuota: jest.fn() };
     abonos = { eliminarAbono: jest.fn() };
     aperturas = { registrar: jest.fn() };
+    posiciones = { registrar: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -72,6 +75,7 @@ describe("CobradorService", () => {
         { provide: CuotaService, useValue: cuotas },
         { provide: AbonosService, useValue: abonos },
         { provide: RutasAperturaService, useValue: aperturas },
+        { provide: PosicionCobradorService, useValue: posiciones },
       ],
     }).compile();
 
@@ -290,6 +294,16 @@ describe("CobradorService", () => {
         service.registrarApertura(6, coords, requester),
       ).resolves.toEqual({ id: 1, rutaId: 6 });
       expect(aperturas.registrar).toHaveBeenCalledWith(6, coords, requester, expect.any(Date));
+    });
+
+    it("registrarPosicion delega en PosicionCobradorService", async () => {
+      const pos = { latitud: 5.07, longitud: -75.52 };
+      posiciones.registrar.mockResolvedValue({ rutaId: 6, latitud: 5.07, longitud: -75.52 });
+
+      await expect(
+        service.registrarPosicion(6, pos, requester),
+      ).resolves.toEqual({ rutaId: 6, latitud: 5.07, longitud: -75.52 });
+      expect(posiciones.registrar).toHaveBeenCalledWith(6, pos, requester);
     });
 
     it("listarClientesDeRuta delega en ClienteService.listar con el requester", async () => {

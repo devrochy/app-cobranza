@@ -45,6 +45,7 @@ import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { TrayectoriasService } from "./trayectorias.service";
 import { RegistrarTrayectoriaRealDto } from "./dto/registrar-trayectoria-real.dto";
+import { PosicionCobradorService } from "./posicion-cobrador.service";
 
 @Controller("rutas")
 export class RutasController {
@@ -60,6 +61,7 @@ export class RutasController {
     private readonly rutaOptimizacionService: RutaOptimizacionService,
     private readonly listaClientesDelDiaService: ListaClientesDelDiaService,
     private readonly trayectoriasService: TrayectoriasService,
+    private readonly posicionService: PosicionCobradorService,
   ) {}
 
   @Post()
@@ -77,6 +79,18 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasService.listar(query, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get("posiciones")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  posiciones(
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.posicionService.ultimasDelSocio(req.user.sub, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

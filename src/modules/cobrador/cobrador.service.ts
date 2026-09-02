@@ -15,6 +15,7 @@ import { RutaConfigService, RutaConfigPublic } from "../rutas/ruta-config.servic
 import { ArchivoSubido, GastosService, GastoPublic, RegistrarGastoInput } from "../rutas/gastos.service";
 import { ClienteDiaPublic, ListaClientesDelDiaService } from "../rutas/lista-clientes-dia.service";
 import { RutaOptimizacionService, TrayectoPublic } from "../rutas/ruta-optimizacion.service";
+import { PosicionCobradorService, PosicionPublic } from "../rutas/posicion-cobrador.service";
 import { TrayectoriasService } from "../rutas/trayectorias.service";
 import { RequesterOwned } from "../../common/ownership";
 import { ParadaGeoJSON } from "../../domain/trayectorias";
@@ -53,6 +54,7 @@ export class CobradorService {
     private readonly cuotaService: CuotaService,
     private readonly abonosService: AbonosService,
     private readonly aperturasService: RutasAperturaService,
+    private readonly posicionService: PosicionCobradorService,
   ) {}
 
   async misRutas(cobradorId: number): Promise<RutaApkPublic[]> {
@@ -220,5 +222,13 @@ export class CobradorService {
     ahora: Date = new Date(),
   ) {
     return this.aperturasService.registrar(rutaId, input, requester, ahora);
+  }
+
+  async registrarPosicion(
+    rutaId: number,
+    input: { latitud: number; longitud: number },
+    requester: RequesterOwned,
+  ): Promise<PosicionPublic> {
+    return this.posicionService.registrar(rutaId, input, requester);
   }
 }

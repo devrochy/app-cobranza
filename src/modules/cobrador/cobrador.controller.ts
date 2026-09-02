@@ -25,6 +25,7 @@ import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
 import { OperacionAuditadaDto } from "../cartera/dto/operacion-auditada.dto";
 import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
 import { RegistrarAperturaDto } from "../rutas/dto/registrar-apertura.dto";
+import { RegistrarPosicionDto } from "../rutas/dto/registrar-posicion.dto";
 import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-real.dto";
 import { evidenciasMulterOptions } from "../rutas/evidencia-upload";
 import { clienteFotosMulterOptions } from "../cartera/cliente-foto-upload";
@@ -50,6 +51,20 @@ export class CobradorController {
   @CobradorPermisoRequerido("ver_cartera")
   misRutas(@Req() req: Request & { user: AuthTokenPayload }) {
     return this.cobradorService.misRutas(req.user.sub);
+  }
+
+  @Post("rutas/:rutaId/posicion")
+  @CobradorPermisoRequerido("ver_cartera")
+  registrarPosicion(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: RegistrarPosicionDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.registrarPosicion(
+      rutaId,
+      { latitud: dto.latitud, longitud: dto.longitud },
+      this.requester(req),
+    );
   }
 
   @Get("rutas/:rutaId/dia")
