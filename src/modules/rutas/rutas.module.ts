@@ -26,19 +26,21 @@ import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { ReporteDiario } from "./reporte-diario.entity";
 import { TrayectoriasService } from "./trayectorias.service";
+import { RutaApertura } from "./ruta-apertura.entity";
+import { RutasAperturaService } from "./rutas-apertura.service";
 import { RutasController } from "./rutas.controller";
 import { ReportesGlobalController } from "./reportes-global.controller";
 import { RutasService } from "./rutas.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Ruta, RutaConfig, Inyeccion, Caja, CajaAjusteLog, Gasto, GastoEvidencia, RutaNota, Liquidacion, RutaOptimizadaLog, ReporteDiario, Socio, Cobrador]),
+    TypeOrmModule.forFeature([Ruta, RutaConfig, Inyeccion, Caja, CajaAjusteLog, Gasto, GastoEvidencia, RutaNota, Liquidacion, RutaOptimizadaLog, ReporteDiario, RutaApertura, Socio, Cobrador]),
     SecurityModule,
     JwtModule.register({}),
     SociosModule,
   ],
   controllers: [RutasController, ReportesGlobalController],
-  providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService, RutasNotasService, LiquidacionesService, RutasResumenService, RutaOptimizacionService, ListaClientesDelDiaService, TrayectoriasService],
-  exports: [RutasService, RutaConfigService, InyeccionesService, GastosService, RutasNotasService, LiquidacionesService, TrayectoriasService, CajaService, ListaClientesDelDiaService, RutaOptimizacionService],
+  providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService, RutasNotasService, LiquidacionesService, RutasResumenService, RutaOptimizacionService, ListaClientesDelDiaService, TrayectoriasService, RutasAperturaService],
+  exports: [RutasService, RutaConfigService, InyeccionesService, GastosService, RutasNotasService, LiquidacionesService, TrayectoriasService, CajaService, ListaClientesDelDiaService, RutaOptimizacionService, RutasAperturaService],
 })
 export class RutasModule {}

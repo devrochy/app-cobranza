@@ -18,6 +18,7 @@ import { Gasto } from "../../src/modules/rutas/gasto.entity";
 import { GastoEvidencia } from "../../src/modules/rutas/gasto-evidencia.entity";
 import { ReporteDiario } from "../../src/modules/rutas/reporte-diario.entity";
 import { Ruta } from "../../src/modules/rutas/ruta.entity";
+import { RutaApertura } from "../../src/modules/rutas/ruta-apertura.entity";
 import { RutaOptimizadaLog } from "../../src/modules/rutas/ruta-optimizada-log.entity";
 import { Socio } from "../../src/modules/socios/socio.entity";
 import { AppModule } from "../../src/app.module";
@@ -40,6 +41,7 @@ describe("API del cobrador para la APK (e2e)", () => {
   let logRepo: Repository<RutaOptimizadaLog>;
   let reporteRepo: Repository<ReporteDiario>;
   let cajaRepo: Repository<Caja>;
+  let aperturaRepo: Repository<RutaApertura>;
   let accessTokenAdmin: string;
   let tokenCobrador1: string;
   let tokenCobrador2: string;
@@ -89,6 +91,7 @@ describe("API del cobrador para la APK (e2e)", () => {
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
     await logRepo.createQueryBuilder().delete().execute();
+    await aperturaRepo.createQueryBuilder().delete().execute();
     await reporteRepo.createQueryBuilder().delete().execute();
     await cajaRepo.createQueryBuilder().delete().execute();
     await rutaRepo.createQueryBuilder().delete().execute();
@@ -126,6 +129,7 @@ describe("API del cobrador para la APK (e2e)", () => {
     logRepo = moduleFixture.get(getRepositoryToken(RutaOptimizadaLog));
     reporteRepo = moduleFixture.get(getRepositoryToken(ReporteDiario));
     cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
+    aperturaRepo = moduleFixture.get(getRepositoryToken(RutaApertura));
 
     await limpiarDatos();
     await cobradorRepo.delete({ codigo: "CB-APK-1" });
@@ -287,6 +291,31 @@ describe("API del cobrador para la APK (e2e)", () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.clientes)).toBe(true);
     expect(res.body.trayectos).toBeNull();
+  });
+
+  it("POST /cobrador/rutas/:id/apertura -> 201 registra la apertura del día", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta1Id}/apertura`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ latitud: -17.78, longitud: -63.18 });
+
+    if (res.status !== 201) {
+      // eslint-disable-next-line no-console
+      console.log("apertura body:", JSON.stringify(res.body));
+    }
+    expect(res.status).toBe(201);
+    expect(res.body.rutaId).toBe(ruta1Id);
+    expect(res.body.fecha).toBeDefined();
+    expect(res.body.horaInicio).toBeDefined();
+  });
+
+  it("POST /cobrador/rutas/:id/apertura de una ruta ajena -> 403", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta2Id}/apertura`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ latitud: -17.78, longitud: -63.18 });
+
+    expect(res.status).toBe(403);
   });
 
   it("POST /cobrador/rutas/:id/visitas/pago -> 201", async () => {

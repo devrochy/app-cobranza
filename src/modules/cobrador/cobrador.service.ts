@@ -5,6 +5,7 @@ import { ClienteTarjetaService, ClienteTarjetaPublic } from "../cartera/cliente-
 import { AbonosService } from "../cartera/abonos.service";
 import { CreatePrestamoInput, PrestamoService, PrestamoPublic } from "../cartera/prestamo.service";
 import { CuotaService } from "../cartera/cuota.service";
+import { RutasAperturaService } from "../rutas/rutas-apertura.service";
 import { RegistrarVisitaInput, VisitasService, VisitaPublic } from "../cartera/visitas.service";
 import { CobradoresPermisosService, PermisoCobradorEstado } from "../cobradores/cobradores-permisos.service";
 import { Ruta } from "../rutas/ruta.entity";
@@ -45,6 +46,7 @@ export class CobradorService {
     private readonly clienteTarjetaService: ClienteTarjetaService,
     private readonly cuotaService: CuotaService,
     private readonly abonosService: AbonosService,
+    private readonly aperturasService: RutasAperturaService,
   ) {}
 
   async misRutas(cobradorId: number): Promise<RutaApkPublic[]> {
@@ -170,5 +172,14 @@ export class CobradorService {
     requester: RequesterOwned,
   ) {
     return this.abonosService.eliminarAbono(rutaId, abonoId, ctx, requester);
+  }
+
+  async registrarApertura(
+    rutaId: number,
+    input: { latitud?: number; longitud?: number },
+    requester: RequesterOwned,
+    ahora: Date = new Date(),
+  ) {
+    return this.aperturasService.registrar(rutaId, input, requester, ahora);
   }
 }

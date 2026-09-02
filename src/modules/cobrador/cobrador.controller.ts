@@ -23,6 +23,7 @@ import { CreatePrestamoDto } from "../cartera/dto/create-prestamo.dto";
 import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
 import { OperacionAuditadaDto } from "../cartera/dto/operacion-auditada.dto";
 import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
+import { RegistrarAperturaDto } from "../rutas/dto/registrar-apertura.dto";
 import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-real.dto";
 import { evidenciasMulterOptions } from "../rutas/evidencia-upload";
 import { RequesterOwned } from "../../common/ownership";
@@ -56,6 +57,20 @@ export class CobradorController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.cobradorService.dia(rutaId, this.requester(req));
+  }
+
+  @Post("rutas/:rutaId/apertura")
+  @CobradorPermisoRequerido("ver_cartera")
+  registrarApertura(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: RegistrarAperturaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.registrarApertura(
+      rutaId,
+      { latitud: dto.latitud, longitud: dto.longitud },
+      this.requester(req),
+    );
   }
 
   @Post("rutas/:rutaId/visitas/pago")
