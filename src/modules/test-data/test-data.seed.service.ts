@@ -144,13 +144,17 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     }
 
     // Permisos APK habilitados para todos los cobradores del socio de prueba.
-    const cobradores = await this.cobradorRepo.find({ where: { socioId: socio.id } });
+    const cobradores = await this.cobradorRepo.find({
+      where: { socio: { id: socio.id } },
+    });
     for (const cobrador of cobradores) {
       await this.cobradoresPermisos.setMatriz(cobrador.id, PERMISOS_APK);
     }
 
     // Cartera: préstamos + pagos + abonos si la ruta aún no tiene préstamos.
-    const rutas = await this.rutaRepo.find({ where: { socioId: socio.id } });
+    const rutas = await this.rutaRepo.find({
+      where: { socio: { id: socio.id } },
+    });
     for (const ruta of rutas) {
       const total = await this.prestamoRepo.count({ where: { ruta: { id: ruta.id } } });
       if (total === 0) {
