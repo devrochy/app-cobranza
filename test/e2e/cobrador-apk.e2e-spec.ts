@@ -16,6 +16,7 @@ import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
 import { Caja } from "../../src/modules/rutas/caja.entity";
 import { Gasto } from "../../src/modules/rutas/gasto.entity";
 import { GastoEvidencia } from "../../src/modules/rutas/gasto-evidencia.entity";
+import { ClienteEvidencia } from "../../src/modules/cartera/cliente-evidencia.entity";
 import { ReporteDiario } from "../../src/modules/rutas/reporte-diario.entity";
 import { Ruta } from "../../src/modules/rutas/ruta.entity";
 import { RutaApertura } from "../../src/modules/rutas/ruta-apertura.entity";
@@ -38,6 +39,7 @@ describe("API del cobrador para la APK (e2e)", () => {
   let promesaRepo: Repository<PromesaPago>;
   let gastoRepo: Repository<Gasto>;
   let evidenciaRepo: Repository<GastoEvidencia>;
+  let clienteEvidenciaRepo: Repository<ClienteEvidencia>;
   let logRepo: Repository<RutaOptimizadaLog>;
   let reporteRepo: Repository<ReporteDiario>;
   let cajaRepo: Repository<Caja>;
@@ -63,7 +65,7 @@ describe("API del cobrador para la APK (e2e)", () => {
     registrar_gasto: true,
     registrar_no_pago: true,
     anotar_notas_ruta: false,
-    actualizar_cliente: false,
+    actualizar_cliente: true,
     eliminar_prestamo: false,
     eliminar_pago: true,
     eliminar_abono: true,
@@ -82,6 +84,7 @@ describe("API del cobrador para la APK (e2e)", () => {
 
   async function limpiarDatos(): Promise<void> {
     await evidenciaRepo.createQueryBuilder().delete().execute();
+    await clienteEvidenciaRepo.createQueryBuilder().delete().execute();
     await gastoRepo.createQueryBuilder().delete().execute();
     await pagoRepo.createQueryBuilder().delete().execute();
     await abonoRepo.createQueryBuilder().delete().execute();
@@ -126,6 +129,7 @@ describe("API del cobrador para la APK (e2e)", () => {
     promesaRepo = moduleFixture.get(getRepositoryToken(PromesaPago));
     gastoRepo = moduleFixture.get(getRepositoryToken(Gasto));
     evidenciaRepo = moduleFixture.get(getRepositoryToken(GastoEvidencia));
+    clienteEvidenciaRepo = moduleFixture.get(getRepositoryToken(ClienteEvidencia));
     logRepo = moduleFixture.get(getRepositoryToken(RutaOptimizadaLog));
     reporteRepo = moduleFixture.get(getRepositoryToken(ReporteDiario));
     cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
@@ -407,6 +411,26 @@ describe("API del cobrador para la APK (e2e)", () => {
     expect(prestamo).toBeDefined();
     expect(Array.isArray(prestamo.cuotas)).toBe(true);
     expect(prestamo.cuotas[0].id).toBeGreaterThan(0);
+  });
+
+  it("POST /cobrador/rutas/:id/clientes/:clienteId/evidencias sube foto y documento", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta1Id}/clientes/${cliente1Id}/evidencias`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .attach("foto_facial", Buffer.from("foto-test"), "foto.jpg")
+      .attach("documento_frente", Buffer.from("doc-test"), "doc.jpg");
+
+    expect(res.status).toBe(201);
+    expect(res.body.clienteId).toBe(cliente1Id);
+  });
+
+  it("POST /cobrador/rutas/:id/clientes/:clienteId/evidencias en ruta ajena -> 403", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta2Id}/clientes/${cliente1Id}/evidencias`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .attach("foto_facial", Buffer.from("x"), "f.jpg");
+
+    expect(res.status).toBe(403);
   });
 
   it("GET /cobrador/rutas/:id/dia de una ruta ajena -> 403 (ownership)", async () => {

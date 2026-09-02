@@ -12,12 +12,13 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { FilesInterceptor } from "@nestjs/platform-express";
+import { FileFieldsInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { CobradorPermisoGuard } from "../auth/cobrador-permiso.guard";
 import { CobradorPermisoRequerido } from "../auth/cobrador-permiso-requerido.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ClienteEvidenciaInput } from "../cartera/cliente.service";
 import { RegistrarVisitaDto } from "../cartera/dto/registrar-visita.dto";
 import { CreatePrestamoDto } from "../cartera/dto/create-prestamo.dto";
 import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
@@ -26,6 +27,7 @@ import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
 import { RegistrarAperturaDto } from "../rutas/dto/registrar-apertura.dto";
 import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-real.dto";
 import { evidenciasMulterOptions } from "../rutas/evidencia-upload";
+import { clienteFotosMulterOptions } from "../cartera/cliente-foto-upload";
 import { RequesterOwned } from "../../common/ownership";
 import { CobradorService } from "./cobrador.service";
 
@@ -237,6 +239,51 @@ export class CobradorController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.cobradorService.obtenerTarjeta(rutaId, clienteId, this.requester(req));
+  }
+
+  @Post("rutas/:rutaId/clientes/:clienteId/evidencias")
+  @CobradorPermisoRequerido("actualizar_cliente")
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: "foto_facial", maxCount: 1 },
+        { name: "documento_frente", maxCount: 1 },
+        { name: "documento_reverso", maxCount: 1 },
+      ],
+      clienteFotosMulterOptions,
+    ),
+  )
+  agregarEvidenciasCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @UploadedFiles() files: {
+      foto_facial?: Express.Multer.File[];
+      documento_frente?: Express.Multer.File[];
+      documento_reverso?: Express.Multer.File[];
+    },
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    const evidencias: ClienteEvidenciaInput[] = [];
+    const mapa: Array<{
+      campo: "foto_facial" | "documento_frente" | "documento_reverso";
+      tipo: "foto_facial" | "documento_frente" | "documento_reverso";
+    }> = [
+      { campo: "foto_facial", tipo: "foto_facial" },
+      { campo: "documento_frente", tipo: "documento_frente" },
+      { campo: "documento_reverso", tipo: "documento_reverso" },
+    ];
+    for (const { campo, tipo } of mapa) {
+      const lista = files?.[campo];
+      if (lista && lista.length > 0) {
+        evidencias.push({ tipo, archivo: lista[0] });
+      }
+    }
+    return this.cobradorService.agregarEvidenciasCliente(
+      rutaId,
+      clienteId,
+      evidencias,
+      this.requester(req),
+    );
   }
 
   @Get("rutas/:rutaId/clientes/:clienteId/prestamos")
