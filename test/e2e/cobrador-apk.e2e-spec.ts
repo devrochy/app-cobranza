@@ -63,8 +63,8 @@ describe("API del cobrador para la APK (e2e)", () => {
     anotar_notas_ruta: false,
     actualizar_cliente: false,
     eliminar_prestamo: false,
-    eliminar_pago: false,
-    eliminar_abono: false,
+    eliminar_pago: true,
+    eliminar_abono: true,
     eliminar_gasto: false,
     registrar_inyeccion: false,
     ver_cartera: true,
@@ -424,6 +424,74 @@ describe("API del cobrador para la APK (e2e)", () => {
       .set("Authorization", `Bearer ${tokenCobrador2}`)
       .field("descripcion", "Sin permiso")
       .field("valor", "10");
+
+    expect(res.status).toBe(403);
+  });
+
+  it("PATCH /cobrador/rutas/:id/cuotas/:cuotaId edita con re-autenticación -> 200", async () => {
+    const cuota = await cuotaRepo.findOne({
+      where: { prestamo: { id: prestamo1Id }, numeroCuota: 2 },
+    });
+
+    const res = await request(app.getHttpServer())
+      .patch(`/cobrador/rutas/${ruta1Id}/cuotas/${cuota!.id}`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ valorEsperado: 500, password: PASSWORD, motivo: "corrección" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.valorEsperado).toBe(500);
+  });
+
+  it("PATCH /cobrador/rutas/:id/cuotas/:cuotaId sin permiso eliminar_pago -> 403", async () => {
+    const cuota = await cuotaRepo.findOne({
+      where: { prestamo: { id: prestamo1Id }, numeroCuota: 2 },
+    });
+
+    const res = await request(app.getHttpServer())
+      .patch(`/cobrador/rutas/${ruta2Id}/cuotas/${cuota!.id}`)
+      .set("Authorization", `Bearer ${tokenCobrador2}`)
+      .send({ valorEsperado: 500, password: PASSWORD, motivo: "x" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("DELETE /cobrador/rutas/:id/abonos/:abonoId elimina con re-autenticación -> 200", async () => {
+    const abonoRes = await request(app.getHttpServer())
+      .post(`/rutas/${ruta1Id}/abonos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({
+        prestamoId: prestamo1Id,
+        valor: 100,
+        metodoPago: "efectivo",
+      });
+    const abonoId = abonoRes.body.id as number;
+    if (typeof abonoId !== "number" || abonoRes.status !== 201) {
+      // eslint-disable-next-line no-console
+      console.log("POST abono body:", JSON.stringify(abonoRes.body), "status:", abonoRes.status);
+    }
+
+    const res = await request(app.getHttpServer())
+      .delete(`/cobrador/rutas/${ruta1Id}/abonos/${abonoId}`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ password: PASSWORD, motivo: "error de registro" });
+
+    if (res.status !== 200) {
+      // eslint-disable-next-line no-console
+      console.log("DELETE abono body:", JSON.stringify(res.body));
+    }
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(abonoId);
+  });
+
+  it("DELETE /cobrador/rutas/:id/cuotas/:cuotaId sin permiso -> 403", async () => {
+    const cuota = await cuotaRepo.findOne({
+      where: { prestamo: { id: prestamo1Id }, numeroCuota: 2 },
+    });
+
+    const res = await request(app.getHttpServer())
+      .delete(`/cobrador/rutas/${ruta2Id}/cuotas/${cuota!.id}`)
+      .set("Authorization", `Bearer ${tokenCobrador2}`)
+      .send({ password: PASSWORD, motivo: "x" });
 
     expect(res.status).toBe(403);
   });

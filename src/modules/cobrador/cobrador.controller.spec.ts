@@ -9,6 +9,7 @@ import { CobradorPermisoGuard } from "../auth/cobrador-permiso.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { RegistrarVisitaDto } from "../cartera/dto/registrar-visita.dto";
+import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
 import { CobradorService } from "./cobrador.service";
 import { CobradorController } from "./cobrador.controller";
 
@@ -25,6 +26,9 @@ describe("CobradorController", () => {
     obtenerTarjeta: jest.fn(),
     listarPrestamosDeCliente: jest.fn(),
     crearPrestamo: jest.fn(),
+    editarCuota: jest.fn(),
+    eliminarCuota: jest.fn(),
+    eliminarAbono: jest.fn(),
   };
 
   function req(sub = 20): Request & { user: AuthTokenPayload } {
@@ -164,6 +168,50 @@ describe("CobradorController", () => {
       },
       { rol: "cobrador", sub: 20 },
       new Date("2026-09-02"),
+    );
+  });
+
+  it("cuotas PATCH delega en editarCuota con DTO auditado", async () => {
+    const dto: EditarCuotaDto = {
+      valorEsperado: 500,
+      password: "secreto",
+      motivo: "corrección",
+    };
+    mockService.editarCuota.mockResolvedValue({ id: 10 });
+
+    await expect(controller.editarCuota(6, 10, dto, req())).resolves.toEqual({ id: 10 });
+    expect(service.editarCuota).toHaveBeenCalledWith(
+      6,
+      10,
+      { valorEsperado: 500 },
+      { password: "secreto", motivo: "corrección" },
+      { rol: "cobrador", sub: 20 },
+    );
+  });
+
+  it("cuotas DELETE delega en eliminarCuota con DTO auditado", async () => {
+    const dto = { password: "secreto", motivo: "error" };
+    mockService.eliminarCuota.mockResolvedValue({ id: 10 });
+
+    await expect(controller.eliminarCuota(6, 10, dto, req())).resolves.toEqual({ id: 10 });
+    expect(service.eliminarCuota).toHaveBeenCalledWith(
+      6,
+      10,
+      { password: "secreto", motivo: "error" },
+      { rol: "cobrador", sub: 20 },
+    );
+  });
+
+  it("abonos DELETE delega en eliminarAbono con DTO auditado", async () => {
+    const dto = { password: "secreto", motivo: "error" };
+    mockService.eliminarAbono.mockResolvedValue({ id: 30 });
+
+    await expect(controller.eliminarAbono(6, 30, dto, req())).resolves.toEqual({ id: 30 });
+    expect(service.eliminarAbono).toHaveBeenCalledWith(
+      6,
+      30,
+      { password: "secreto", motivo: "error" },
+      { rol: "cobrador", sub: 20 },
     );
   });
 });
