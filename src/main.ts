@@ -4,6 +4,7 @@ import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 import { validateRequiredEnv } from "./config/config-validation";
+import { resolverOrigenesCors } from "./config/cors";
 
 async function bootstrap(): Promise<void> {
   const missingEnv = validateRequiredEnv({
@@ -20,7 +21,12 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.set("trust proxy", 1);
-  app.enableCors();
+  app.enableCors({
+    origin: resolverOrigenesCors(
+      process.env.CORS_ORIGINS,
+      process.env.NODE_ENV ?? "development",
+    ),
+  });
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
