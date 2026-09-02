@@ -14,6 +14,7 @@ import { Device } from "../sincronizacion-offline/device.entity";
 import { Ruta } from "../rutas/ruta.entity";
 import { RutasService } from "../rutas/rutas.service";
 import { RutaConfigService } from "../rutas/ruta-config.service";
+import { RutaOptimizacionService } from "../rutas/ruta-optimizacion.service";
 import { GastosService } from "../rutas/gastos.service";
 import { InyeccionesService } from "../rutas/inyecciones.service";
 import { RutasNotasService } from "../rutas/rutas-notas.service";
@@ -96,6 +97,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     private readonly notasService: RutasNotasService,
     private readonly liquidacionesService: LiquidacionesService,
     private readonly trayectoriasService: TrayectoriasService,
+    private readonly rutaOptimizacionService: RutaOptimizacionService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -165,6 +167,15 @@ export class TestDataSeedService implements OnApplicationBootstrap {
           ruta.nombre === "test-Ruta Centro",
           requester,
         );
+      }
+    }
+
+    // Manizales: crea la ruta demo (COP) si aún no existe.
+    const manizales = rutas.find((r) => r.nombre === "test-Ruta Manizales");
+    if (!manizales) {
+      const cobrador = cobradores[0];
+      if (cobrador) {
+        await this.sembrarManizales(cobrador.id, socio.id, requester);
       }
     }
   }
@@ -351,6 +362,108 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       requester,
     );
     await this.trayectoriasService.generarReporteDiario(rutaA.id, requester);
+
+    // Ruta de prueba en Manizales (COP) con clientes de nombres reales,
+    // multi-préstamo y trayecto planificado generado (pruebas de trayectos/día).
+    await this.sembrarManizales(cobradorA.id, socio.id, requester);
+  }
+
+  private async sembrarManizales(
+    cobradorId: number,
+    socioId: number,
+    requester: { rol: "admin"; sub: number },
+  ): Promise<void> {
+    const ruta = await this.rutasService.create(
+      {
+        nombre: "test-Ruta Manizales",
+        descripcion: "Ruta demo Manizales (COP)",
+        socioId,
+        cobradorId,
+        tipoInteres: 22,
+        numCuotas: 6,
+        moneda: "COP",
+        saldoInicial: 15000000,
+        costoCobro: 5000,
+      },
+      requester,
+    );
+    await this.rutaConfigService.setMatriz(
+      ruta.id,
+      {
+        reconocimientoFacialActivo: true,
+        registroDocumentoCliente: true,
+        permitirCambioFechaPrestamo: true,
+      },
+      requester,
+    );
+
+    const datosClientes = [
+      { nombre: "Laura", apellido: "Martínez", negocio: "Tienda La Aurora", telefono: "+573184935933" },
+      { nombre: "Andrés", apellido: "Giraldo", negocio: "Cafetería El Bosque", telefono: "+573184935934" },
+      { nombre: "María Fernanda", apellido: "López", negocio: "Panadería La Rosa", telefono: "+573184935935" },
+      { nombre: "Carlos", apellido: "Ramírez", negocio: "Ferretería El Centro", telefono: "+573184935936" },
+      { nombre: "Daniela", apellido: "Castaño", negocio: "Boutique Manizales", telefono: "+573184935937" },
+      { nombre: "José", apellido: "Ospina", negocio: "Miscelánea San José", telefono: "+573184935938" },
+      { nombre: "Valentina", apellido: "Arias", negocio: "Salón de belleza", telefono: "+573184935939" },
+      { nombre: "Sebastián", apellido: "Quintero", negocio: "Taller Don Sebastián", telefono: "+573184935940" },
+    ];
+
+    const clientes: { id: number }[] = [];
+    for (let i = 0; i < datosClientes.length; i++) {
+      const dato = datosClientes[i];
+      const cliente = await this.clienteService.crear(
+        ruta.id,
+        {
+          nombre: dato.nombre,
+          apellido: dato.apellido,
+          telefonoWhatsapp: dato.telefono,
+          latitud: 5.07 + i * 0.012,
+          longitud: -75.52 + (i % 3) * 0.014,
+          negocio: dato.negocio,
+        },
+        [
+          this.evidenciaCliente("foto_facial", `test-foto-mz-${i + 1}.jpg`),
+          this.evidenciaCliente("documento_frente", `test-doc-mz-${i + 1}.jpg`),
+        ],
+        requester,
+      );
+      clientes.push({ id: cliente.id });
+    }
+
+    // Préstamos: 1 vigente por cliente + multi-préstamo (liquidado/cancelado)
+    // en los primeros 3 clientes para validar la vista con varios préstamos.
+    for (const cliente of clientes) {
+      const prestamo = await this.prestamoService.crear(
+        ruta.id,
+        {
+          clienteId: cliente.id,
+          valor: 500000 + (Math.round(cliente.id * 137) % 300000),
+          numCuotas: 6,
+          diasEntreCuotas: 7,
+        },
+        requester,
+      );
+      if (prestamo.id && cliente.id % 3 === 1) {
+        await this.prestamoRepo.update(prestamo.id, { estatus: "liquidado" });
+        const extra = await this.prestamoService.crear(
+          ruta.id,
+          {
+            clienteId: cliente.id,
+            valor: 200000,
+            numCuotas: 3,
+            diasEntreCuotas: 7,
+          },
+          requester,
+        );
+        if (extra.id && cliente.id % 3 === 2) {
+          await this.prestamoRepo.update(extra.id, { estatus: "cancelado" });
+        }
+      }
+    }
+
+    await this.pagarAlgunasCuotas(ruta.id, requester);
+    await this.registrarAbonoParcial(ruta.id, requester);
+    await this.rutaOptimizacionService.generar(ruta.id, requester);
   }
 
   private async seedClientes(
