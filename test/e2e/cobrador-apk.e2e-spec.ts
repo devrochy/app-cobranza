@@ -55,7 +55,7 @@ describe("API del cobrador para la APK (e2e)", () => {
   const PASSWORD = "password-seguro";
 
   const MATRIZ_COBRADOR1 = {
-    registrar_prestamo: false,
+    registrar_prestamo: true,
     registrar_pago: true,
     registrar_abono: false,
     registrar_gasto: true,
@@ -384,6 +384,36 @@ describe("API del cobrador para la APK (e2e)", () => {
     const res = await request(app.getHttpServer())
       .get(`/cobrador/rutas/${ruta2Id}/dia`)
       .set("Authorization", `Bearer ${tokenCobrador1}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("POST /cobrador/rutas/:id/prestamos -> 201 crea préstamo y cuotas", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta1Id}/prestamos`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({
+        clienteId: cliente1Id,
+        valor: 800,
+        numCuotas: 4,
+        diasEntreCuotas: 7,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.clienteId).toBe(cliente1Id);
+    expect(res.body.cuotas).toHaveLength(4);
+  });
+
+  it("POST /cobrador/rutas/:id/prestamos sin permiso registrar_prestamo -> 403", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta2Id}/prestamos`)
+      .set("Authorization", `Bearer ${tokenCobrador2}`)
+      .send({
+        clienteId: cliente1Id,
+        valor: 800,
+        numCuotas: 4,
+        diasEntreCuotas: 7,
+      });
 
     expect(res.status).toBe(403);
   });

@@ -17,6 +17,7 @@ import { CobradorPermisoGuard } from "../auth/cobrador-permiso.guard";
 import { CobradorPermisoRequerido } from "../auth/cobrador-permiso-requerido.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RegistrarVisitaDto } from "../cartera/dto/registrar-visita.dto";
+import { CreatePrestamoDto } from "../cartera/dto/create-prestamo.dto";
 import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
 import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-real.dto";
 import { evidenciasMulterOptions } from "../rutas/evidencia-upload";
@@ -109,6 +110,22 @@ export class CobradorController {
       rutaId,
       dto.puntos,
       this.requester(req),
+    );
+  }
+
+  @Post("rutas/:rutaId/prestamos")
+  @CobradorPermisoRequerido("registrar_prestamo")
+  crearPrestamo(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: CreatePrestamoDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    const { fechaOtorgado, ...resto } = dto;
+    return this.cobradorService.crearPrestamo(
+      rutaId,
+      resto,
+      this.requester(req),
+      fechaOtorgado ? new Date(fechaOtorgado) : undefined,
     );
   }
 

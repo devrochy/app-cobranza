@@ -21,7 +21,7 @@ describe("CobradorService", () => {
   let listaClientes: { obtener: jest.Mock };
   let optimizacion: { consultar: jest.Mock };
   let visitas: { registrar: jest.Mock };
-  let prestamos: { listarPorCliente: jest.Mock };
+  let prestamos: { listarPorCliente: jest.Mock; crear: jest.Mock };
   let gastos: { registrar: jest.Mock };
   let trayectorias: { registrarReal: jest.Mock };
   let tarjeta: { obtener: jest.Mock };
@@ -34,7 +34,7 @@ describe("CobradorService", () => {
     listaClientes = { obtener: jest.fn() };
     optimizacion = { consultar: jest.fn() };
     visitas = { registrar: jest.fn() };
-    prestamos = { listarPorCliente: jest.fn() };
+    prestamos = { listarPorCliente: jest.fn(), crear: jest.fn() };
     gastos = { registrar: jest.fn() };
     trayectorias = { registrarReal: jest.fn() };
     tarjeta = { obtener: jest.fn() };
@@ -187,6 +187,41 @@ describe("CobradorService", () => {
         service.listarPrestamosDeCliente(6, 1, requester),
       ).resolves.toEqual([{ id: 1 }]);
       expect(prestamos.listarPorCliente).toHaveBeenCalledWith(6, 1, requester);
+    });
+
+    it("crearPrestamo delega en PrestamoService.crear con el requester", async () => {
+      const input = {
+        clienteId: 2,
+        valor: 1000,
+        numCuotas: 4,
+        diasEntreCuotas: 7,
+      };
+      const fecha = new Date("2026-09-02T00:00:00.000Z");
+      prestamos.crear.mockResolvedValue({ id: 5, clienteId: 2 });
+
+      await expect(
+        service.crearPrestamo(6, input, requester, fecha),
+      ).resolves.toEqual({ id: 5, clienteId: 2 });
+      expect(prestamos.crear).toHaveBeenCalledWith(6, input, requester, fecha);
+    });
+
+    it("crearPrestamo usa hoy como fecha por defecto", async () => {
+      const input = {
+        clienteId: 2,
+        valor: 1000,
+        numCuotas: 4,
+        diasEntreCuotas: 7,
+      };
+      prestamos.crear.mockResolvedValue({ id: 5 });
+
+      await service.crearPrestamo(6, input, requester);
+
+      expect(prestamos.crear).toHaveBeenCalledWith(
+        6,
+        input,
+        requester,
+        expect.any(Date),
+      );
     });
   });
 });

@@ -24,6 +24,7 @@ describe("CobradorController", () => {
     registrarTrayectoriaReal: jest.fn(),
     obtenerTarjeta: jest.fn(),
     listarPrestamosDeCliente: jest.fn(),
+    crearPrestamo: jest.fn(),
   };
 
   function req(sub = 20): Request & { user: AuthTokenPayload } {
@@ -140,5 +141,29 @@ describe("CobradorController", () => {
       rol: "cobrador",
       sub: 20,
     });
+  });
+
+  it("prestamos delega en crearPrestamo con fecha parseada y requester", async () => {
+    const dto = {
+      clienteId: 2,
+      valor: 1000,
+      numCuotas: 4,
+      diasEntreCuotas: 7,
+      fechaOtorgado: "2026-09-02",
+    };
+    mockService.crearPrestamo.mockResolvedValue({ id: 5 });
+
+    await expect(controller.crearPrestamo(6, dto, req())).resolves.toEqual({ id: 5 });
+    expect(service.crearPrestamo).toHaveBeenCalledWith(
+      6,
+      {
+        clienteId: 2,
+        valor: 1000,
+        numCuotas: 4,
+        diasEntreCuotas: 7,
+      },
+      { rol: "cobrador", sub: 20 },
+      new Date("2026-09-02"),
+    );
   });
 });

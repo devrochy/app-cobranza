@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ClienteTarjetaService, ClienteTarjetaPublic } from "../cartera/cliente-tarjeta.service";
-import { PrestamoService, PrestamoPublic } from "../cartera/prestamo.service";
+import { CreatePrestamoInput, PrestamoService, PrestamoPublic } from "../cartera/prestamo.service";
 import { RegistrarVisitaInput, VisitasService, VisitaPublic } from "../cartera/visitas.service";
 import { CobradoresPermisosService, PermisoCobradorEstado } from "../cobradores/cobradores-permisos.service";
 import { Ruta } from "../rutas/ruta.entity";
@@ -129,5 +129,14 @@ export class CobradorService {
     requester: RequesterOwned,
   ): Promise<PrestamoPublic[]> {
     return this.prestamoService.listarPorCliente(rutaId, clienteId, requester);
+  }
+
+  async crearPrestamo(
+    rutaId: number,
+    input: CreatePrestamoInput,
+    requester: RequesterOwned,
+    fechaOtorgado: Date = new Date(),
+  ): Promise<PrestamoPublic> {
+    return this.prestamoService.crear(rutaId, input, requester, fechaOtorgado);
   }
 }
