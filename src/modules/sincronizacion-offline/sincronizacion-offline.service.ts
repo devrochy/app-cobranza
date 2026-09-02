@@ -10,6 +10,7 @@ export const TIPO_EVENTO_SYNC = [
   "abono",
   "gasto",
   "cambio_cliente",
+  "trayectoria",
 ] as const;
 
 export interface EventoSincronizacionInput {

@@ -201,6 +201,37 @@ describe("Sincronización offline (e2e)", () => {
     expect(res.body[0].estado).toBe("error");
   });
 
+  it("evento trayectoria se ingiere y queda en el catálogo", async () => {
+    const res = await request(app.getHttpServer())
+      .post("/sync-offline/eventos")
+      .set("x-device-key", apiKey)
+      .send({
+        eventos: [
+          {
+            eventoIdCliente: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+            tipoEvento: "trayectoria",
+            payload: {
+              puntos: [
+                { latitud: -17.78, longitud: -63.18 },
+                { latitud: -17.79, longitud: -63.19 },
+              ],
+            },
+          },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body[0].estado).toMatch(/sincronizado|error/);
+    const fila = await syncRepo.findOne({
+      where: {
+        dispositivo: { id: deviceId },
+        eventoIdCliente: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      },
+    });
+    expect(fila).toBeDefined();
+    expect(fila?.tipoEvento).toBe("trayectoria");
+  });
+
   it("POST /sync-offline/eventos sin API key -> 401", async () => {
     const res = await request(app.getHttpServer())
       .post("/sync-offline/eventos")
