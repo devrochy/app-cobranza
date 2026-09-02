@@ -430,8 +430,9 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       clientes.push({ id: cliente.id });
     }
 
-    // Préstamos: 1 vigente por cliente + multi-préstamo (liquidado/cancelado)
-    // en los primeros 3 clientes para validar la vista con varios préstamos.
+    // Préstamos: 1 vigente por cliente + casos multi-préstamo:
+    // - id % 3 === 1: segundo préstamo liquidado (2 préstamos).
+    // - id % 3 === 2: segundo cancelado + tercero vigente (3 préstamos).
     for (const cliente of clientes) {
       const prestamo = await this.prestamoService.crear(
         ruta.id,
@@ -443,8 +444,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         },
         requester,
       );
-      if (prestamo.id && cliente.id % 3 === 1) {
-        await this.prestamoRepo.update(prestamo.id, { estatus: "liquidado" });
+      if (cliente.id % 3 === 1) {
         const extra = await this.prestamoService.crear(
           ruta.id,
           {
@@ -455,8 +455,25 @@ export class TestDataSeedService implements OnApplicationBootstrap {
           },
           requester,
         );
-        if (extra.id && cliente.id % 3 === 2) {
+        if (prestamo.id) {
+          await this.prestamoRepo.update(prestamo.id, { estatus: "liquidado" });
+        }
+        if (extra.id) {
           await this.prestamoRepo.update(extra.id, { estatus: "cancelado" });
+        }
+      } else if (cliente.id % 3 === 2) {
+        const extra = await this.prestamoService.crear(
+          ruta.id,
+          {
+            clienteId: cliente.id,
+            valor: 250000,
+            numCuotas: 3,
+            diasEntreCuotas: 7,
+          },
+          requester,
+        );
+        if (extra.id) {
+          await this.prestamoRepo.update(extra.id, { estatus: "liquidado" });
         }
       }
     }
