@@ -2,7 +2,9 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ClienteTarjetaService, ClienteTarjetaPublic } from "../cartera/cliente-tarjeta.service";
+import { AbonosService } from "../cartera/abonos.service";
 import { CreatePrestamoInput, PrestamoService, PrestamoPublic } from "../cartera/prestamo.service";
+import { CuotaService } from "../cartera/cuota.service";
 import { RegistrarVisitaInput, VisitasService, VisitaPublic } from "../cartera/visitas.service";
 import { CobradoresPermisosService, PermisoCobradorEstado } from "../cobradores/cobradores-permisos.service";
 import { Ruta } from "../rutas/ruta.entity";
@@ -41,6 +43,8 @@ export class CobradorService {
     private readonly gastosService: GastosService,
     private readonly trayectoriasService: TrayectoriasService,
     private readonly clienteTarjetaService: ClienteTarjetaService,
+    private readonly cuotaService: CuotaService,
+    private readonly abonosService: AbonosService,
   ) {}
 
   async misRutas(cobradorId: number): Promise<RutaApkPublic[]> {
@@ -138,5 +142,33 @@ export class CobradorService {
     fechaOtorgado: Date = new Date(),
   ): Promise<PrestamoPublic> {
     return this.prestamoService.crear(rutaId, input, requester, fechaOtorgado);
+  }
+
+  async editarCuota(
+    rutaId: number,
+    cuotaId: number,
+    input: { valorEsperado?: number; fechaVencimiento?: string },
+    ctx: { password: string; motivo: string },
+    requester: RequesterOwned,
+  ) {
+    return this.cuotaService.editarCuota(rutaId, cuotaId, input, ctx, requester);
+  }
+
+  async eliminarCuota(
+    rutaId: number,
+    cuotaId: number,
+    ctx: { password: string; motivo: string },
+    requester: RequesterOwned,
+  ) {
+    return this.cuotaService.eliminarCuota(rutaId, cuotaId, ctx, requester);
+  }
+
+  async eliminarAbono(
+    rutaId: number,
+    abonoId: number,
+    ctx: { password: string; motivo: string },
+    requester: RequesterOwned,
+  ) {
+    return this.abonosService.eliminarAbono(rutaId, abonoId, ctx, requester);
   }
 }

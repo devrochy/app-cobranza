@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Req,
   UploadedFiles,
@@ -18,6 +20,8 @@ import { CobradorPermisoRequerido } from "../auth/cobrador-permiso-requerido.dec
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RegistrarVisitaDto } from "../cartera/dto/registrar-visita.dto";
 import { CreatePrestamoDto } from "../cartera/dto/create-prestamo.dto";
+import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
+import { OperacionAuditadaDto } from "../cartera/dto/operacion-auditada.dto";
 import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
 import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-real.dto";
 import { evidenciasMulterOptions } from "../rutas/evidencia-upload";
@@ -126,6 +130,55 @@ export class CobradorController {
       resto,
       this.requester(req),
       fechaOtorgado ? new Date(fechaOtorgado) : undefined,
+    );
+  }
+
+  @Patch("rutas/:rutaId/cuotas/:cuotaId")
+  @CobradorPermisoRequerido("eliminar_pago")
+  editarCuota(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("cuotaId", ParseIntPipe) cuotaId: number,
+    @Body() dto: EditarCuotaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.editarCuota(
+      rutaId,
+      cuotaId,
+      { valorEsperado: dto.valorEsperado, fechaVencimiento: dto.fechaVencimiento },
+      { password: dto.password, motivo: dto.motivo },
+      this.requester(req),
+    );
+  }
+
+  @Delete("rutas/:rutaId/cuotas/:cuotaId")
+  @CobradorPermisoRequerido("eliminar_pago")
+  eliminarCuota(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("cuotaId", ParseIntPipe) cuotaId: number,
+    @Body() dto: OperacionAuditadaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.eliminarCuota(
+      rutaId,
+      cuotaId,
+      { password: dto.password, motivo: dto.motivo },
+      this.requester(req),
+    );
+  }
+
+  @Delete("rutas/:rutaId/abonos/:abonoId")
+  @CobradorPermisoRequerido("eliminar_abono")
+  eliminarAbono(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("abonoId", ParseIntPipe) abonoId: number,
+    @Body() dto: OperacionAuditadaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.eliminarAbono(
+      rutaId,
+      abonoId,
+      { password: dto.password, motivo: dto.motivo },
+      this.requester(req),
     );
   }
 

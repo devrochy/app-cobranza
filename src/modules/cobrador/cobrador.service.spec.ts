@@ -2,7 +2,9 @@ import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
+import { AbonosService } from "../cartera/abonos.service";
 import { ClienteTarjetaService } from "../cartera/cliente-tarjeta.service";
+import { CuotaService } from "../cartera/cuota.service";
 import { PrestamoService } from "../cartera/prestamo.service";
 import { VisitasService } from "../cartera/visitas.service";
 import { Ruta } from "../rutas/ruta.entity";
@@ -25,6 +27,8 @@ describe("CobradorService", () => {
   let gastos: { registrar: jest.Mock };
   let trayectorias: { registrarReal: jest.Mock };
   let tarjeta: { obtener: jest.Mock };
+  let cuotas: { editarCuota: jest.Mock; eliminarCuota: jest.Mock };
+  let abonos: { eliminarAbono: jest.Mock };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -38,6 +42,8 @@ describe("CobradorService", () => {
     gastos = { registrar: jest.fn() };
     trayectorias = { registrarReal: jest.fn() };
     tarjeta = { obtener: jest.fn() };
+    cuotas = { editarCuota: jest.fn(), eliminarCuota: jest.fn() };
+    abonos = { eliminarAbono: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -52,6 +58,8 @@ describe("CobradorService", () => {
         { provide: GastosService, useValue: gastos },
         { provide: TrayectoriasService, useValue: trayectorias },
         { provide: ClienteTarjetaService, useValue: tarjeta },
+        { provide: CuotaService, useValue: cuotas },
+        { provide: AbonosService, useValue: abonos },
       ],
     }).compile();
 
@@ -222,6 +230,42 @@ describe("CobradorService", () => {
         requester,
         expect.any(Date),
       );
+    });
+
+    it("editarCuota delega en CuotaService con el contexto auditado", async () => {
+      const ctx = { password: "secreto", motivo: "corrección" };
+      cuotas.editarCuota.mockResolvedValue({ id: 10 });
+
+      await expect(
+        service.editarCuota(6, 10, { valorEsperado: 500 }, ctx, requester),
+      ).resolves.toEqual({ id: 10 });
+      expect(cuotas.editarCuota).toHaveBeenCalledWith(
+        6,
+        10,
+        { valorEsperado: 500 },
+        ctx,
+        requester,
+      );
+    });
+
+    it("eliminarCuota delega en CuotaService con el contexto auditado", async () => {
+      const ctx = { password: "secreto", motivo: "error" };
+      cuotas.eliminarCuota.mockResolvedValue({ id: 10 });
+
+      await expect(
+        service.eliminarCuota(6, 10, ctx, requester),
+      ).resolves.toEqual({ id: 10 });
+      expect(cuotas.eliminarCuota).toHaveBeenCalledWith(6, 10, ctx, requester);
+    });
+
+    it("eliminarAbono delega en AbonosService con el contexto auditado", async () => {
+      const ctx = { password: "secreto", motivo: "error" };
+      abonos.eliminarAbono.mockResolvedValue({ id: 30 });
+
+      await expect(
+        service.eliminarAbono(6, 30, ctx, requester),
+      ).resolves.toEqual({ id: 30 });
+      expect(abonos.eliminarAbono).toHaveBeenCalledWith(6, 30, ctx, requester);
     });
   });
 });

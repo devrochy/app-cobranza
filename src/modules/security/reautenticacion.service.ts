@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Socio } from "../socios/socio.entity";
+import { Cobrador } from "../cobradores/cobrador.entity";
 import { RolUsuario } from "../auth/auth.service";
 import { PasswordService } from "./password.service";
 
@@ -13,8 +14,8 @@ export interface ActorReautenticable {
 
 /**
  * Verifica la contraseña del operador (re-autenticación, HU-48) antes de
- * operaciones sensibles sobre cartera. Admin y socio consultan su propio hash;
- * el cobrador queda modelado para cuando exista su login.
+ * operaciones sensibles sobre cartera. Admin, socio y cobrador consultan su
+ * propio hash.
  */
 @Injectable()
 export class ReautenticacionService {
@@ -23,6 +24,8 @@ export class ReautenticacionService {
     private readonly adminRepo: Repository<AdminUser>,
     @InjectRepository(Socio)
     private readonly socioRepo: Repository<Socio>,
+    @InjectRepository(Cobrador)
+    private readonly cobradorRepo: Repository<Cobrador>,
     private readonly passwordService: PasswordService,
   ) {}
 
@@ -40,6 +43,12 @@ export class ReautenticacionService {
         select: { id: true, passwordHash: true },
       });
       hash = socio?.passwordHash ?? null;
+    } else if (actor.rol === "cobrador") {
+      const cobrador = await this.cobradorRepo.findOne({
+        where: { id: actor.sub },
+        select: { id: true, passwordHash: true },
+      });
+      hash = cobrador?.passwordHash ?? null;
     }
     if (!hash || !(await this.passwordService.compare(password, hash))) {
       throw new UnauthorizedException("La contraseña del operador es incorrecta");
