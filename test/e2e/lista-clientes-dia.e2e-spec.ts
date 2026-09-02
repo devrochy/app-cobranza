@@ -182,7 +182,7 @@ describe("Lista de clientes del día (e2e)", () => {
     await app.close();
   });
 
-  it("GET /rutas/:id/dia/clientes devuelve la lista con enTrayecto y color", async () => {
+  it("GET /rutas/:id/dia/clientes solo incluye clientes con préstamo vigente", async () => {
     // Generar trayectos para que el cliente con deuda quede en trayecto.
     await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/dia/trayectos`)
@@ -194,7 +194,6 @@ describe("Lista de clientes del día (e2e)", () => {
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThanOrEqual(2);
 
     const conDeuda = res.body.find((c: { clienteId: number; nombre: string }) =>
       c.nombre.includes("ConDeuda"),
@@ -202,21 +201,18 @@ describe("Lista de clientes del día (e2e)", () => {
     const sinDeuda = res.body.find((c: { clienteId: number; nombre: string }) =>
       c.nombre.includes("SinDeuda"),
     );
+    const liquidado = res.body.find((c: { clienteId: number; nombre: string }) =>
+      c.nombre.includes("Liquidado"),
+    );
 
+    // Solo el cliente con préstamo VIGENTE aparece en la lista del día.
     expect(conDeuda).toBeDefined();
     expect(conDeuda.enTrayecto).toBe(true);
     expect(["verde", "rojo", "blanco"]).toContain(conDeuda.color);
 
-    expect(sinDeuda).toBeDefined();
-    expect(sinDeuda.enTrayecto).toBe(false);
-    expect(sinDeuda.color).toBe("blanco");
-
-    const liquidado = res.body.find((c: { clienteId: number; nombre: string }) =>
-      c.nombre.includes("Liquidado"),
-    );
-    expect(liquidado).toBeDefined();
-    expect(liquidado.enTrayecto).toBe(false);
-    expect(liquidado.color).toBe("blanco");
+    // Cliente sin préstamos y con préstamo liquidado NO deben estar en la lista.
+    expect(sinDeuda).toBeUndefined();
+    expect(liquidado).toBeUndefined();
   });
 
   it("GET /rutas/:id/dia/clientes con ruta inexistente -> 404", async () => {

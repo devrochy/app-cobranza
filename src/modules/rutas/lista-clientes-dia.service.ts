@@ -163,7 +163,13 @@ export class ListaClientesDelDiaService {
         "esNuevo",
       )
       .from("clientes", "c")
-      .leftJoin("prestamos", "p", "p.cliente_id = c.id AND p.estatus = 'vigente'")
+      // Solo clientes con préstamo VIGENTE aparecen en la lista del día; los
+      // que no tienen deuda activa (sin préstamos o liquidados) se excluyen.
+      .innerJoin(
+        "prestamos",
+        "p",
+        "p.cliente_id = c.id AND p.estatus = 'vigente'",
+      )
       .leftJoin("cuotas", "cu", "cu.prestamo_id = p.id")
       .where("c.ruta_id = :rutaId", { rutaId })
       .andWhere("c.estatus = 'activo'")
