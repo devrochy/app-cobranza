@@ -8,6 +8,7 @@ import { AuthTokenPayload } from "../auth/auth.service";
 import { CobradorPermisoGuard } from "../auth/cobrador-permiso.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
+import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { RegistrarVisitaDto } from "../cartera/dto/registrar-visita.dto";
 import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
 import { CobradorService } from "./cobrador.service";
@@ -30,6 +31,10 @@ describe("CobradorController", () => {
     eliminarCuota: jest.fn(),
     eliminarAbono: jest.fn(),
     registrarApertura: jest.fn(),
+    crearCliente: jest.fn(),
+    actualizarCliente: jest.fn(),
+    listarNotas: jest.fn(),
+    crearNota: jest.fn(),
   };
 
   function req(sub = 20): Request & { user: AuthTokenPayload } {
@@ -51,6 +56,7 @@ describe("CobradorController", () => {
         { provide: DataSource, useValue: {} },
         Reflector,
         { provide: CobradoresPermisosService, useValue: { tienePermiso: jest.fn() } },
+        { provide: PermisosSocioService, useValue: { tienePermiso: jest.fn() } },
       ],
     }).compile();
 
@@ -58,11 +64,11 @@ describe("CobradorController", () => {
     service = module.get(CobradorService);
   });
 
-  it("misRutas delega con el sub del token", async () => {
+  it("misRutas delega con el requester del token", async () => {
     mockService.misRutas.mockResolvedValue([]);
 
     await expect(controller.misRutas(req())).resolves.toEqual([]);
-    expect(service.misRutas).toHaveBeenCalledWith(20);
+    expect(service.misRutas).toHaveBeenCalledWith({ rol: "cobrador", sub: 20 });
   });
 
   it("dia delega con la ruta y el requester del token", async () => {
@@ -146,6 +152,68 @@ describe("CobradorController", () => {
       rol: "cobrador",
       sub: 20,
     });
+  });
+
+  it("crearCliente delega en crearCliente con evidencias y requester", async () => {
+    const dto = {
+      nombre: "Ana",
+      apellido: "Lopez",
+      telefonoWhatsapp: "+59170001111",
+      latitud: -17.78,
+      longitud: -63.18,
+    };
+    const archivo = { originalname: "foto.jpg", size: 1024 } as Express.Multer.File;
+    mockService.crearCliente.mockResolvedValue({ id: 90 });
+
+    await expect(
+      controller.crearCliente(
+        6,
+        dto,
+        { foto_facial: [archivo] },
+        req(),
+      ),
+    ).resolves.toEqual({ id: 90 });
+    expect(service.crearCliente).toHaveBeenCalledWith(
+      6,
+      dto,
+      [{ tipo: "foto_facial", archivo }],
+      { rol: "cobrador", sub: 20 },
+    );
+  });
+
+  it("crearCliente no pasa evidencias si no vienen archivos", async () => {
+    mockService.crearCliente.mockResolvedValue({ id: 91 });
+
+    await expect(controller.crearCliente(6, {} as never, {}, req())).resolves.toEqual({ id: 91 });
+    expect(service.crearCliente).toHaveBeenCalledWith(6, {}, [], { rol: "cobrador", sub: 20 });
+  });
+
+  it("actualizarCliente delega en actualizarCliente con DTO y requester", async () => {
+    const dto = { nombre: "Ana", latitud: -17.78, longitud: -63.18 };
+    mockService.actualizarCliente.mockResolvedValue({ id: 90 });
+
+    await expect(controller.actualizarCliente(6, 90, dto, req())).resolves.toEqual({ id: 90 });
+    expect(service.actualizarCliente).toHaveBeenCalledWith(6, 90, dto, {
+      rol: "cobrador",
+      sub: 20,
+    });
+  });
+
+  it("listarNotas delega con ruta y requester", async () => {
+    mockService.listarNotas.mockResolvedValue([{ id: 1, nota: "n" }]);
+
+    await expect(controller.listarNotas(6, req())).resolves.toEqual([{ id: 1, nota: "n" }]);
+    expect(service.listarNotas).toHaveBeenCalledWith(6, { rol: "cobrador", sub: 20 });
+  });
+
+  it("crearNota delega con la nota y el requester", async () => {
+    mockService.crearNota.mockResolvedValue({ id: 2, nota: "hola" });
+
+    await expect(controller.crearNota(6, { nota: "hola" }, req())).resolves.toEqual({
+      id: 2,
+      nota: "hola",
+    });
+    expect(service.crearNota).toHaveBeenCalledWith(6, "hola", { rol: "cobrador", sub: 20 });
   });
 
   it("prestamos delega en crearPrestamo con fecha parseada y requester", async () => {

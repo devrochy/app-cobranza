@@ -21,6 +21,9 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ClienteEvidenciaInput } from "../cartera/cliente.service";
 import { RegistrarVisitaDto } from "../cartera/dto/registrar-visita.dto";
 import { CreatePrestamoDto } from "../cartera/dto/create-prestamo.dto";
+import { CreateClienteDto } from "../cartera/dto/create-cliente.dto";
+import { ActualizarClienteDto } from "../cartera/dto/actualizar-cliente.dto";
+import { CrearNotaDto } from "../rutas/dto/crear-nota.dto";
 import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
 import { OperacionAuditadaDto } from "../cartera/dto/operacion-auditada.dto";
 import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
@@ -50,7 +53,7 @@ export class CobradorController {
   @Get("mis-rutas")
   @CobradorPermisoRequerido("ver_cartera")
   misRutas(@Req() req: Request & { user: AuthTokenPayload }) {
-    return this.cobradorService.misRutas(req.user.sub);
+    return this.cobradorService.misRutas(this.requester(req));
   }
 
   @Post("rutas/:rutaId/posicion")
@@ -232,6 +235,67 @@ export class CobradorController {
     return this.cobradorService.listarClientesDeRuta(rutaId, this.requester(req));
   }
 
+  @Post("rutas/:rutaId/clientes")
+  @CobradorPermisoRequerido("actualizar_cliente")
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: "foto_facial", maxCount: 1 },
+        { name: "documento_frente", maxCount: 1 },
+        { name: "documento_reverso", maxCount: 1 },
+      ],
+      clienteFotosMulterOptions,
+    ),
+  )
+  crearCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: CreateClienteDto,
+    @UploadedFiles() files: {
+      foto_facial?: Express.Multer.File[];
+      documento_frente?: Express.Multer.File[];
+      documento_reverso?: Express.Multer.File[];
+    },
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    const evidencias: ClienteEvidenciaInput[] = [];
+    const mapa: Array<{
+      campo: "foto_facial" | "documento_frente" | "documento_reverso";
+      tipo: "foto_facial" | "documento_frente" | "documento_reverso";
+    }> = [
+      { campo: "foto_facial", tipo: "foto_facial" },
+      { campo: "documento_frente", tipo: "documento_frente" },
+      { campo: "documento_reverso", tipo: "documento_reverso" },
+    ];
+    for (const { campo, tipo } of mapa) {
+      const lista = files?.[campo];
+      if (lista && lista.length > 0) {
+        evidencias.push({ tipo, archivo: lista[0] });
+      }
+    }
+    return this.cobradorService.crearCliente(
+      rutaId,
+      dto,
+      evidencias,
+      this.requester(req),
+    );
+  }
+
+  @Patch("rutas/:rutaId/clientes/:clienteId")
+  @CobradorPermisoRequerido("actualizar_cliente")
+  actualizarCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Body() dto: ActualizarClienteDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.actualizarCliente(
+      rutaId,
+      clienteId,
+      dto,
+      this.requester(req),
+    );
+  }
+
   @Get("rutas/:rutaId/prestamos/:prestamoId/estado-cuenta")
   @CobradorPermisoRequerido("ver_cartera")
   estadoCuentaPrestamo(
@@ -242,6 +306,22 @@ export class CobradorController {
     return this.cobradorService.obtenerEstadoCuentaPrestamo(
       rutaId,
       prestamoId,
+      this.requester(req),
+    );
+  }
+
+  @Get("rutas/:rutaId/prestamos/:prestamoId/cuotas/:cuotaId/detalle")
+  @CobradorPermisoRequerido("ver_cartera")
+  detalleCuota(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("prestamoId", ParseIntPipe) prestamoId: number,
+    @Param("cuotaId", ParseIntPipe) cuotaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.obtenerDetalleCuota(
+      rutaId,
+      prestamoId,
+      cuotaId,
       this.requester(req),
     );
   }
@@ -313,5 +393,24 @@ export class CobradorController {
       clienteId,
       this.requester(req),
     );
+  }
+
+  @Get("rutas/:rutaId/notas")
+  @CobradorPermisoRequerido("anotar_notas_ruta")
+  listarNotas(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.listarNotas(rutaId, this.requester(req));
+  }
+
+  @Post("rutas/:rutaId/notas")
+  @CobradorPermisoRequerido("anotar_notas_ruta")
+  crearNota(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: CrearNotaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.crearNota(rutaId, dto.nota, this.requester(req));
   }
 }
