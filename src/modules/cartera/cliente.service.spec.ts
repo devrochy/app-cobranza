@@ -548,6 +548,22 @@ describe("ClienteService", () => {
       expect(res[0].fotoUrl).toBe("/uploads/clientes/ana.jpg");
     });
 
+    it("normaliza a URL servible el fotoUrl cuando la evidencia guarda un path absoluto", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
+      (mockClienteRepo.find as jest.Mock).mockResolvedValue(clienteFilas);
+      (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([
+        {
+          clienteId: clienteFilas[0].id,
+          tipo: "foto_facial",
+          rutaArchivo: "/Users/roaguilar/Projects/app-cobranza/uploads/clientes/ana.jpg",
+        },
+      ]);
+
+      const res = await service.listar(10, adminCtx);
+
+      expect(res[0].fotoUrl).toBe("/uploads/clientes/ana.jpg");
+    });
+
     it("lanza 404 si la ruta no existe al listar", async () => {
       (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(null);
       await expect(service.listar(999, adminCtx)).rejects.toThrow(NotFoundException);

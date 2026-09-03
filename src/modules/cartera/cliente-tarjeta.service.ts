@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { urlArchivoServible } from "../../common/url-archivo";
 import { RolUsuario } from "../auth/auth.service";
 import { ColorRiesgo } from "../../domain/color-riesgo";
 import { diasDeMora, TipoPagoTarjeta, tipoPagoDesdeDiasEntreCuotas } from "../../domain/tarjeta-cliente";
@@ -63,7 +64,9 @@ export class ClienteTarjetaService {
       where: { cliente: { id: clienteId } },
     });
     const urlDe = (tipo: "foto_facial" | "documento_frente" | "documento_reverso") =>
-      evidencias.find((e) => e.tipo === tipo)?.rutaArchivo ?? null;
+      urlArchivoServible(
+        evidencias.find((e) => e.tipo === tipo)?.rutaArchivo ?? null,
+      );
 
     const prestamos = await this.obtenerPrestamosVigentes(clienteId);
     const diasEntreCuotas = prestamos.map((p) => p.diasEntreCuotas);

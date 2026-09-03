@@ -104,6 +104,14 @@ describe("DetalleCuotaService", () => {
 
     const resultado = await service.obtener(1, 5, 51, cobradorContext);
 
+    expect(pagoRepo.find).toHaveBeenCalledWith({
+      where: { cuota: { id: 51 } },
+      order: { fechaHora: "ASC" },
+    });
+    expect(abonoRepo.find).toHaveBeenCalledWith({
+      where: { prestamo: { id: 5 } },
+      order: { fechaHora: "ASC" },
+    });
     expect(resultado.cuotaId).toBe(51);
     expect(resultado.numeroCuota).toBe(1);
     expect(resultado.pagos).toHaveLength(1);
@@ -132,6 +140,10 @@ describe("DetalleCuotaService", () => {
 
     const resultado = await service.obtener(1, 5, 51, cobradorContext);
 
+    expect(visitaRepo.find).toHaveBeenCalledWith({
+      where: { prestamoPrincipal: { id: 5 } },
+      order: { id: "DESC" },
+    });
     expect(resultado.ultimaVisita).toMatchObject({
       resultado: "no_pago",
       motivoNoPago: "no_esta",

@@ -133,4 +133,36 @@ describe("ClienteTarjetaService", () => {
     expect(result.tipoPago).toBe("Varios");
     expect(result.fotoUrl).toBeNull();
   });
+
+  it("normaliza a URL servible los rutaArchivo absolutos del filesystem", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture());
+    (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([
+      {
+        tipo: "foto_facial",
+        rutaArchivo: "/Users/roaguilar/Projects/app-cobranza/uploads/clientes/foto.jpg",
+      } as ClienteEvidencia,
+      {
+        tipo: "documento_frente",
+        rutaArchivo: "/uploads/gastos/inexistente.jpg",
+      } as ClienteEvidencia,
+      {
+        tipo: "documento_reverso",
+        rutaArchivo: "/uploads/clientes/reverso.jpg",
+      } as ClienteEvidencia,
+    ]);
+    (service as unknown as { obtenerPrestamosVigentes: jest.Mock }).obtenerPrestamosVigentes = jest
+      .fn()
+      .mockResolvedValue([]);
+    (service as unknown as { obtenerSaldoYMorosidad: jest.Mock }).obtenerSaldoYMorosidad = jest
+      .fn()
+      .mockResolvedValue({ saldoPendiente: 0, fechaVencidaMasAntigua: null });
+
+    const result = await service.obtener(1, 10, adminContext);
+
+    expect(result.fotoUrl).toBe("/uploads/clientes/foto.jpg");
+    // Una URL que ya es servible (/uploads/...) no se altera.
+    expect(result.documentoFrenteUrl).toBe("/uploads/gastos/inexistente.jpg");
+    expect(result.documentoReversoUrl).toBe("/uploads/clientes/reverso.jpg");
+  });
 });

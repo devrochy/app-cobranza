@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { urlArchivoServible } from "../../common/url-archivo";
 import { RolUsuario } from "../auth/auth.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { Ruta } from "../rutas/ruta.entity";
@@ -437,7 +438,7 @@ export class ClienteService {
     const map = new Map<number, string>();
     for (const e of evidencias) {
       if (!map.has(e.clienteId)) {
-        map.set(e.clienteId, e.rutaArchivo);
+        map.set(e.clienteId, urlArchivoServible(e.rutaArchivo) ?? e.rutaArchivo);
       }
     }
     return map;

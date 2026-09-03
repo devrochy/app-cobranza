@@ -102,13 +102,16 @@ export class DetalleCuotaService {
         where: { prestamo: { id: prestamoId } },
         order: { numeroCuota: "ASC" },
       }),
-      this.pagoRepo.find({ where: { cuotaId }, order: { fechaHora: "ASC" } }),
+      this.pagoRepo.find({
+        where: { cuota: { id: cuotaId } },
+        order: { fechaHora: "ASC" },
+      }),
       this.abonoRepo.find({
-        where: { prestamoId },
+        where: { prestamo: { id: prestamoId } },
         order: { fechaHora: "ASC" },
       }),
       this.visitaRepo.find({
-        where: { prestamoPrincipalId: prestamoId },
+        where: { prestamoPrincipal: { id: prestamoId } },
         order: { id: "DESC" },
       }),
     ]);
