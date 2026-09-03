@@ -188,6 +188,16 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         await this.sembrarManizales(cobrador.id, socio.id, requester);
       }
     }
+
+    // Ruta inactiva: crea una ruta en estado "bloqueado" si aún no existe, para
+    // que la APK muestre la tarjeta de ruta no activa (roja/opaca).
+    const inactiva = rutas.find((r) => r.nombre === "test-Ruta Inactiva");
+    if (!inactiva) {
+      const cobrador = cobradores[0];
+      if (cobrador) {
+        await this.sembrarRutaInactiva(cobrador.id, socio.id, requester);
+      }
+    }
   }
 
   private async sembrarPrestamosYPagos(
@@ -376,6 +386,9 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     // Ruta de prueba en Manizales (COP) con clientes de nombres reales,
     // multi-préstamo y trayecto planificado generado (pruebas de trayectos/día).
     await this.sembrarManizales(cobradorA.id, socio.id, requester);
+
+    // Ruta inactiva (bloqueada) para ver la tarjeta no activa en la APK.
+    await this.sembrarRutaInactiva(cobradorA.id, socio.id, requester);
   }
 
   private async sembrarManizales(
@@ -491,6 +504,37 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     await this.pagarAlgunasCuotas(ruta.id, requester);
     await this.registrarAbonoParcial(ruta.id, requester);
     await this.rutaOptimizacionService.generar(ruta.id, requester);
+  }
+
+  private async sembrarRutaInactiva(
+    cobradorId: number,
+    socioId: number,
+    requester: { rol: "admin"; sub: number },
+  ): Promise<void> {
+    const existente = await this.rutaRepo.findOne({
+      where: { nombre: "test-Ruta Inactiva" },
+    });
+    if (existente) {
+      return;
+    }
+    const ruta = await this.rutasService.create(
+      {
+        nombre: "test-Ruta Inactiva",
+        descripcion: "Ruta demo inactiva (bloqueada) para pruebas de la APK",
+        socioId,
+        cobradorId,
+        tipoInteres: 18,
+        numCuotas: 6,
+        moneda: "BOB",
+        saldoInicial: 0,
+        costoCobro: 0,
+      },
+      requester,
+    );
+    // Marca la ruta como bloqueada: en el dominio no existe "inactivo", el
+    // estado no-activo disponible es "bloqueado". La APK la muestra como
+    // tarjeta roja/opaca (estatus !== "activo").
+    await this.rutaRepo.update(ruta.id, { estatus: "bloqueado" });
   }
 
   private async seedClientes(
