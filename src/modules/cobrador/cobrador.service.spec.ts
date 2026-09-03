@@ -147,7 +147,7 @@ describe("CobradorService", () => {
       const result = await service.misRutas(socioRequester);
 
       expect(rutaRepo.find).toHaveBeenCalledWith({
-        where: { socioId: 3 },
+        where: { socio: { id: 3 } },
         order: { id: "ASC" },
       });
       expect(result[0].permisos).toEqual(

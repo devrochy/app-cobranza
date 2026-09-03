@@ -102,7 +102,7 @@ export class CobradorService {
   async misRutas(requester: RequesterOwned): Promise<RutaApkPublic[]> {
     const where =
       requester.rol === "socio"
-        ? { socioId: requester.sub }
+        ? { socio: { id: requester.sub } }
         : { cobrador: { id: requester.sub } };
     const rutas = await this.rutaRepo.find({
       where,
