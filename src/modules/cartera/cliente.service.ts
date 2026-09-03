@@ -202,7 +202,17 @@ export class ClienteService {
       (await this.configRepo.findOne({ where: { ruta: { id: rutaId } } })) ??
       (RutaConfigDefaults as RutaConfig);
 
-    const tiposPresentes = new Set(evidencias.map((e) => e.tipo));
+    // Evidencias que el cliente ya tiene (para no exigir re-subir las que ya
+    // están guardadas). El cobrador puede actualizar SOLO la foto o SOLO el
+    // documento sin que la validación de la config lo rechace.
+    const existentes = await this.evidenciaRepo.find({
+      where: { cliente: { id: clienteId } },
+    });
+    const tiposExistentes = new Set(existentes.map((e) => e.tipo));
+    const tiposPresentes = new Set([
+      ...tiposExistentes,
+      ...evidencias.map((e) => e.tipo),
+    ]);
     if (config.reconocimientoFacialActivo && !tiposPresentes.has("foto_facial")) {
       throw new BadRequestException("La foto facial es obligatoria");
     }
