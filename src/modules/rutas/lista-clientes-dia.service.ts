@@ -194,13 +194,15 @@ export class ListaClientesDelDiaService {
 
   private async clientesConVisitaPagoHoy(rutaId: number): Promise<number[]> {
     const hoy = this.fechaLocal(new Date());
+    // Cuenta cualquier visita de hoy (pago/abono o no pago): habilita la
+    // liquidación del día solo cuando todos los clientes fueron visitados.
     const filas = await this.logRepo.manager
       .createQueryBuilder()
       .select("DISTINCT v.cliente_id", "clienteId")
       .from("visitas", "v")
       .where("v.ruta_id = :rutaId", { rutaId })
       .andWhere("v.fecha = :hoy", { hoy })
-      .andWhere("v.resultado = 'pago'")
+      .andWhere("v.resultado IN ('pago', 'no_pago')")
       .getRawMany<{ clienteId: string }>();
     return filas.map((f) => Number(f.clienteId));
   }
