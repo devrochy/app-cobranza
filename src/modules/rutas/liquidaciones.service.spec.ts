@@ -153,6 +153,8 @@ describe("LiquidacionesService", () => {
   }
 
   function makeDataSource(qbs: unknown[], ultima: Liquidacion | null, cajaActual: Caja) {
+    const repoPagoLista = { find: jest.fn().mockResolvedValue([]) };
+    const repoAbonoLista = { find: jest.fn().mockResolvedValue([]) };
     return {
       transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) => {
         const ctx = makeManager(qbs);
@@ -168,6 +170,9 @@ describe("LiquidacionesService", () => {
         ctx.managerAbonoRepo.save.mockImplementation(async (a) => a);
         return fn(ctx.manager);
       }),
+      getRepository: jest.fn((entity: unknown) =>
+        entity === Pago ? repoPagoLista : repoAbonoLista,
+      ),
     };
   }
 
@@ -526,6 +531,8 @@ describe("LiquidacionesService - historial y exportación", () => {
     service = module.get(LiquidacionesService);
     rutaRepo = module.get(getRepositoryToken(Ruta));
     liquidacionRepo = module.get(getRepositoryToken(Liquidacion));
+    (mockPagoRepo.find as jest.Mock).mockResolvedValue([]);
+    (mockAbonoRepo.find as jest.Mock).mockResolvedValue([]);
   });
 
   it("listar lanza NotFoundException si la ruta no existe", async () => {
