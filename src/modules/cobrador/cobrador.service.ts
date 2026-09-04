@@ -6,6 +6,7 @@ import { ClienteService, ClientePublic, ClienteCambioPublic, ClienteEvidenciaInp
 import { EstadoCuentaService, EstadoCuentaPrestamoPublic } from "../cartera/estado-cuenta.service";
 import { DetalleCuotaService, DetalleCuotaPublic } from "../cartera/detalle-cuota.service";
 import { AbonosService } from "../cartera/abonos.service";
+import { PagosService } from "../cartera/pagos.service";
 import { CreatePrestamoInput, PrestamoService, PrestamoPublic } from "../cartera/prestamo.service";
 import { CuotaService } from "../cartera/cuota.service";
 import { RutasAperturaService } from "../rutas/rutas-apertura.service";
@@ -85,6 +86,7 @@ export class CobradorService {
     private readonly estadoCuentaService: EstadoCuentaService,
     private readonly cuotaService: CuotaService,
     private readonly abonosService: AbonosService,
+    private readonly pagosService: PagosService,
     private readonly aperturasService: RutasAperturaService,
     private readonly posicionService: PosicionCobradorService,
     private readonly detalleCuotaService: DetalleCuotaService,
@@ -310,6 +312,15 @@ export class CobradorService {
     requester: RequesterOwned,
   ) {
     return this.abonosService.eliminarAbono(rutaId, abonoId, ctx, requester);
+  }
+
+  async eliminarPago(
+    rutaId: number,
+    pagoId: number,
+    ctx: { password: string; motivo: string },
+    requester: RequesterOwned,
+  ) {
+    return this.pagosService.eliminarPago(rutaId, pagoId, ctx, requester);
   }
 
   async registrarApertura(

@@ -226,6 +226,22 @@ export class CobradorController {
     );
   }
 
+  @Delete("rutas/:rutaId/pagos/:pagoId")
+  @CobradorPermisoRequerido("eliminar_pago")
+  eliminarPago(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("pagoId", ParseIntPipe) pagoId: number,
+    @Body() dto: OperacionAuditadaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.eliminarPago(
+      rutaId,
+      pagoId,
+      { password: dto.password, motivo: dto.motivo },
+      this.requester(req),
+    );
+  }
+
   @Get("rutas/:rutaId/clientes")
   @CobradorPermisoRequerido("ver_cartera")
   listarClientesDeRuta(
