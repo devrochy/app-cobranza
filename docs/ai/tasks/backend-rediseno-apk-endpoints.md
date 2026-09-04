@@ -27,3 +27,8 @@ Exponer al rol cobrador (y socio vía JWT) los endpoints que la APK necesita par
 - Comandos: `scripts/check.sh` backend verde (lint + typecheck + tests).
 - Archivos: `src/modules/cartera/detalle-cuota.service.ts` (+spec), `cobrador.service.ts` (+spec), `cobrador.controller.ts` (+spec), `cobrador-permiso.guard.ts` (+spec), `cartera.module.ts`.
 - Pendientes: edición de ruta para socio en APK (backlog).
+## 2026-09-04 — logging HTTP, fix posición socio y avatares uniformes
+- **RequestLoggingInterceptor** global: loguea `method ruta status duración` y el cuerpo de errores >=400 (NestJS no loguea excepciones HTTP manejadas). `src/common/request-logging.interceptor.ts` (+spec). Habilitado vía `APP_INTERCEPTOR` en `app.module.ts`.
+- **Fix `posicion_cobrador`**: `cobradorId` ahora sale de `ruta.cobrador` (no de `requester.sub`). La APK envía posición también cuando entra como socio; `requester.sub` (id de socio) violaba la FK a `cobradores(id)` → 500 cada 30s. Verificado: POST posición como socio → 201.
+- **Seed sin fotos**: se eliminó la silueta PNG (`AVATAR_PLACEHOLDER`, `evidenciaCliente`, param `conFotos`); todos los clientes de prueba se siembran sin evidencias → avatar icono uniforme en todas las rutas. Limpieza live: 30 evidencias + 32 archivos `test-*` borrados; se conservan los 5 clientes con foto real creados en pruebas.
+- **Límite Multer fotos 15MB** (5MB→15MB) + spec: `cliente-foto-upload.spec.ts`.
