@@ -32,6 +32,9 @@ export const clienteFotosMulterOptions = {
     }
   },
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    // Hasta 15MB por archivo: la APK envía hasta 3 fotos juntas al crear un
+    // cliente (foto facial + documento frente/reverso) y la cámara del
+    // celular puede generar archivos grandes (quality 0.6 en la APK).
+    fileSize: 15 * 1024 * 1024,
   },
 };

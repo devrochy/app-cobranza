@@ -33,12 +33,12 @@ import { ArchivoSubido } from "../cartera/cliente.service";
 const PASSWORD_PRUEBA = "test-password";
 const MARCADOR_SOCIO = "test-socio-1";
 
-// JPEG de 1x1 px (en base64) para los placeholders de fotos de clientes del
-// seed: se escribe en uploads/clientes/ para que el servidor estático pueda
-// servirlo y la foto del cliente cargue en APK/panel. Es un PNG 160x160 de
-// color suave (visible en la APK), no un JPEG 1x1 que casi no se ve.
-const JPEG_PLACEHOLDER = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAIAAAAErfB6AAABiElEQVR4nO3RAQkAIBDAwO9f0QaGEFOIMA4uwGCz9iFsvhfwlMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBscZHGdwnMFxBsddJ7Y8LQNhu6QAAAAASUVORK5CYII=",
+// PNG 160x160 con una silueta de persona visible (avatar de ejemplo) para los
+// placeholders de fotos de clientes del seed: se escribe en uploads/clientes/
+// para que el servidor estático pueda servirlo y la foto cargue en APK/panel.
+// Es un PNG (no JPEG) para que se vea nítido en el avatar.
+const AVATAR_PLACEHOLDER = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAIAAAAErfB6AAAChklEQVR4nO3cwYkVURiE0cnL7ExzMjAAl6IwG8ERlJnuulV94Avg/nV48Fb98vrth4Z7ib9AlwZ4PMDjAR4P8HiAxwM8HuDxAI8HeDzA4wEeD/B4gMcDPB7g8QCPB3g8wOMBHg/weIDHAzwe4PEAjwd4PMDjAR4P8HiAxwM8HuDxAI8HeDzA4z0O+MvX7/E33Nky8C/Lfy/+2osaBP4v13npKeAP0k4y7wB/ou6S8QLwp9MuMdcDX6o7YNwNfINuu3Ex8G261catwDfr9hpXAkd0S437gIO6jcaAAZ9UXLfOuAk47tpoDBjwGcVFS40BAz6jOCfgZ+m2GAMGfEBxSMCADw0w4AOKQwIGfGgFwHHFauMC4JON48sABpx+AWDAgAEDBgz43OKQgJ9oHN8EMGDAgM8pLlqnCxjwYcVdu3T7gE8wji8AGHAzcNY4fvsjgFPG8asfBHy/cfzexwHfaRy/9KHA9xjHb3w08NXG8es+2ALwW2jfbQf41ddm32sK+C20vzcF7Bf8ZyPA/mH9rQXgi3Q3jLuBL6XdYC4Gvk232rgV+GbdXuNK4IhuqXEfcFC30bgMOK5bZ9wEHHdtNK4BjouWGgMGfEBxy17jAuC4YrUxYMB0m40BA6bbbAwYMN1mY8CA6TYbAwZMt9kYMGDAgAEDfoTugcaAAQMGDBjwU3RPMwYMGDBgwIABAwYMuKX4koABAwYMGPATdY8yPgh4yTi+JGDAgAEDBgwYMGDAdcWXBAwYMGDAgJ9oHN8QMGDAgAEDfqJxfD3AgNPFkQADBvxI4/hugAEfU1xrQBcwYMbNuoABp4vLVesCBnxAcb9eXcCAzyiuWKpbA3ymcXwTwIB//ARP6+HYDNsjkQAAAABJRU5ErkJggg==",
   "base64",
 );
 
@@ -623,14 +623,14 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     const rutaDisco = join(process.cwd(), "uploads", "clientes", nombre);
     mkdirSync(dirname(rutaDisco), { recursive: true });
     if (!existsSync(rutaDisco)) {
-      writeFileSync(rutaDisco, JPEG_PLACEHOLDER);
+      writeFileSync(rutaDisco, AVATAR_PLACEHOLDER);
     }
     return {
       tipo,
       archivo: {
         originalname: nombre,
-        mimetype: "image/jpeg",
-        size: JPEG_PLACEHOLDER.length,
+        mimetype: "image/png",
+        size: AVATAR_PLACEHOLDER.length,
         filename: nombre,
         path: `/uploads/clientes/${nombre}`,
       } as ArchivoSubido,
