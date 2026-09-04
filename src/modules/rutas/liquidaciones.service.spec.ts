@@ -2,6 +2,8 @@ import { ConflictException, ForbiddenException, NotFoundException } from "@nestj
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
+import { Pago } from "../cartera/pago.entity";
+import { Abono } from "../cartera/abono.entity";
 import { Caja } from "./caja.entity";
 import { Ruta } from "./ruta.entity";
 import { RutaConfig } from "./ruta-config.entity";
@@ -130,11 +132,15 @@ describe("LiquidacionesService", () => {
       save: jest.fn(),
     };
     const managerCajaRepo = { findOne: jest.fn() };
+    const managerPagoRepo = { find: jest.fn(), save: jest.fn() };
+    const managerAbonoRepo = { find: jest.fn(), save: jest.fn() };
     const qbCalls: jest.Mock[] = [];
     const manager = {
       getRepository: jest.fn((entity: unknown) => {
         if (entity === Liquidacion) return managerLiquidacionRepo;
         if (entity === Caja) return managerCajaRepo;
+        if (entity === Pago) return managerPagoRepo;
+        if (entity === Abono) return managerAbonoRepo;
         return {};
       }),
       createQueryBuilder: jest.fn(() => {
@@ -143,7 +149,7 @@ describe("LiquidacionesService", () => {
         return qb;
       }),
     };
-    return { manager, managerLiquidacionRepo, managerCajaRepo };
+    return { manager, managerLiquidacionRepo, managerCajaRepo, managerPagoRepo, managerAbonoRepo };
   }
 
   function makeDataSource(qbs: unknown[], ultima: Liquidacion | null, cajaActual: Caja) {
@@ -156,6 +162,10 @@ describe("LiquidacionesService", () => {
         ctx.managerLiquidacionRepo.save.mockImplementation(async (l: Liquidacion) =>
           liquidacionFixture({ ...l, id: 10 }),
         );
+        ctx.managerPagoRepo.find.mockResolvedValue([]);
+        ctx.managerAbonoRepo.find.mockResolvedValue([]);
+        ctx.managerPagoRepo.save.mockImplementation(async (p) => p);
+        ctx.managerAbonoRepo.save.mockImplementation(async (a) => a);
         return fn(ctx.manager);
       }),
     };
@@ -298,6 +308,8 @@ describe("LiquidacionesService", () => {
     );
     ctx.managerLiquidacionRepo.findOne.mockResolvedValue(null);
     ctx.managerCajaRepo.findOne.mockResolvedValue(cajaFixture());
+    ctx.managerPagoRepo.find.mockResolvedValue([]);
+    ctx.managerAbonoRepo.find.mockResolvedValue([]);
     await transactionFn(ctx.manager);
 
     expect(createdPayload).toMatchObject({
@@ -348,6 +360,8 @@ describe("LiquidacionesService", () => {
     const ctx = makeManager([]);
     ctx.managerLiquidacionRepo.findOne.mockResolvedValue(null);
     ctx.managerCajaRepo.findOne.mockResolvedValue(cajaFixture());
+    ctx.managerPagoRepo.find.mockResolvedValue([]);
+    ctx.managerAbonoRepo.find.mockResolvedValue([]);
     const transactionFn = ds.transaction.mock.calls[0][0] as (m: unknown) => Promise<unknown>;
     let createdPayload: unknown;
     ctx.managerLiquidacionRepo.create.mockImplementation((e: Partial<Liquidacion>) => {
@@ -360,6 +374,85 @@ describe("LiquidacionesService", () => {
     await transactionFn(ctx.manager);
 
     expect(createdPayload).toMatchObject({ cajaAnterior: 1000, cajaActual: 1500 });
+  });
+
+  it("marca como liquidados los pagos y abonos del periodo y devuelve su detalle", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue(configFixture());
+    (cajaRepo.findOne as jest.Mock).mockResolvedValue(cajaFixture());
+
+    const qbs = [
+      qbMock({ total: 1000 }),
+      qbMock({ total: 0 }),
+      qbMock({ total: 200 }),
+      qbMock({ total: 200 }),
+      qbMock({ total: 500 }),
+      qbMock({ total: 50 }),
+      qbMock({ total: 300 }),
+    ];
+    const ds = makeDataSource(qbs, null, cajaFixture());
+    const module = await Test.createTestingModule({
+      providers: [
+        LiquidacionesService,
+        { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
+        { provide: getRepositoryToken(RutaConfig), useValue: mockConfigRepo },
+        { provide: getRepositoryToken(Caja), useValue: mockCajaRepo },
+        { provide: getRepositoryToken(Liquidacion), useValue: { findOne: jest.fn() } },
+        { provide: DataSource, useValue: ds },
+      ],
+    }).compile();
+    const srv = module.get(LiquidacionesService);
+
+    const pago = {
+      id: 11,
+      clienteId: 7,
+      cliente: { nombre: "Ana", apellido: "Ríos" },
+      valor: 100,
+      metodoPago: "efectivo",
+      fechaHora: new Date("2026-09-04T14:00:00Z"),
+      liquidado: false,
+      fechaLiquidacion: null,
+    };
+    const abono = {
+      id: 21,
+      clienteId: 8,
+      cliente: { nombre: "Luis", apellido: "Paz" },
+      valor: 50,
+      metodoPago: "efectivo",
+      fechaHora: new Date("2026-09-04T15:00:00Z"),
+      liquidado: false,
+      fechaLiquidacion: null,
+    };
+
+    await srv.generar(1, {}, adminContext);
+
+    const transactionFn = ds.transaction.mock.calls[0][0] as (m: unknown) => Promise<unknown>;
+    const ctx = makeManager(qbs);
+    ctx.managerLiquidacionRepo.findOne.mockResolvedValue(null);
+    ctx.managerCajaRepo.findOne.mockResolvedValue(cajaFixture());
+    ctx.managerPagoRepo.find.mockResolvedValue([pago]);
+    ctx.managerAbonoRepo.find.mockResolvedValue([abono]);
+    ctx.managerLiquidacionRepo.create.mockImplementation((e) => e as Liquidacion);
+    ctx.managerLiquidacionRepo.save.mockImplementation(async (l) => liquidacionFixture({ ...l, id: 10 }));
+    const guardado = (await transactionFn(ctx.manager)) as {
+      pagos: unknown[];
+      abonos: unknown[];
+    };
+
+    // Se marcaron como liquidados antes de guardarse.
+    expect(ctx.managerPagoRepo.save).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ id: 11, liquidado: true })]),
+    );
+    expect(ctx.managerAbonoRepo.save).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ id: 21, liquidado: true })]),
+    );
+    // El resultado incluye el detalle de pagos y abonos.
+    expect(guardado.pagos).toEqual([
+      expect.objectContaining({ id: 11, clienteNombre: "Ana Ríos", valor: 100, liquidado: true }),
+    ]);
+    expect(guardado.abonos).toEqual([
+      expect.objectContaining({ id: 21, clienteNombre: "Luis Paz", valor: 50, liquidado: true }),
+    ]);
   });
 });
 
