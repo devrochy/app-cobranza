@@ -2,8 +2,6 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Socio } from "../socios/socio.entity";
 import { SociosService } from "../socios/socios.service";
@@ -32,14 +30,6 @@ import { ArchivoSubido } from "../cartera/cliente.service";
 
 const PASSWORD_PRUEBA = "test-password";
 const MARCADOR_SOCIO = "test-socio-1";
-
-// JPEG de 1x1 px (en base64) para los placeholders de fotos de clientes del
-// seed: se escribe en uploads/clientes/ para que el servidor estático pueda
-// servirlo y la foto del cliente cargue en APK/panel.
-const JPEG_PLACEHOLDER = Buffer.from(
-  "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EB//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EB//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EB//2Q==",
-  "base64",
-);
 
 /**
  * Matriz de permisos de la APK para los cobradores de prueba (ver_cartera +
@@ -188,6 +178,16 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         await this.sembrarManizales(cobrador.id, socio.id, requester);
       }
     }
+
+    // Ruta inactiva: crea una ruta en estado "bloqueado" si aún no existe, para
+    // que la APK muestre la tarjeta de ruta no activa (roja/opaca).
+    const inactiva = rutas.find((r) => r.nombre === "test-Ruta Inactiva");
+    if (!inactiva) {
+      const cobrador = cobradores[0];
+      if (cobrador) {
+        await this.sembrarRutaInactiva(cobrador.id, socio.id, requester);
+      }
+    }
   }
 
   private async sembrarPrestamosYPagos(
@@ -332,8 +332,8 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       requester,
     );
 
-    const clientesA = await this.seedClientes(rutaA.id, "A", 8, requester, true);
-    const clientesB = await this.seedClientes(rutaB.id, "B", 8, requester, false);
+    const clientesA = await this.seedClientes(rutaA.id, "A", 8, requester);
+    const clientesB = await this.seedClientes(rutaB.id, "B", 8, requester);
 
     // Préstamos con mora (hace ~25 días) en ruta A; recientes en ruta B.
     // Pagos "de hoy" de algunas cuotas + abono parcial FIFO (canvas de cuotas).
@@ -376,6 +376,9 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     // Ruta de prueba en Manizales (COP) con clientes de nombres reales,
     // multi-préstamo y trayecto planificado generado (pruebas de trayectos/día).
     await this.sembrarManizales(cobradorA.id, socio.id, requester);
+
+    // Ruta inactiva (bloqueada) para ver la tarjeta no activa en la APK.
+    await this.sembrarRutaInactiva(cobradorA.id, socio.id, requester);
   }
 
   private async sembrarManizales(
@@ -431,10 +434,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
           longitud: -75.52 + (i % 3) * 0.014,
           negocio: dato.negocio,
         },
-        [
-          this.evidenciaCliente("foto_facial", `test-foto-mz-${i + 1}.jpg`),
-          this.evidenciaCliente("documento_frente", `test-doc-mz-${i + 1}.jpg`),
-        ],
+        [],
         requester,
       );
       clientes.push({ id: cliente.id });
@@ -493,21 +493,45 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     await this.rutaOptimizacionService.generar(ruta.id, requester);
   }
 
+  private async sembrarRutaInactiva(
+    cobradorId: number,
+    socioId: number,
+    requester: { rol: "admin"; sub: number },
+  ): Promise<void> {
+    const existente = await this.rutaRepo.findOne({
+      where: { nombre: "test-Ruta Inactiva" },
+    });
+    if (existente) {
+      return;
+    }
+    const ruta = await this.rutasService.create(
+      {
+        nombre: "test-Ruta Inactiva",
+        descripcion: "Ruta demo inactiva (bloqueada) para pruebas de la APK",
+        socioId,
+        cobradorId,
+        tipoInteres: 18,
+        numCuotas: 6,
+        moneda: "BOB",
+        saldoInicial: 0,
+        costoCobro: 0,
+      },
+      requester,
+    );
+    // Marca la ruta como bloqueada: en el dominio no existe "inactivo", el
+    // estado no-activo disponible es "bloqueado". La APK la muestra como
+    // tarjeta roja/opaca (estatus !== "activo").
+    await this.rutaRepo.update(ruta.id, { estatus: "bloqueado" });
+  }
+
   private async seedClientes(
     rutaId: number,
     sufijo: string,
     cantidad: number,
     requester: { rol: "admin"; sub: number },
-    conFotos: boolean,
   ): Promise<{ id: number }[]> {
     const clientes: { id: number }[] = [];
     for (let i = 0; i < cantidad; i++) {
-      const evidencias = conFotos
-        ? [
-            this.evidenciaCliente("foto_facial", `test-foto-${i + 1}.jpg`),
-            this.evidenciaCliente("documento_frente", `test-doc-frente-${i + 1}.jpg`),
-          ]
-        : [];
       const cliente = await this.clienteService.crear(
         rutaId,
         {
@@ -518,7 +542,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
           longitud: -63.18 + i * 0.015,
           negocio: `test-Negocio${sufijo}${i + 1}`,
         },
-        evidencias,
+        [],
         requester,
       );
       clientes.push({ id: cliente.id });
@@ -569,26 +593,6 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       size: 1024,
       filename: `test-${nombre}`,
       path: `/uploads/gastos/test-${nombre}`,
-    };
-  }
-
-  private evidenciaCliente(tipo: "foto_facial" | "documento_frente", nombre: string) {
-    // Crea un placeholder JPEG real en disco para que el servidor estático
-    // (/uploads/*) pueda servirlo y la APK/panel muestren la foto del cliente.
-    const rutaDisco = join(process.cwd(), "uploads", "clientes", nombre);
-    mkdirSync(dirname(rutaDisco), { recursive: true });
-    if (!existsSync(rutaDisco)) {
-      writeFileSync(rutaDisco, JPEG_PLACEHOLDER);
-    }
-    return {
-      tipo,
-      archivo: {
-        originalname: nombre,
-        mimetype: "image/jpeg",
-        size: JPEG_PLACEHOLDER.length,
-        filename: nombre,
-        path: `/uploads/clientes/${nombre}`,
-      } as ArchivoSubido,
     };
   }
 

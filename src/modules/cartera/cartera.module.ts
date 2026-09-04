@@ -36,6 +36,7 @@ import { NotificacionesService } from "./notificaciones.service";
 import { NotificacionesJob } from "./notificaciones-job.service";
 import { ConversacionChatService } from "./conversacion-chat.service";
 import { EstadoCuentaService } from "./estado-cuenta.service";
+import { DetalleCuotaService } from "./detalle-cuota.service";
 import { PromesasPagoService } from "./promesas-pago.service";
 import { WhatsappSimuladoController } from "./whatsapp-simulado.controller";
 import { AsistenteIaService } from "./asistente-ia.service";
@@ -52,9 +53,9 @@ import { AsistenteIaService } from "./asistente-ia.service";
   controllers: [CarteraController, CarteraGlobalController, WhatsappSimuladoController],
   providers: [
     ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService, ClienteTarjetaService, NavegacionClienteService,
-    WhatsappSimuladoGateway, NotificacionesService, NotificacionesJob, ConversacionChatService, EstadoCuentaService, PromesasPagoService, AsistenteIaService,
+    WhatsappSimuladoGateway, NotificacionesService, NotificacionesJob, ConversacionChatService, EstadoCuentaService, PromesasPagoService, AsistenteIaService, DetalleCuotaService,
     { provide: WHATSAPP_GATEWAY, useExisting: WhatsappSimuladoGateway },
   ],
-  exports: [TypeOrmModule, WHATSAPP_GATEWAY, ClienteService, PrestamoService, PagosService, VisitasService, ClienteTarjetaService, AbonosService, CuotaService, EstadoCuentaService],
+  exports: [TypeOrmModule, WHATSAPP_GATEWAY, ClienteService, PrestamoService, PagosService, VisitasService, ClienteTarjetaService, AbonosService, CuotaService, EstadoCuentaService, DetalleCuotaService],
 })
 export class CarteraModule {}

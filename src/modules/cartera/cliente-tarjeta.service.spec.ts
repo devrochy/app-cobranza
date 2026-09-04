@@ -17,7 +17,7 @@ describe("ClienteTarjetaService", () => {
 
   const mockRutaRepo = { findOne: jest.fn() };
   const mockClienteRepo = { findOne: jest.fn() };
-  const mockEvidenciaRepo = { findOne: jest.fn() };
+  const mockEvidenciaRepo = { find: jest.fn() };
   const mockDataSource = { transaction: jest.fn() };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
@@ -93,7 +93,9 @@ describe("ClienteTarjetaService", () => {
   it("construye la tarjeta con foto, tipo de pago, saldo y días de mora", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture());
-    (mockEvidenciaRepo.findOne as jest.Mock).mockResolvedValue({ rutaArchivo: "/uploads/foto.jpg" } as ClienteEvidencia);
+    (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([
+      { tipo: "foto_facial", rutaArchivo: "/uploads/foto.jpg" } as ClienteEvidencia,
+    ]);
     // préstamos con periodicidad semanal; saldo 1000; cuota vencida hace 5 días.
     (service as unknown as { obtenerPrestamosVigentes: jest.Mock }).obtenerPrestamosVigentes = jest
       .fn()
@@ -108,6 +110,8 @@ describe("ClienteTarjetaService", () => {
     expect(result.negocio).toBe("Tienda");
     expect(result.telefonoWhatsapp).toBe("+59171160000");
     expect(result.fotoUrl).toBe("/uploads/foto.jpg");
+    expect(result.documentoFrenteUrl).toBeNull();
+    expect(result.documentoReversoUrl).toBeNull();
     expect(result.tipoPago).toBe("semanal");
     expect(result.saldoPendiente).toBe(1000);
     expect(result.diasMora).toBeGreaterThan(0);
@@ -116,7 +120,7 @@ describe("ClienteTarjetaService", () => {
   it("marca tipoPago Varios si los préstamos difieren en periodicidad", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture());
-    (mockEvidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([]);
     (service as unknown as { obtenerPrestamosVigentes: jest.Mock }).obtenerPrestamosVigentes = jest
       .fn()
       .mockResolvedValue([{ diasEntreCuotas: 7 }, { diasEntreCuotas: 30 }]);
@@ -128,5 +132,37 @@ describe("ClienteTarjetaService", () => {
 
     expect(result.tipoPago).toBe("Varios");
     expect(result.fotoUrl).toBeNull();
+  });
+
+  it("normaliza a URL servible los rutaArchivo absolutos del filesystem", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture());
+    (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([
+      {
+        tipo: "foto_facial",
+        rutaArchivo: "/Users/roaguilar/Projects/app-cobranza/uploads/clientes/foto.jpg",
+      } as ClienteEvidencia,
+      {
+        tipo: "documento_frente",
+        rutaArchivo: "/uploads/gastos/inexistente.jpg",
+      } as ClienteEvidencia,
+      {
+        tipo: "documento_reverso",
+        rutaArchivo: "/uploads/clientes/reverso.jpg",
+      } as ClienteEvidencia,
+    ]);
+    (service as unknown as { obtenerPrestamosVigentes: jest.Mock }).obtenerPrestamosVigentes = jest
+      .fn()
+      .mockResolvedValue([]);
+    (service as unknown as { obtenerSaldoYMorosidad: jest.Mock }).obtenerSaldoYMorosidad = jest
+      .fn()
+      .mockResolvedValue({ saldoPendiente: 0, fechaVencidaMasAntigua: null });
+
+    const result = await service.obtener(1, 10, adminContext);
+
+    expect(result.fotoUrl).toBe("/uploads/clientes/foto.jpg");
+    // Una URL que ya es servible (/uploads/...) no se altera.
+    expect(result.documentoFrenteUrl).toBe("/uploads/gastos/inexistente.jpg");
+    expect(result.documentoReversoUrl).toBe("/uploads/clientes/reverso.jpg");
   });
 });

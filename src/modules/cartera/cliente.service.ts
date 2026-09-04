@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { urlArchivoServible } from "../../common/url-archivo";
 import { RolUsuario } from "../auth/auth.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { Ruta } from "../rutas/ruta.entity";
@@ -201,7 +202,17 @@ export class ClienteService {
       (await this.configRepo.findOne({ where: { ruta: { id: rutaId } } })) ??
       (RutaConfigDefaults as RutaConfig);
 
-    const tiposPresentes = new Set(evidencias.map((e) => e.tipo));
+    // Evidencias que el cliente ya tiene (para no exigir re-subir las que ya
+    // están guardadas). El cobrador puede actualizar SOLO la foto o SOLO el
+    // documento sin que la validación de la config lo rechace.
+    const existentes = await this.evidenciaRepo.find({
+      where: { cliente: { id: clienteId } },
+    });
+    const tiposExistentes = new Set(existentes.map((e) => e.tipo));
+    const tiposPresentes = new Set([
+      ...tiposExistentes,
+      ...evidencias.map((e) => e.tipo),
+    ]);
     if (config.reconocimientoFacialActivo && !tiposPresentes.has("foto_facial")) {
       throw new BadRequestException("La foto facial es obligatoria");
     }
@@ -437,7 +448,7 @@ export class ClienteService {
     const map = new Map<number, string>();
     for (const e of evidencias) {
       if (!map.has(e.clienteId)) {
-        map.set(e.clienteId, e.rutaArchivo);
+        map.set(e.clienteId, urlArchivoServible(e.rutaArchivo) ?? e.rutaArchivo);
       }
     }
     return map;

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { urlArchivoServible } from "../../common/url-archivo";
 import { RolUsuario } from "../auth/auth.service";
 import { ColorRiesgo } from "../../domain/color-riesgo";
 import { diasDeMora, TipoPagoTarjeta, tipoPagoDesdeDiasEntreCuotas } from "../../domain/tarjeta-cliente";
@@ -22,6 +23,8 @@ export interface ClienteTarjetaPublic {
   telefonoWhatsapp: string;
   color: ColorRiesgo;
   fotoUrl: string | null;
+  documentoFrenteUrl: string | null;
+  documentoReversoUrl: string | null;
   tipoPago: TipoPagoTarjeta | null;
   saldoPendiente: number;
   diasMora: number;
@@ -57,9 +60,13 @@ export class ClienteTarjetaService {
       throw new NotFoundException("El cliente no existe en esta ruta");
     }
 
-    const evidencia = await this.evidenciaRepo.findOne({
-      where: { cliente: { id: clienteId }, tipo: "foto_facial" },
+    const evidencias = await this.evidenciaRepo.find({
+      where: { cliente: { id: clienteId } },
     });
+    const urlDe = (tipo: "foto_facial" | "documento_frente" | "documento_reverso") =>
+      urlArchivoServible(
+        evidencias.find((e) => e.tipo === tipo)?.rutaArchivo ?? null,
+      );
 
     const prestamos = await this.obtenerPrestamosVigentes(clienteId);
     const diasEntreCuotas = prestamos.map((p) => p.diasEntreCuotas);
@@ -74,7 +81,9 @@ export class ClienteTarjetaService {
       negocio: cliente.negocio,
       telefonoWhatsapp: cliente.telefonoWhatsapp,
       color: cliente.colorRiesgo,
-      fotoUrl: evidencia?.rutaArchivo ?? null,
+      fotoUrl: urlDe("foto_facial"),
+      documentoFrenteUrl: urlDe("documento_frente"),
+      documentoReversoUrl: urlDe("documento_reverso"),
       tipoPago,
       saldoPendiente,
       diasMora: diasDeMora(fechaVencidaMasAntigua),

@@ -51,15 +51,32 @@ export class PosicionCobradorService {
     }
     assertOwned(ruta, requester);
 
+    // La posición se guarda bajo el cobrador real de la ruta (ruta.cobrador),
+    // no bajo requester.sub: la APK también la envía cuando entra como socio y
+    // requester.sub sería el id del socio (FK a cobradores(id) → 500).
+    const cobradorId = ruta.cobrador?.id;
+    if (cobradorId === undefined) {
+      // Sin cobrador asignado no hay a quién registrar la posición.
+      return {
+        cobradorId: requester.sub,
+        cobradorNombre: "",
+        rutaId,
+        rutaNombre: ruta.nombre,
+        latitud: input.latitud,
+        longitud: input.longitud,
+        registradaEn: new Date(),
+      };
+    }
+
     // Upsert de la última posición por (cobrador, ruta).
     const existente = await this.posicionRepo.findOne({
-      where: { cobradorId: requester.sub, rutaId },
+      where: { cobradorId, rutaId },
     });
     const posicion =
       existente ??
       this.posicionRepo.create({
-        cobrador: { id: requester.sub } as PosicionCobrador["cobrador"],
-        cobradorId: requester.sub,
+        cobrador: { id: cobradorId } as PosicionCobrador["cobrador"],
+        cobradorId,
         ruta: { id: rutaId } as PosicionCobrador["ruta"],
         rutaId,
         latitud: input.latitud,
@@ -73,7 +90,7 @@ export class PosicionCobradorService {
     const saved = await this.posicionRepo.save(posicion);
 
     return {
-      cobradorId: requester.sub,
+      cobradorId,
       cobradorNombre: ruta.cobrador ? `${ruta.cobrador.nombre} ${ruta.cobrador.apellido}`.trim() : "",
       rutaId,
       rutaNombre: ruta.nombre,

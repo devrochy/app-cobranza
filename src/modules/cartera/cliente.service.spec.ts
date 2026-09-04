@@ -548,6 +548,22 @@ describe("ClienteService", () => {
       expect(res[0].fotoUrl).toBe("/uploads/clientes/ana.jpg");
     });
 
+    it("normaliza a URL servible el fotoUrl cuando la evidencia guarda un path absoluto", async () => {
+      (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(ruta);
+      (mockClienteRepo.find as jest.Mock).mockResolvedValue(clienteFilas);
+      (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([
+        {
+          clienteId: clienteFilas[0].id,
+          tipo: "foto_facial",
+          rutaArchivo: "/Users/roaguilar/Projects/app-cobranza/uploads/clientes/ana.jpg",
+        },
+      ]);
+
+      const res = await service.listar(10, adminCtx);
+
+      expect(res[0].fotoUrl).toBe("/uploads/clientes/ana.jpg");
+    });
+
     it("lanza 404 si la ruta no existe al listar", async () => {
       (mockRutaRepo.findOne as jest.Mock).mockResolvedValue(null);
       await expect(service.listar(999, adminCtx)).rejects.toThrow(NotFoundException);
@@ -695,5 +711,34 @@ describe("ClienteService", () => {
     await expect(
       service.agregarEvidencias(1, 999, [{ tipo: "foto_facial", archivo: archivoFixture() }], adminContext),
     ).rejects.toThrow("El cliente no existe");
+  });
+
+  it("permite subir solo la foto cuando el cliente ya tiene el documento (no exige ambos en la request)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: true,
+      registroDocumentoCliente: true,
+    } as RutaConfig);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, rutaId: 1 });
+    // El cliente ya tiene documento_frente guardado en BD.
+    (evidenciaRepo.find as jest.Mock).mockResolvedValue([
+      { id: 5, tipo: "documento_frente", rutaArchivo: "/uploads/clientes/doc.jpg" } as ClienteEvidencia,
+    ]);
+    (evidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (evidenciaRepo.create as jest.Mock).mockImplementation((e: Partial<ClienteEvidencia>) => e as ClienteEvidencia);
+    (evidenciaRepo.save as jest.Mock).mockImplementation(async (e: Partial<ClienteEvidencia>) => ({ id: 9, ...e }) as ClienteEvidencia);
+
+    // Solo se sube la foto facial; el documento ya existía.
+    await expect(
+      service.agregarEvidencias(
+        1,
+        1,
+        [{ tipo: "foto_facial", archivo: archivoFixture() }],
+        adminContext,
+      ),
+    ).resolves.toEqual({ clienteId: 1 });
+    expect(evidenciaRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: "foto_facial" }),
+    );
   });
 });

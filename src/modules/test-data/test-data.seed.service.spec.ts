@@ -35,7 +35,7 @@ describe("TestDataSeedService", () => {
   let socioRepo: { findOne: jest.Mock };
   let cuotaRepo: { find: jest.Mock; findOne: jest.Mock };
   let cobradorRepo: { find: jest.Mock };
-  let rutaRepo: { find: jest.Mock };
+  let rutaRepo: { find: jest.Mock; findOne: jest.Mock };
   let prestamoRepo: { count: jest.Mock; update: jest.Mock };
   let sociosService: { create: jest.Mock };
   let permisosSocio: { setMatriz: jest.Mock };
@@ -56,7 +56,7 @@ describe("TestDataSeedService", () => {
   const mockSocioRepo = { findOne: jest.fn() };
   const mockCuotaRepo = { find: jest.fn(), findOne: jest.fn() };
   const mockCobradorRepo = { find: jest.fn() };
-  const mockRutaRepo = { find: jest.fn() };
+  const mockRutaRepo = { find: jest.fn(), findOne: jest.fn() };
   const mockPrestamoRepo = { count: jest.fn(), update: jest.fn() };
   const mockSociosService = { create: jest.fn() };
   const mockPermisosSocio = { setMatriz: jest.fn() };
@@ -159,12 +159,14 @@ describe("TestDataSeedService", () => {
     socioRepo.findOne.mockResolvedValue({ id: 1, usuario: "test-socio-1" });
     cobradorRepo.find.mockResolvedValue([{ id: 2 }]);
     rutaRepo.find.mockResolvedValue([]);
-    rutasService.create.mockResolvedValueOnce({ id: 20 });
+    rutaRepo.findOne.mockResolvedValue(null);
+    rutasService.create.mockResolvedValueOnce({ id: 20 }).mockResolvedValueOnce({ id: 21 });
     rutaOptimizacionService.generar.mockResolvedValue([]);
     clienteService.crear.mockImplementation(async () => ({ id: (clientesIds += 1) }));
     prestamoService.crear.mockResolvedValue({ id: 300 });
     cuotaRepo.find.mockResolvedValue([{ id: 1, valorEsperado: 100 }]);
     cuotaRepo.findOne.mockResolvedValue({ id: 2, prestamoId: 300, valorEsperado: 100 });
+    (rutaRepo as unknown as { update: jest.Mock }).update = jest.fn();
 
     await service.bootstrap();
 
@@ -181,16 +183,19 @@ describe("TestDataSeedService", () => {
     socioRepo.findOne.mockResolvedValue(null);
     sociosService.create.mockResolvedValue({ id: 1 });
     cobradoresService.create.mockResolvedValueOnce({ id: 2 }).mockResolvedValueOnce({ id: 3 });
+    rutaRepo.findOne.mockResolvedValue(null);
     rutasService.create
       .mockResolvedValueOnce({ id: 10 })
       .mockResolvedValueOnce({ id: 11 })
-      .mockResolvedValueOnce({ id: 12 });
+      .mockResolvedValueOnce({ id: 12 })
+      .mockResolvedValueOnce({ id: 13 });
     clienteService.crear.mockImplementation(async () => ({ id: (clientesIds += 1) }));
     prestamoService.crear.mockResolvedValue({ id: 200 });
     cuotaRepo.find.mockResolvedValue([{ id: 1, valorEsperado: 100 }]);
     cuotaRepo.findOne.mockResolvedValue({ id: 2, prestamoId: 200, valorEsperado: 100 });
     gastosService.registrar.mockResolvedValue({ id: 300 });
     liquidacionesService.generar.mockResolvedValue({ id: 400 });
+    (rutaRepo as unknown as { update: jest.Mock }).update = jest.fn();
     rutaOptimizacionService.generar.mockResolvedValue([]);
 
     await service.bootstrap();
@@ -252,14 +257,16 @@ describe("TestDataSeedService", () => {
     socioRepo.findOne.mockResolvedValue({ id: 1, usuario: "test-socio-1" });
     cobradorRepo.find.mockResolvedValue([{ id: 2 }, { id: 3 }]);
     rutaRepo.find.mockResolvedValue([{ id: 10, nombre: "test-Ruta Centro" }]);
+    rutaRepo.findOne.mockResolvedValue(null);
     prestamoRepo.count.mockResolvedValue(0);
     clienteService.listar.mockResolvedValue([{ id: 11 }, { id: 12 }]);
     cuotaRepo.find.mockResolvedValue([{ id: 1, valorEsperado: 100 }]);
     cuotaRepo.findOne.mockResolvedValue({ id: 2, prestamoId: 200, valorEsperado: 100 });
-    rutasService.create.mockResolvedValueOnce({ id: 20 });
+    rutasService.create.mockResolvedValueOnce({ id: 20 }).mockResolvedValueOnce({ id: 21 });
     rutaOptimizacionService.generar.mockResolvedValue([]);
     clienteService.crear.mockImplementation(async () => ({ id: (clientesIds += 1) }));
     prestamoService.crear.mockResolvedValue({ id: 300 });
+    (rutaRepo as unknown as { update: jest.Mock }).update = jest.fn();
 
     await service.bootstrap();
 
@@ -287,11 +294,15 @@ describe("TestDataSeedService", () => {
     socioRepo.findOne.mockResolvedValue({ id: 1, usuario: "test-socio-1" });
     cobradorRepo.find.mockResolvedValue([{ id: 2 }]);
     rutaRepo.find.mockResolvedValue([{ id: 10, nombre: "test-Ruta Centro" }]);
+    rutaRepo.findOne.mockResolvedValue(null);
     prestamoRepo.count.mockResolvedValue(3);
-    rutasService.create.mockResolvedValueOnce({ id: 20 });
+    rutasService.create.mockResolvedValueOnce({ id: 20 }).mockResolvedValueOnce({ id: 21 });
     rutaOptimizacionService.generar.mockResolvedValue([]);
     clienteService.crear.mockImplementation(async () => ({ id: (clientesIds += 1) }));
     prestamoService.crear.mockResolvedValue({ id: 300 });
+    cuotaRepo.find.mockResolvedValue([{ id: 1, valorEsperado: 100 }]);
+    cuotaRepo.findOne.mockResolvedValue({ id: 2, prestamoId: 200, valorEsperado: 100 });
+    (rutaRepo as unknown as { update: jest.Mock }).update = jest.fn();
 
     await service.bootstrap();
 
@@ -303,6 +314,41 @@ describe("TestDataSeedService", () => {
     expect(mockCobradoresPermisos.setMatriz).toHaveBeenCalledWith(
       2,
       expect.objectContaining({ registrar_prestamo: true }),
+    );
+  });
+
+  it("crea una ruta de prueba en estado bloqueado (inactiva) asignada al cobrador A", async () => {
+    adminRepo.findOne.mockResolvedValue({ id: 5, estado: "activo" });
+    socioRepo.findOne.mockResolvedValue(null);
+    sociosService.create.mockResolvedValue({ id: 1 });
+    cobradoresService.create.mockResolvedValueOnce({ id: 2 }).mockResolvedValueOnce({ id: 3 });
+    rutaRepo.find.mockResolvedValue([]);
+    rutaRepo.findOne.mockResolvedValue(null);
+    // Centro(10), Norte(11), Manizales(12), Inactiva(13)
+    rutasService.create
+      .mockResolvedValueOnce({ id: 10 })
+      .mockResolvedValueOnce({ id: 11 })
+      .mockResolvedValueOnce({ id: 12 })
+      .mockResolvedValueOnce({ id: 13 });
+    clienteService.crear.mockImplementation(async () => ({ id: (clientesIds += 1) }));
+    prestamoService.crear.mockResolvedValue({ id: 200 });
+    cuotaRepo.find.mockResolvedValue([{ id: 1, valorEsperado: 100 }]);
+    cuotaRepo.findOne.mockResolvedValue({ id: 2, prestamoId: 200, valorEsperado: 100 });
+    gastosService.registrar.mockResolvedValue({ id: 300 });
+    liquidacionesService.generar.mockResolvedValue({ id: 400 });
+    rutaOptimizacionService.generar.mockResolvedValue([]);
+    (rutaRepo as unknown as { update: jest.Mock }).update = jest.fn();
+
+    await service.bootstrap();
+
+    // La ruta inactiva se crea con datos y luego se marca como bloqueada.
+    expect(rutasService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: "test-Ruta Inactiva" }),
+      { rol: "admin", sub: 5 },
+    );
+    expect((rutaRepo as unknown as { update: jest.Mock }).update).toHaveBeenCalledWith(
+      expect.anything(),
+      { estatus: "bloqueado" },
     );
   });
 });
