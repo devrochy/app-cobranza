@@ -320,3 +320,12 @@ Formato de cada entrada:
 - Fecha: 2026-08-21
 - Descripción: la fila de `auditoria_cartera` (entidad, operacion, valoresAntes/Despues, actor, motivo) se construye a mano en tres servicios (cuota.service, abonos.service, promesas-pago.service). Extraer un helper compartido para evitar el tercer lugar duplicado.
 - Prioridad sugerida: baja
+
+## eliminarAbono no valida liquidado (backend)
+- Detectado en: code-review apk-modal-cuota-rediseno (2026-09-04)
+- Descripción: `AbonosService.eliminarAbono` no rechaza abonos con `liquidado=true`
+  (a diferencia de `PagosService.eliminarPago`, que lanza 400). La APK oculta el
+  botón si está liquidado, pero hay una ventana de race si se liquida entre la
+  carga y el borrado. Fix sugerido: en `eliminarAbono`, si `abono.liquidado` →
+  BadRequest.
+- Prioridad sugerida: media
