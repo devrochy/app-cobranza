@@ -19,6 +19,8 @@ export interface ClienteDiaPublic {
   nombre: string;
   enTrayecto: boolean;
   color: ColorListaDelDia;
+  /** True si hoy ya se le registró una visita (pago/abono o no pago). */
+  visitaRegistrada: boolean;
 }
 
 export interface MarkerClientePublic {
@@ -70,6 +72,7 @@ export class ListaClientesDelDiaService {
       clienteId: c.clienteId,
       nombre: c.nombre,
       enTrayecto: enTrayectoIds.has(c.clienteId),
+      visitaRegistrada: pagaronHoy.has(c.clienteId),
       color: colorListaDelDia(
         c.atraso,
         umbral,

@@ -129,8 +129,8 @@ describe("ListaClientesDelDiaService", () => {
     const c1 = result.find((c) => c.clienteId === 1);
     const c2 = result.find((c) => c.clienteId === 2);
 
-    expect(c1).toMatchObject({ enTrayecto: true, color: "rojo" });
-    expect(c2).toMatchObject({ enTrayecto: false, color: "verde" });
+    expect(c1).toMatchObject({ enTrayecto: true, color: "rojo", visitaRegistrada: false });
+    expect(c2).toMatchObject({ enTrayecto: false, color: "verde", visitaRegistrada: true });
     expect(result).toHaveLength(2);
   });
 

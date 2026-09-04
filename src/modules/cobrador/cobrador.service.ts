@@ -21,6 +21,7 @@ import { ArchivoSubido, GastosService, GastoPublic, RegistrarGastoInput } from "
 import { ClienteDiaPublic, ListaClientesDelDiaService } from "../rutas/lista-clientes-dia.service";
 import { RutaOptimizacionService, TrayectoPublic } from "../rutas/ruta-optimizacion.service";
 import { PosicionCobradorService, PosicionPublic } from "../rutas/posicion-cobrador.service";
+import { LiquidacionesService, LiquidacionPublic } from "../rutas/liquidaciones.service";
 import { TrayectoriasService } from "../rutas/trayectorias.service";
 import { RutasNotasService, RutaNotaPublic } from "../rutas/rutas-notas.service";
 import { RequesterOwned } from "../../common/ownership";
@@ -89,6 +90,7 @@ export class CobradorService {
     private readonly pagosService: PagosService,
     private readonly aperturasService: RutasAperturaService,
     private readonly posicionService: PosicionCobradorService,
+    private readonly liquidacionesService: LiquidacionesService,
     private readonly detalleCuotaService: DetalleCuotaService,
     private readonly permisosSocioService: PermisosSocioService,
     private readonly notasService: RutasNotasService,
@@ -321,6 +323,29 @@ export class CobradorService {
     requester: RequesterOwned,
   ) {
     return this.pagosService.eliminarPago(rutaId, pagoId, ctx, requester);
+  }
+
+  generarLiquidacion(
+    rutaId: number,
+    input: { comentario?: string | null },
+    requester: RequesterOwned,
+  ): Promise<LiquidacionPublic> {
+    return this.liquidacionesService.generar(rutaId, input, requester);
+  }
+
+  listarLiquidaciones(
+    rutaId: number,
+    requester: RequesterOwned,
+  ): Promise<LiquidacionPublic[]> {
+    return this.liquidacionesService.listar(rutaId, requester);
+  }
+
+  exportarLiquidacionPdf(
+    rutaId: number,
+    liquidacionId: number,
+    requester: RequesterOwned,
+  ) {
+    return this.liquidacionesService.exportarPdf(rutaId, liquidacionId, requester);
   }
 
   async registrarApertura(

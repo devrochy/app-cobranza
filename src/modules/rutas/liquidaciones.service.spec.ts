@@ -468,6 +468,8 @@ describe("LiquidacionesService - historial y exportación", () => {
   const mockConfigRepo = { findOne: jest.fn() };
   const mockCajaRepo = { findOne: jest.fn() };
   const mockLiquidacionRepo = { findOne: jest.fn(), find: jest.fn() };
+  const mockPagoRepo = { find: jest.fn() };
+  const mockAbonoRepo = { find: jest.fn() };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
     return {
@@ -517,7 +519,7 @@ describe("LiquidacionesService - historial y exportación", () => {
         { provide: getRepositoryToken(RutaConfig), useValue: mockConfigRepo },
         { provide: getRepositoryToken(Caja), useValue: mockCajaRepo },
         { provide: getRepositoryToken(Liquidacion), useValue: mockLiquidacionRepo },
-        { provide: DataSource, useValue: { transaction: jest.fn() } },
+        { provide: DataSource, useValue: { transaction: jest.fn(), getRepository: jest.fn((entity: unknown) => (entity === Pago ? mockPagoRepo : mockAbonoRepo)) } },
       ],
     }).compile();
 
@@ -615,4 +617,28 @@ describe("LiquidacionesService - historial y exportación", () => {
 
     await expect(service.exportar(1, 10, socioContext)).rejects.toThrow(ForbiddenException);
   });
+
+  it("exportarPdf genera un buffer PDF con el resumen y el detalle del día", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (liquidacionRepo.findOne as jest.Mock).mockResolvedValue(liquidacionFixture());
+    (mockPagoRepo.find as jest.Mock).mockResolvedValue([
+      {
+        id: 11,
+        clienteId: 7,
+        cliente: { nombre: "Ana", apellido: "Ríos" },
+        valor: 100,
+        metodoPago: "efectivo",
+        fechaHora: new Date("2026-08-19T14:00:00Z"),
+        liquidado: true,
+      },
+    ]);
+    (mockAbonoRepo.find as jest.Mock).mockResolvedValue([]);
+
+    const { buffer, filename } = await service.exportarPdf(1, 10, adminContext);
+
+    expect(filename).toBe("liquidacion-2026-08-19.pdf");
+    expect(Buffer.isBuffer(buffer)).toBe(true);
+    // Firma de un PDF: %PDF-
+    expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  }, 20000);
 });
