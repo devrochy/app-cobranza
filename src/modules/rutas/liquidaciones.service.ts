@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, EntityManager, Repository } from "typeorm";
+import { Between, DataSource, EntityManager, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import {
@@ -12,6 +12,8 @@ import {
   calcularVentanaPeriodo,
   PeriodoLiquidacion,
 } from "../../domain/liquidacion";
+import { Pago } from "../cartera/pago.entity";
+import { Abono } from "../cartera/abono.entity";
 import { Ruta } from "./ruta.entity";
 import { RutaConfig } from "./ruta-config.entity";
 import { Caja } from "./caja.entity";
@@ -24,6 +26,16 @@ export interface GenerarLiquidacionInput {
 export interface RequesterLiquidacionContext {
   rol: RolUsuario;
   sub: number;
+}
+
+export interface ItemLiquidacionDetallePublic {
+  id: number;
+  clienteId: number;
+  clienteNombre: string;
+  valor: number;
+  metodoPago: string;
+  fechaHora: string;
+  liquidado: boolean;
 }
 
 export interface LiquidacionPublic {
@@ -44,6 +56,8 @@ export interface LiquidacionPublic {
   comisionValor: number;
   comentario: string | null;
   createdAt: Date;
+  pagos: ItemLiquidacionDetallePublic[];
+  abonos: ItemLiquidacionDetallePublic[];
 }
 
 export interface LiquidacionGlobalPublic extends LiquidacionPublic {
@@ -123,6 +137,10 @@ export class LiquidacionesService {
         config?.comisionPorcentaje ?? 0,
       );
 
+      // Marca como liquidados los pagos y abonos del periodo (fin del día): a
+      // partir de la liquidación ya no se pueden borrar desde la APK.
+      const pagos = await this.marcarLiquidados(rutaId, inicio, fin, manager);
+
       const liquidacion = liquidacionRepo.create({
         ruta: { id: rutaId } as Ruta,
         rutaId,
@@ -141,10 +159,19 @@ export class LiquidacionesService {
         comisionValor,
         comentario: input.comentario ?? null,
       });
-      return liquidacionRepo.save(liquidacion);
+      const guardada = await liquidacionRepo.save(liquidacion);
+      return {
+        liquidacion: guardada,
+        pagos: pagos.pagos,
+        abonos: pagos.abonos,
+      };
     });
 
-    return this.toPublic(saved);
+    return {
+      ...this.toPublic(saved.liquidacion),
+      pagos: saved.pagos,
+      abonos: saved.abonos,
+    };
   }
 
   async listar(
@@ -162,6 +189,76 @@ export class LiquidacionesService {
       order: { fecha: "DESC" },
     });
     return filas.map((l) => this.toPublic(l));
+  }
+
+  /**
+   * Marca como liquidados los pagos y abonos del periodo (los que quedan dentro
+   * de la ventana vigente). Devuelve su detalle para incluir en la respuesta.
+   */
+  private async marcarLiquidados(
+    rutaId: number,
+    inicio: Date,
+    fin: Date,
+    manager: EntityManager,
+  ): Promise<{ pagos: ItemLiquidacionDetallePublic[]; abonos: ItemLiquidacionDetallePublic[] }> {
+    const ahora = new Date();
+    const pagoRepo = manager.getRepository(Pago);
+    const abonoRepo = manager.getRepository(Abono);
+
+    const pagos = await pagoRepo.find({
+      where: {
+        fechaHora: Between(inicio, fin),
+        cuota: { prestamo: { ruta: { id: rutaId } } },
+      },
+      relations: { cliente: true },
+    });
+    const abonos = await abonoRepo.find({
+      where: {
+        fechaHora: Between(inicio, fin),
+        prestamo: { ruta: { id: rutaId } },
+      },
+      relations: { cliente: true },
+    });
+
+    await pagoRepo.save(
+      pagos.map((p) => {
+        p.liquidado = true;
+        p.fechaLiquidacion = ahora;
+        return p;
+      }),
+    );
+    await abonoRepo.save(
+      abonos.map((a) => {
+        a.liquidado = true;
+        a.fechaLiquidacion = ahora;
+        return a;
+      }),
+    );
+
+    return {
+      pagos: pagos.map((p) => ({
+        id: p.id,
+        clienteId: p.clienteId,
+        clienteNombre: p.cliente
+          ? `${p.cliente.nombre} ${p.cliente.apellido}`.trim()
+          : "",
+        valor: p.valor,
+        metodoPago: p.metodoPago,
+        fechaHora: p.fechaHora.toISOString(),
+        liquidado: p.liquidado,
+      })),
+      abonos: abonos.map((a) => ({
+        id: a.id,
+        clienteId: a.clienteId,
+        clienteNombre: a.cliente
+          ? `${a.cliente.nombre} ${a.cliente.apellido}`.trim()
+          : "",
+        valor: a.valor,
+        metodoPago: a.metodoPago,
+        fechaHora: a.fechaHora.toISOString(),
+        liquidado: a.liquidado,
+      })),
+    };
   }
 
   async listarGlobal(
@@ -393,6 +490,8 @@ export class LiquidacionesService {
       comisionValor: l.comisionValor,
       comentario: l.comentario,
       createdAt: l.createdAt,
+      pagos: [],
+      abonos: [],
     };
   }
 }

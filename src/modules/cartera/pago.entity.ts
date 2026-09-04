@@ -46,4 +46,11 @@ export class Pago {
 
   @Column({ name: "registrado_por", type: "int", nullable: true })
   registradoPor!: number | null;
+
+  // La APK solo permite borrar pagos que NO estén liquidados (fin del día).
+  @Column({ type: "boolean", default: false })
+  liquidado!: boolean;
+
+  @Column({ name: "fecha_liquidacion", type: "timestamp", nullable: true })
+  fechaLiquidacion!: Date | null;
 }

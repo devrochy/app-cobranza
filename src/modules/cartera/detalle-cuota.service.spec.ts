@@ -124,6 +124,41 @@ describe("DetalleCuotaService", () => {
     expect(resultado.ultimaVisita).toBeNull();
   });
 
+  it("incluye abonos del préstamo y el estado liquidado de los pagos", async () => {
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([cuotaUno]);
+    (pagoRepo.find as jest.Mock).mockResolvedValue([
+      {
+        id: 900,
+        cuotaId: 51,
+        valor: 100,
+        metodoPago: "efectivo",
+        fechaHora: new Date("2026-09-01T10:00:00Z"),
+        registradoPor: 7,
+        liquidado: true,
+        fechaLiquidacion: new Date("2026-09-01T20:00:00Z"),
+      } as Pago,
+    ]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([
+      {
+        id: 801,
+        prestamoId: 5,
+        clienteId: 10,
+        valor: 40,
+        metodoPago: "efectivo",
+        fechaHora: new Date("2026-09-01T11:00:00Z"),
+        liquidado: false,
+        fechaLiquidacion: null,
+      } as Abono,
+    ]);
+
+    const resultado = await service.obtener(1, 5, 51, cobradorContext);
+
+    expect(resultado.pagos[0]).toMatchObject({ id: 900, liquidado: true });
+    expect(resultado.abonos).toEqual([
+      expect.objectContaining({ id: 801, valor: 40, liquidado: false }),
+    ]);
+  });
+
   it("incluye la última visita con motivo de no pago", async () => {
     (cuotaRepo.find as jest.Mock).mockResolvedValue([cuotaUno]);
     (visitaRepo.find as jest.Mock).mockResolvedValue([

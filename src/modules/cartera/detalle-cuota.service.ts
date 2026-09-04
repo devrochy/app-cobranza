@@ -19,6 +19,14 @@ export interface PagoDetalleCuotaPublic {
   metodoPago: string;
   fechaHora: string;
   registradoPor: number | null;
+  liquidado: boolean;
+}
+
+export interface AbonoDetalleCuotaPublic {
+  id: number;
+  valor: number;
+  fechaHora: string;
+  liquidado: boolean;
 }
 
 export interface VisitaDetalleCuotaPublic {
@@ -39,6 +47,7 @@ export interface DetalleCuotaPublic {
   abonosAcumulados: number;
   saldoPendiente: number;
   pagos: PagoDetalleCuotaPublic[];
+  abonos: AbonoDetalleCuotaPublic[];
   ultimaVisita: VisitaDetalleCuotaPublic | null;
 }
 
@@ -149,6 +158,13 @@ export class DetalleCuotaService {
         metodoPago: p.metodoPago,
         fechaHora: p.fechaHora.toISOString(),
         registradoPor: p.registradoPor,
+        liquidado: p.liquidado,
+      })),
+      abonos: abonos.map((a) => ({
+        id: a.id,
+        valor: a.valor,
+        fechaHora: a.fechaHora.toISOString(),
+        liquidado: a.liquidado,
       })),
       ultimaVisita: ultimaVisita
         ? {
