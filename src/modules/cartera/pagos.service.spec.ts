@@ -4,11 +4,13 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { Ruta } from "../rutas/ruta.entity";
 import { CajaService } from "../rutas/caja.service";
+import { ReautenticacionService } from "../security/reautenticacion.service";
 import { NotificacionesService } from "./notificaciones.service";
 import { Cliente } from "./cliente.entity";
 import { Cuota } from "./cuota.entity";
 import { Prestamo } from "./prestamo.entity";
 import { Pago } from "./pago.entity";
+import { AuditoriaCartera } from "./auditoria-cartera.entity";
 import { PagosService } from "./pagos.service";
 
 describe("PagosService", () => {
@@ -22,18 +24,30 @@ describe("PagosService", () => {
   const mockRutaRepo = { findOne: jest.fn() };
   const mockCuotaRepo = { findOne: jest.fn(), save: jest.fn() };
   const mockClienteRepo = { findOne: jest.fn() };
+  const mockPagoRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn(), delete: jest.fn() };
+  const mockAuditoriaRepo = { create: jest.fn(), save: jest.fn() };
   const mockCajaService = { aplicarMovimiento: jest.fn() };
   const mockNotificacionesService = { enviarConfirmacionPago: jest.fn() };
+  const mockReautenticacion = { validar: jest.fn() };
+  let repoAuditoriaTx: { create: jest.Mock; save: jest.Mock };
+  let repoPagoTx: { create: jest.Mock; save: jest.Mock; delete: jest.Mock };
   const mockDataSource = {
-    transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
-      fn({
+    transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) => {
+      repoPagoTx = {
+        create: jest.fn((e: unknown) => e),
         save: jest.fn(async (e: unknown) => e),
-        getRepository: jest.fn(() => ({
-          create: jest.fn((e: unknown) => e),
-          save: jest.fn(async (e: unknown) => e),
-        })),
-      }),
-    ),
+        delete: jest.fn(),
+      };
+      repoAuditoriaTx = { create: jest.fn((e: unknown) => e), save: jest.fn(async (e: unknown) => e) };
+      const m = {
+        save: jest.fn(async (e: unknown) => e),
+        getRepository: jest.fn((entity: unknown) => {
+          if (entity === Pago) return repoPagoTx;
+          return repoAuditoriaTx;
+        }),
+      };
+      return fn(m);
+    }),
   };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
@@ -78,10 +92,12 @@ describe("PagosService", () => {
         { provide: getRepositoryToken(Cuota), useValue: mockCuotaRepo },
         { provide: getRepositoryToken(Cliente), useValue: mockClienteRepo },
         { provide: getRepositoryToken(Prestamo), useValue: { findOne: jest.fn() } },
-        { provide: getRepositoryToken(Pago), useValue: { create: jest.fn(), save: jest.fn() } },
+        { provide: getRepositoryToken(Pago), useValue: mockPagoRepo },
+        { provide: getRepositoryToken(AuditoriaCartera), useValue: mockAuditoriaRepo },
         { provide: CajaService, useValue: mockCajaService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: NotificacionesService, useValue: mockNotificacionesService },
+        { provide: ReautenticacionService, useValue: mockReautenticacion },
       ],
     }).compile();
 
@@ -198,5 +214,86 @@ describe("PagosService", () => {
     // No debe abrir transacción propia cuando se compone con manager externo.
     expect(mockDataSource.transaction).not.toHaveBeenCalled();
     expect(managerExterno.getRepository).toHaveBeenCalled();
+  });
+
+  describe("eliminarPago", () => {
+    const pagoFixture = (overrides: Partial<Pago> = {}): Pago =>
+      ({
+        id: 30,
+        cuotaId: 10,
+        clienteId: 5,
+        visitaId: null,
+        valor: 120,
+        metodoPago: "efectivo",
+        fechaHora: new Date("2026-09-04T12:00:00Z"),
+        registradoPor: 1,
+        liquidado: false,
+        fechaLiquidacion: null,
+        cuota: { id: 10 },
+        ...overrides,
+      }) as Pago;
+
+    it("lanza NotFoundException si la ruta no existe", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.eliminarPago(999, 30, { password: "x", motivo: "error" }, adminContext),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("exige el motivo", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+
+      await expect(
+        service.eliminarPago(1, 30, { password: "x", motivo: "  " }, adminContext),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("lanza NotFound si el pago no existe en la ruta", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (mockPagoRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.eliminarPago(1, 30, { password: "x", motivo: "error" }, adminContext),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("rechaza borrar un pago ya liquidado", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (mockPagoRepo.findOne as jest.Mock).mockResolvedValue(pagoFixture({ liquidado: true }));
+
+      await expect(
+        service.eliminarPago(1, 30, { password: "x", motivo: "error" }, adminContext),
+      ).rejects.toThrow("ya liquidado");
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it("elimina el pago, revierte la caja y audita en la transacción", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (mockPagoRepo.findOne as jest.Mock).mockResolvedValue(pagoFixture());
+
+      const result = await service.eliminarPago(
+        1,
+        30,
+        { password: "secreto", motivo: "registro erróneo" },
+        adminContext,
+      );
+
+      expect(mockReautenticacion.validar).toHaveBeenCalledWith(adminContext, "secreto");
+      expect(result).toEqual({ id: 30 });
+      expect(mockCajaService.aplicarMovimiento).toHaveBeenCalledWith(
+        1,
+        -120,
+        expect.anything(),
+        adminContext,
+        expect.stringContaining("eliminación de pago 30"),
+        expect.anything(),
+      );
+      expect(repoPagoTx.delete).toHaveBeenCalledWith({ id: 30 });
+      expect(repoAuditoriaTx.create).toHaveBeenCalledWith(
+        expect.objectContaining({ entidad: "pago", entidadId: 30, operacion: "eliminar" }),
+      );
+      expect(repoAuditoriaTx.save).toHaveBeenCalled();
+    });
   });
 });

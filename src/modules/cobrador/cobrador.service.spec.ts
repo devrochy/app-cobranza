@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { AbonosService } from "../cartera/abonos.service";
+import { PagosService } from "../cartera/pagos.service";
 import { ClienteTarjetaService } from "../cartera/cliente-tarjeta.service";
 import { ClienteService } from "../cartera/cliente.service";
 import { EstadoCuentaService } from "../cartera/estado-cuenta.service";
@@ -38,6 +39,7 @@ describe("CobradorService", () => {
   let estadoCuenta: { obtener: jest.Mock };
   let cuotas: { editarCuota: jest.Mock; eliminarCuota: jest.Mock };
   let abonos: { eliminarAbono: jest.Mock };
+  let pagos: { eliminarPago: jest.Mock };
   let aperturas: { registrar: jest.Mock };
   let posiciones: { registrar: jest.Mock };
   let detalleCuota: { obtener: jest.Mock };
@@ -60,6 +62,7 @@ describe("CobradorService", () => {
     estadoCuenta = { obtener: jest.fn() };
     cuotas = { editarCuota: jest.fn(), eliminarCuota: jest.fn() };
     abonos = { eliminarAbono: jest.fn() };
+    pagos = { eliminarPago: jest.fn() };
     aperturas = { registrar: jest.fn() };
     posiciones = { registrar: jest.fn() };
     detalleCuota = { obtener: jest.fn() };
@@ -83,6 +86,7 @@ describe("CobradorService", () => {
         { provide: EstadoCuentaService, useValue: estadoCuenta },
         { provide: CuotaService, useValue: cuotas },
         { provide: AbonosService, useValue: abonos },
+        { provide: PagosService, useValue: pagos },
         { provide: RutasAperturaService, useValue: aperturas },
         { provide: PosicionCobradorService, useValue: posiciones },
         { provide: DetalleCuotaService, useValue: detalleCuota },
@@ -320,6 +324,16 @@ describe("CobradorService", () => {
         service.eliminarAbono(6, 30, ctx, requester),
       ).resolves.toEqual({ id: 30 });
       expect(abonos.eliminarAbono).toHaveBeenCalledWith(6, 30, ctx, requester);
+    });
+
+    it("eliminarPago delega en PagosService con el contexto auditado", async () => {
+      const ctx = { password: "secreto", motivo: "error" };
+      pagos.eliminarPago.mockResolvedValue({ id: 40 });
+
+      await expect(
+        service.eliminarPago(6, 40, ctx, requester),
+      ).resolves.toEqual({ id: 40 });
+      expect(pagos.eliminarPago).toHaveBeenCalledWith(6, 40, ctx, requester);
     });
 
     it("registrarApertura delega en RutasAperturaService con coords y requester", async () => {
