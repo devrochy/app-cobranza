@@ -8,12 +8,13 @@ import {
   Patch,
   Post,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileFieldsInterceptor, FilesInterceptor } from "@nestjs/platform-express";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { CobradorPermisoGuard } from "../auth/cobrador-permiso.guard";
 import { CobradorPermisoRequerido } from "../auth/cobrador-permiso-requerido.decorator";
@@ -24,6 +25,7 @@ import { CreatePrestamoDto } from "../cartera/dto/create-prestamo.dto";
 import { CreateClienteDto } from "../cartera/dto/create-cliente.dto";
 import { ActualizarClienteDto } from "../cartera/dto/actualizar-cliente.dto";
 import { CrearNotaDto } from "../rutas/dto/crear-nota.dto";
+import { GenerarLiquidacionDto } from "../rutas/dto/generar-liquidacion.dto";
 import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
 import { OperacionAuditadaDto } from "../cartera/dto/operacion-auditada.dto";
 import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
@@ -240,6 +242,47 @@ export class CobradorController {
       { password: dto.password, motivo: dto.motivo },
       this.requester(req),
     );
+  }
+
+  @Post("rutas/:rutaId/liquidaciones")
+  @CobradorPermisoRequerido("generar_reporte")
+  generarLiquidacion(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: GenerarLiquidacionDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.generarLiquidacion(
+      rutaId,
+      { comentario: dto.comentario },
+      this.requester(req),
+    );
+  }
+
+  @Get("rutas/:rutaId/liquidaciones")
+  @CobradorPermisoRequerido("generar_reporte")
+  listarLiquidaciones(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.listarLiquidaciones(rutaId, this.requester(req));
+  }
+
+  @Get("rutas/:rutaId/liquidaciones/:liquidacionId/export-pdf")
+  @CobradorPermisoRequerido("generar_reporte")
+  async exportarLiquidacionPdf(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("liquidacionId", ParseIntPipe) liquidacionId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.cobradorService.exportarLiquidacionPdf(
+      rutaId,
+      liquidacionId,
+      this.requester(req),
+    );
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 
   @Get("rutas/:rutaId/clientes")

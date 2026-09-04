@@ -236,28 +236,12 @@ export class LiquidacionesService {
     );
 
     return {
-      pagos: pagos.map((p) => ({
-        id: p.id,
-        clienteId: p.clienteId,
-        clienteNombre: p.cliente
-          ? `${p.cliente.nombre} ${p.cliente.apellido}`.trim()
-          : "",
-        valor: p.valor,
-        metodoPago: p.metodoPago,
-        fechaHora: p.fechaHora.toISOString(),
-        liquidado: p.liquidado,
-      })),
-      abonos: abonos.map((a) => ({
-        id: a.id,
-        clienteId: a.clienteId,
-        clienteNombre: a.cliente
-          ? `${a.cliente.nombre} ${a.cliente.apellido}`.trim()
-          : "",
-        valor: a.valor,
-        metodoPago: a.metodoPago,
-        fechaHora: a.fechaHora.toISOString(),
-        liquidado: a.liquidado,
-      })),
+      pagos: pagos.map((p) =>
+        this.itemDetalle(p.id, p.cliente, p.valor, p.metodoPago, p.fechaHora, p.liquidado, p.clienteId),
+      ),
+      abonos: abonos.map((a) =>
+        this.itemDetalle(a.id, a.cliente, a.valor, a.metodoPago, a.fechaHora, a.liquidado, a.clienteId),
+      ),
     };
   }
 
@@ -324,6 +308,142 @@ export class LiquidacionesService {
 
     const buffer = await workbook.xlsx.writeBuffer();
     return { buffer: Buffer.from(buffer), filename: `liquidacion-${l.fecha}.xlsx` };
+  }
+
+  /**
+   * Exporta el resumen de la liquidación en PDF (con el detalle de pagos y
+   * abonos del día). Se usa desde la APK (cobrador) para descargar/compartir.
+   */
+  async exportarPdf(
+    rutaId: number,
+    liquidacionId: number,
+    requester: RequesterLiquidacionContext,
+  ): Promise<LiquidacionExport> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const l = await this.liquidacionRepo.findOne({
+      where: { id: liquidacionId, ruta: { id: rutaId } },
+    });
+    if (!l) {
+      throw new NotFoundException("La liquidación no existe en esta ruta");
+    }
+
+    const base = new Date(`${l.fecha}T00:00:00`);
+    const detalle = await this.obtenerDetalle(rutaId, this.inicioDelDia(base), this.finDelDia(base));
+
+    const { default: PDFDocument } = await import("pdfkit");
+    const doc = new PDFDocument({ margin: 40, size: "A4" });
+    const chunks: Buffer[] = [];
+    doc.on("data", (c: Buffer) => chunks.push(c));
+    const terminado = new Promise<Buffer>((resolve) => {
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+    });
+
+    doc.fontSize(16).text(`Liquidación ${ruta.nombre}`, { align: "center" });
+    doc.moveDown(0.4);
+    doc.fontSize(10).fillColor("#475569").text(`Fecha: ${l.fecha} · Periodo: ${l.periodo}`);
+    doc.moveDown();
+
+    const filas: Array<[string, string]> = [
+      ["Caja anterior", String(l.cajaAnterior)],
+      ["Caja actual", String(l.cajaActual)],
+      ["Estimado a cobrar", String(l.estimadoACobrar)],
+      ["Total inyección", String(l.totalInyeccion)],
+      ["Total cobrado periodo", String(l.totalCobradoPeriodo)],
+      ["Total cobrado día", String(l.totalCobradoDia)],
+      ["Total prestado", String(l.totalPrestado)],
+      ["Total gastos", String(l.totalGastos)],
+      ["Suma cartera", String(l.sumaCartera)],
+      ["Comisión %", String(l.comisionPorcentaje)],
+      ["Comisión valor", String(l.comisionValor)],
+    ];
+    doc.fontSize(11).fillColor("#0f172a");
+    for (const [campo, valor] of filas) {
+      doc.text(`${campo}: ${valor}`, { lineGap: 2 });
+    }
+    if (l.comentario) {
+      doc.text(`Comentario: ${l.comentario}`, { lineGap: 2 });
+    }
+
+    doc.moveDown();
+    doc.fontSize(12).fillColor("#0f172a").text("Pagos del día");
+    doc.fontSize(10).fillColor("#334155");
+    if (detalle.pagos.length === 0) {
+      doc.text("Sin pagos registrados.");
+    } else {
+      for (const p of detalle.pagos) {
+        doc.text(`• ${p.clienteNombre}: ${p.valor} (${p.metodoPago})`, { lineGap: 2 });
+      }
+    }
+
+    doc.moveDown();
+    doc.fontSize(12).fillColor("#0f172a").text("Abonos del día");
+    doc.fontSize(10).fillColor("#334155");
+    if (detalle.abonos.length === 0) {
+      doc.text("Sin abonos registrados.");
+    } else {
+      for (const a of detalle.abonos) {
+        doc.text(`• ${a.clienteNombre}: ${a.valor} (${a.metodoPago})`, { lineGap: 2 });
+      }
+    }
+
+    doc.end();
+    const buffer = await terminado;
+    return { buffer, filename: `liquidacion-${l.fecha}.pdf` };
+  }
+
+  /** Detalle de pagos/abonos de una ruta dentro de una ventana (sin marcar). */
+  private async obtenerDetalle(
+    rutaId: number,
+    inicio: Date,
+    fin: Date,
+  ): Promise<{ pagos: ItemLiquidacionDetallePublic[]; abonos: ItemLiquidacionDetallePublic[] }> {
+    const pagoRepo = this.dataSource.getRepository(Pago);
+    const abonoRepo = this.dataSource.getRepository(Abono);
+
+    const pagos = await pagoRepo.find({
+      where: {
+        fechaHora: Between(inicio, fin),
+        cuota: { prestamo: { ruta: { id: rutaId } } },
+      },
+      relations: { cliente: true },
+    });
+    const abonos = await abonoRepo.find({
+      where: {
+        fechaHora: Between(inicio, fin),
+        prestamo: { ruta: { id: rutaId } },
+      },
+      relations: { cliente: true },
+    });
+
+    return {
+      pagos: pagos.map((p) => this.itemDetalle(p.id, p.cliente, p.valor, p.metodoPago, p.fechaHora, p.liquidado, p.clienteId)),
+      abonos: abonos.map((a) => this.itemDetalle(a.id, a.cliente, a.valor, a.metodoPago, a.fechaHora, a.liquidado, a.clienteId)),
+    };
+  }
+
+  private itemDetalle(
+    id: number,
+    cliente: { nombre: string; apellido: string } | null | undefined,
+    valor: number,
+    metodoPago: string,
+    fechaHora: Date,
+    liquidado: boolean,
+    clienteId: number,
+  ): ItemLiquidacionDetallePublic {
+    return {
+      id,
+      clienteId,
+      clienteNombre: cliente ? `${cliente.nombre} ${cliente.apellido}`.trim() : "",
+      valor,
+      metodoPago,
+      fechaHora: fechaHora.toISOString(),
+      liquidado,
+    };
   }
 
   private estaEnVentana(fecha: string, inicio: Date, fin: Date): boolean {

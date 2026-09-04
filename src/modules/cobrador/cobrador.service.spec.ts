@@ -4,6 +4,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
 import { AbonosService } from "../cartera/abonos.service";
 import { PagosService } from "../cartera/pagos.service";
+import { LiquidacionesService } from "../rutas/liquidaciones.service";
 import { ClienteTarjetaService } from "../cartera/cliente-tarjeta.service";
 import { ClienteService } from "../cartera/cliente.service";
 import { EstadoCuentaService } from "../cartera/estado-cuenta.service";
@@ -40,6 +41,7 @@ describe("CobradorService", () => {
   let cuotas: { editarCuota: jest.Mock; eliminarCuota: jest.Mock };
   let abonos: { eliminarAbono: jest.Mock };
   let pagos: { eliminarPago: jest.Mock };
+  let liquidaciones: { generar: jest.Mock; listar: jest.Mock; exportarPdf: jest.Mock };
   let aperturas: { registrar: jest.Mock };
   let posiciones: { registrar: jest.Mock };
   let detalleCuota: { obtener: jest.Mock };
@@ -63,6 +65,7 @@ describe("CobradorService", () => {
     cuotas = { editarCuota: jest.fn(), eliminarCuota: jest.fn() };
     abonos = { eliminarAbono: jest.fn() };
     pagos = { eliminarPago: jest.fn() };
+    liquidaciones = { generar: jest.fn(), listar: jest.fn(), exportarPdf: jest.fn() };
     aperturas = { registrar: jest.fn() };
     posiciones = { registrar: jest.fn() };
     detalleCuota = { obtener: jest.fn() };
@@ -87,6 +90,7 @@ describe("CobradorService", () => {
         { provide: CuotaService, useValue: cuotas },
         { provide: AbonosService, useValue: abonos },
         { provide: PagosService, useValue: pagos },
+        { provide: LiquidacionesService, useValue: liquidaciones },
         { provide: RutasAperturaService, useValue: aperturas },
         { provide: PosicionCobradorService, useValue: posiciones },
         { provide: DetalleCuotaService, useValue: detalleCuota },
@@ -334,6 +338,32 @@ describe("CobradorService", () => {
         service.eliminarPago(6, 40, ctx, requester),
       ).resolves.toEqual({ id: 40 });
       expect(pagos.eliminarPago).toHaveBeenCalledWith(6, 40, ctx, requester);
+    });
+
+    it("generarLiquidacion delega en LiquidacionesService", async () => {
+      liquidaciones.generar.mockResolvedValue({ id: 1 });
+
+      const res = await service.generarLiquidacion(6, { comentario: "cierre" }, requester);
+
+      expect(liquidaciones.generar).toHaveBeenCalledWith(6, { comentario: "cierre" }, requester);
+      expect(res).toEqual({ id: 1 });
+    });
+
+    it("listarLiquidaciones delega en LiquidacionesService", async () => {
+      liquidaciones.listar.mockResolvedValue([]);
+
+      await service.listarLiquidaciones(6, requester);
+
+      expect(liquidaciones.listar).toHaveBeenCalledWith(6, requester);
+    });
+
+    it("exportarLiquidacionPdf delega en LiquidacionesService", async () => {
+      liquidaciones.exportarPdf.mockResolvedValue({ buffer: Buffer.from("%PDF-"), filename: "l.pdf" });
+
+      const res = await service.exportarLiquidacionPdf(6, 1, requester);
+
+      expect(liquidaciones.exportarPdf).toHaveBeenCalledWith(6, 1, requester);
+      expect(res.filename).toBe("l.pdf");
     });
 
     it("registrarApertura delega en RutasAperturaService con coords y requester", async () => {
