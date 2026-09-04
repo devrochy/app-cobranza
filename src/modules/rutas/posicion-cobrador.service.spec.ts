@@ -64,7 +64,12 @@ describe("PosicionCobradorService", () => {
   });
 
   it("actualiza la última posición existente (upsert)", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 6, nombre: "Ruta Centro", cobradorId: 20, cobrador: null });
+    rutaRepo.findOne.mockResolvedValue({
+      id: 6,
+      nombre: "Ruta Centro",
+      cobradorId: 20,
+      cobrador: { id: 20, nombre: "Carlos", apellido: "Lopez" },
+    });
     posicionRepo.findOne.mockResolvedValue({ id: 9, cobradorId: 20, rutaId: 6, latitud: 5.0, longitud: -75.5 });
 
     await service.registrar(6, { latitud: 5.1, longitud: -75.6 }, requester);
@@ -72,6 +77,52 @@ describe("PosicionCobradorService", () => {
     expect(posicionRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ id: 9, latitud: 5.1, longitud: -75.6 }),
     );
+  });
+
+  it("guarda bajo el cobrador de la ruta cuando quien envía es un socio", async () => {
+    rutaRepo.findOne.mockResolvedValue({
+      id: 6,
+      nombre: "Ruta Centro",
+      socioId: 99,
+      cobradorId: 20,
+      cobrador: { id: 20, nombre: "Carlos", apellido: "Lopez" },
+    });
+    posicionRepo.findOne.mockResolvedValue(null);
+
+    const res = await service.registrar(
+      6,
+      { latitud: 5.07, longitud: -75.52 },
+      { rol: "socio", sub: 99 },
+    );
+
+    expect(posicionRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ cobradorId: 20, rutaId: 6 }),
+    );
+    expect(posicionRepo.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({ cobradorId: 99 }),
+    );
+    expect(res.cobradorId).toBe(20);
+  });
+
+  it("no persiste nada si la ruta no tiene cobrador", async () => {
+    rutaRepo.findOne.mockResolvedValue({
+      id: 6,
+      nombre: "Ruta Centro",
+      socioId: 99,
+      cobradorId: null,
+      cobrador: null,
+    });
+    posicionRepo.findOne.mockResolvedValue(null);
+
+    const res = await service.registrar(
+      6,
+      { latitud: 5.07, longitud: -75.52 },
+      { rol: "socio", sub: 99 },
+    );
+
+    expect(posicionRepo.save).not.toHaveBeenCalled();
+    expect(posicionRepo.create).not.toHaveBeenCalled();
+    expect(res).toMatchObject({ rutaId: 6, latitud: 5.07, longitud: -75.52 });
   });
 
   it("lanza NotFound si la ruta no existe", async () => {

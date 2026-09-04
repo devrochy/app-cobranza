@@ -1,7 +1,9 @@
 import { Module } from "@nestjs/common";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { RequestLoggingInterceptor } from "./common/request-logging.interceptor";
 import { buildTypeOrmOptions } from "./config/db-options";
 import { AdminUsersModule } from "./modules/admin-users/admin-users.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -41,6 +43,12 @@ import { TestDataModule } from "./modules/test-data/test-data.module";
     DashboardModule,
     HealthModule,
     TestDataModule,
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestLoggingInterceptor,
+    },
   ],
 })
 export class AppModule {}
