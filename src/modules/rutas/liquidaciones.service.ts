@@ -188,7 +188,19 @@ export class LiquidacionesService {
       where: { ruta: { id: rutaId } },
       order: { fecha: "DESC" },
     });
-    return filas.map((l) => this.toPublic(l));
+    // Incluye el detalle de pagos/abonos de cada liquidación (por su fecha):
+    // la APK lo muestra al consultar una liquidación existente.
+    return Promise.all(
+      filas.map(async (l) => {
+        const base = new Date(`${l.fecha}T00:00:00`);
+        const detalle = await this.obtenerDetalle(
+          rutaId,
+          this.inicioDelDia(base),
+          this.finDelDia(base),
+        );
+        return { ...this.toPublic(l), pagos: detalle.pagos, abonos: detalle.abonos };
+      }),
+    );
   }
 
   /**
