@@ -2,8 +2,6 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Socio } from "../socios/socio.entity";
 import { SociosService } from "../socios/socios.service";
@@ -32,15 +30,6 @@ import { ArchivoSubido } from "../cartera/cliente.service";
 
 const PASSWORD_PRUEBA = "test-password";
 const MARCADOR_SOCIO = "test-socio-1";
-
-// PNG 160x160 con una silueta de persona visible (avatar de ejemplo) para los
-// placeholders de fotos de clientes del seed: se escribe en uploads/clientes/
-// para que el servidor estático pueda servirlo y la foto cargue en APK/panel.
-// Es un PNG (no JPEG) para que se vea nítido en el avatar.
-const AVATAR_PLACEHOLDER = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAIAAAAErfB6AAAChklEQVR4nO3cwYkVURiE0cnL7ExzMjAAl6IwG8ERlJnuulV94Avg/nV48Fb98vrth4Z7ib9AlwZ4PMDjAR4P8HiAxwM8HuDxAI8HeDzA4wEeD/B4gMcDPB7g8QCPB3g8wOMBHg/weIDHAzwe4PEAjwd4PMDjAR4P8HiAxwM8HuDxAI8HeDzA4z0O+MvX7/E33Nky8C/Lfy/+2osaBP4v13npKeAP0k4y7wB/ou6S8QLwp9MuMdcDX6o7YNwNfINuu3Ex8G261catwDfr9hpXAkd0S437gIO6jcaAAZ9UXLfOuAk47tpoDBjwGcVFS40BAz6jOCfgZ+m2GAMGfEBxSMCADw0w4AOKQwIGfGgFwHHFauMC4JON48sABpx+AWDAgAEDBgz43OKQgJ9oHN8EMGDAgM8pLlqnCxjwYcVdu3T7gE8wji8AGHAzcNY4fvsjgFPG8asfBHy/cfzexwHfaRy/9KHA9xjHb3w08NXG8es+2ALwW2jfbQf41ddm32sK+C20vzcF7Bf8ZyPA/mH9rQXgi3Q3jLuBL6XdYC4Gvk232rgV+GbdXuNK4IhuqXEfcFC30bgMOK5bZ9wEHHdtNK4BjouWGgMGfEBxy17jAuC4YrUxYMB0m40BA6bbbAwYMN1mY8CA6TYbAwZMt9kYMGDAgAEDfoTugcaAAQMGDBjwU3RPMwYMGDBgwIABAwYMuKX4koABAwYMGPATdY8yPgh4yTi+JGDAgAEDBgwYMGDAdcWXBAwYMGDAgJ9oHN8QMGDAgAEDfqJxfD3AgNPFkQADBvxI4/hugAEfU1xrQBcwYMbNuoABp4vLVesCBnxAcb9eXcCAzyiuWKpbA3ymcXwTwIB//ARP6+HYDNsjkQAAAABJRU5ErkJggg==",
-  "base64",
-);
 
 /**
  * Matriz de permisos de la APK para los cobradores de prueba (ver_cartera +
@@ -343,8 +332,8 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       requester,
     );
 
-    const clientesA = await this.seedClientes(rutaA.id, "A", 8, requester, true);
-    const clientesB = await this.seedClientes(rutaB.id, "B", 8, requester, false);
+    const clientesA = await this.seedClientes(rutaA.id, "A", 8, requester);
+    const clientesB = await this.seedClientes(rutaB.id, "B", 8, requester);
 
     // Préstamos con mora (hace ~25 días) en ruta A; recientes en ruta B.
     // Pagos "de hoy" de algunas cuotas + abono parcial FIFO (canvas de cuotas).
@@ -445,10 +434,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
           longitud: -75.52 + (i % 3) * 0.014,
           negocio: dato.negocio,
         },
-        [
-          this.evidenciaCliente("foto_facial", `test-foto-mz-${i + 1}.jpg`),
-          this.evidenciaCliente("documento_frente", `test-doc-mz-${i + 1}.jpg`),
-        ],
+        [],
         requester,
       );
       clientes.push({ id: cliente.id });
@@ -543,16 +529,9 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     sufijo: string,
     cantidad: number,
     requester: { rol: "admin"; sub: number },
-    conFotos: boolean,
   ): Promise<{ id: number }[]> {
     const clientes: { id: number }[] = [];
     for (let i = 0; i < cantidad; i++) {
-      const evidencias = conFotos
-        ? [
-            this.evidenciaCliente("foto_facial", `test-foto-${i + 1}.jpg`),
-            this.evidenciaCliente("documento_frente", `test-doc-frente-${i + 1}.jpg`),
-          ]
-        : [];
       const cliente = await this.clienteService.crear(
         rutaId,
         {
@@ -563,7 +542,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
           longitud: -63.18 + i * 0.015,
           negocio: `test-Negocio${sufijo}${i + 1}`,
         },
-        evidencias,
+        [],
         requester,
       );
       clientes.push({ id: cliente.id });
@@ -614,26 +593,6 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       size: 1024,
       filename: `test-${nombre}`,
       path: `/uploads/gastos/test-${nombre}`,
-    };
-  }
-
-  private evidenciaCliente(tipo: "foto_facial" | "documento_frente", nombre: string) {
-    // Crea un placeholder JPEG real en disco para que el servidor estático
-    // (/uploads/*) pueda servirlo y la APK/panel muestren la foto del cliente.
-    const rutaDisco = join(process.cwd(), "uploads", "clientes", nombre);
-    mkdirSync(dirname(rutaDisco), { recursive: true });
-    if (!existsSync(rutaDisco)) {
-      writeFileSync(rutaDisco, AVATAR_PLACEHOLDER);
-    }
-    return {
-      tipo,
-      archivo: {
-        originalname: nombre,
-        mimetype: "image/png",
-        size: AVATAR_PLACEHOLDER.length,
-        filename: nombre,
-        path: `/uploads/clientes/${nombre}`,
-      } as ArchivoSubido,
     };
   }
 
