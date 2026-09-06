@@ -42,9 +42,14 @@ describe("PrestamoService", () => {
   const adminContext = { rol: "admin" as const, sub: 0 };
   const socioContext = { rol: "socio" as const, sub: 1 };
   // Fecha relativa a hoy (medianoche UTC) para no depender de una fecha absoluta
-  // (la validación ±30 días) y para que las diferencias de vencimiento sean exactas.
+  // (la validación ±30 días). Se fija al lunes de la semana actual para que las
+  // cuotas (múltiplos de 7 días) nunca caigan en domingo y el assert de
+  // vencimiento (ajustarDiaHabil) sea determinista en cualquier fecha.
   const fechaOtorgado = new Date();
   fechaOtorgado.setUTCHours(0, 0, 0, 0);
+  fechaOtorgado.setUTCDate(
+    fechaOtorgado.getUTCDate() - ((fechaOtorgado.getUTCDay() + 6) % 7),
+  );
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
     return {
