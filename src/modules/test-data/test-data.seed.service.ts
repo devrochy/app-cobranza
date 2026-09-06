@@ -294,6 +294,9 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         reconocimientoFacialActivo: true,
         registroDocumentoCliente: true,
         permitirCambioFechaPrestamo: true,
+        eliminarPagosApk: true,
+        eliminarAbonosApk: true,
+        generarReportesApk: true,
       },
       requester,
     );
@@ -334,6 +337,17 @@ export class TestDataSeedService implements OnApplicationBootstrap {
 
     const clientesA = await this.seedClientes(rutaA.id, "A", 8, requester);
     const clientesB = await this.seedClientes(rutaB.id, "B", 8, requester);
+
+    // Norte también habilita borrar pagos/abonos y generar reportes en la APK.
+    await this.rutaConfigService.setMatriz(
+      rutaB.id,
+      {
+        eliminarPagosApk: true,
+        eliminarAbonosApk: true,
+        generarReportesApk: true,
+      },
+      requester,
+    );
 
     // Préstamos con mora (hace ~25 días) en ruta A; recientes en ruta B.
     // Pagos "de hoy" de algunas cuotas + abono parcial FIFO (canvas de cuotas).
@@ -406,6 +420,9 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         reconocimientoFacialActivo: true,
         registroDocumentoCliente: true,
         permitirCambioFechaPrestamo: true,
+        eliminarPagosApk: true,
+        eliminarAbonosApk: true,
+        generarReportesApk: true,
       },
       requester,
     );
