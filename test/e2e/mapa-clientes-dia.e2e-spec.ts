@@ -135,7 +135,7 @@ describe("Mapa de clientes del día (e2e)", () => {
         longitudDomicilio: -63.19,
       });
     const c1Id = c1.body.id as number;
-    await request(app.getHttpServer())
+    const prestamoC1 = await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId: c1Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
@@ -153,10 +153,22 @@ describe("Mapa de clientes del día (e2e)", () => {
         longitud: -63.2,
       });
     const c2Id = c2.body.id as number;
-    await request(app.getHttpServer())
+    const prestamoC2 = await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId: c2Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
+
+    // Las cuotas deben vencer HOY para que los clientes aparezcan en el mapa del día.
+    const hoy = (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })();
+    await cuotaRepo
+      .createQueryBuilder()
+      .update()
+      .set({ fechaVencimiento: hoy })
+      .where("prestamo_id IN (:...ids)", { ids: [prestamoC1.body.id, prestamoC2.body.id] })
+      .execute();
   });
 
   afterAll(async () => {

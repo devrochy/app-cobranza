@@ -116,8 +116,8 @@ describe("ListaClientesDelDiaService", () => {
     (service as unknown as { listarClientesConEstado: jest.Mock }).listarClientesConEstado = jest
       .fn()
       .mockResolvedValue([
-        { clienteId: 1, nombre: "A", atraso: 2, esNuevo: false },
-        { clienteId: 2, nombre: "B", atraso: 0, esNuevo: false },
+        { clienteId: 1, nombre: "A", atraso: 2, esNuevo: false, diasMora: 5, compromisoValor: null },
+        { clienteId: 2, nombre: "B", atraso: 0, esNuevo: false, diasMora: 0, compromisoValor: 300 },
       ]);
     // visitas de hoy: cliente 2 pagó.
     (service as unknown as { clientesConVisitaPagoHoy: jest.Mock }).clientesConVisitaPagoHoy = jest
@@ -129,9 +129,29 @@ describe("ListaClientesDelDiaService", () => {
     const c1 = result.find((c) => c.clienteId === 1);
     const c2 = result.find((c) => c.clienteId === 2);
 
-    expect(c1).toMatchObject({ enTrayecto: true, color: "rojo", visitaRegistrada: false });
-    expect(c2).toMatchObject({ enTrayecto: false, color: "verde", visitaRegistrada: true });
+    expect(c1).toMatchObject({ enTrayecto: true, color: "rojo", visitaRegistrada: false, diasMora: 5 });
+    expect(c2).toMatchObject({ enTrayecto: false, color: "verde", visitaRegistrada: true, compromisoValor: 300 });
     expect(result).toHaveLength(2);
+  });
+
+  it("mueve los clientes que ya pagaron hoy a la cola de la lista", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue(configFixture({ cuotasAtrasoUmbral: 1 }));
+    mockRutaOptimizacion.consultar.mockRejectedValue(new NotFoundException());
+    (service as unknown as { listarClientesConEstado: jest.Mock }).listarClientesConEstado = jest
+      .fn()
+      .mockResolvedValue([
+        { clienteId: 1, nombre: "Pagó hoy", atraso: 0, esNuevo: false, diasMora: 0, compromisoValor: null },
+        { clienteId: 2, nombre: "En mora", atraso: 2, esNuevo: false, diasMora: 10, compromisoValor: null },
+      ]);
+    // El cliente 1 ya pagó hoy (visita de pago).
+    (service as unknown as { clientesConVisitaPagoHoy: jest.Mock }).clientesConVisitaPagoHoy = jest
+      .fn()
+      .mockResolvedValue([1]);
+
+    const result = await service.obtener(1, adminContext);
+
+    expect(result.map((c) => c.clienteId)).toEqual([2, 1]);
   });
 
   it("marca enTrayecto=false si no hay trayecto planificado", async () => {
@@ -140,7 +160,7 @@ describe("ListaClientesDelDiaService", () => {
     mockRutaOptimizacion.consultar.mockRejectedValue(new NotFoundException());
     (service as unknown as { listarClientesConEstado: jest.Mock }).listarClientesConEstado = jest
       .fn()
-      .mockResolvedValue([{ clienteId: 1, nombre: "A", atraso: 0 }]);
+      .mockResolvedValue([{ clienteId: 1, nombre: "A", atraso: 0, esNuevo: false, diasMora: 0, compromisoValor: null }]);
     (service as unknown as { clientesConVisitaPagoHoy: jest.Mock }).clientesConVisitaPagoHoy = jest
       .fn()
       .mockResolvedValue([]);
