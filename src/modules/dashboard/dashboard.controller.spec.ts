@@ -39,12 +39,18 @@ describe("DashboardController", () => {
   });
 
   it("dashboard delega en el servicio", async () => {
-    await controller.dashboard({} as never);
+    await controller.dashboard(
+      {} as never,
+      { user: { rol: "admin", sub: 1 } } as never,
+    );
     expect(dashboard.obtener).toHaveBeenCalled();
   });
 
-  it("pasa rutaId y socioId del query al servicio", async () => {
-    await controller.dashboard({ rutaId: 6, socioId: 3 } as never);
+  it("pasa rutaId y socioId del query al servicio para rol admin", async () => {
+    await controller.dashboard(
+      { rutaId: 6, socioId: 3 } as never,
+      { user: { rol: "admin", sub: 1 } } as never,
+    );
 
     expect(dashboard.obtener).toHaveBeenCalledWith(
       expect.any(Date),
@@ -52,10 +58,24 @@ describe("DashboardController", () => {
     );
   });
 
-  it("pasa filtros vacíos cuando el query no trae nada", async () => {
-    await controller.dashboard({} as never);
+  it("pasa filtros vacíos cuando el query no trae nada (admin)", async () => {
+    await controller.dashboard(
+      {} as never,
+      { user: { rol: "admin", sub: 1 } } as never,
+    );
 
     expect(dashboard.obtener).toHaveBeenCalledWith(expect.any(Date), {});
+  });
+
+  it("para rol socio fuerza socioId = sub e ignora rutaId/socioId del query", async () => {
+    await controller.dashboard(
+      { rutaId: 6, socioId: 9 } as never,
+      { user: { rol: "socio", sub: 3 } } as never,
+    );
+
+    expect(dashboard.obtener).toHaveBeenCalledWith(expect.any(Date), {
+      socioId: 3,
+    });
   });
 
   it("monitoreo IA delega en el servicio", async () => {
