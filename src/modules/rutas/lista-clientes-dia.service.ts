@@ -197,7 +197,7 @@ export class ListaClientesDelDiaService {
         "esNuevo",
       )
       .addSelect(
-        "(SELECT pr.valor_promedido FROM promesas_pago pr JOIN prestamos p2 ON p2.id = pr.prestamo_id " +
+        "(SELECT pr.valor_prometido FROM promesas_pago pr JOIN prestamos p2 ON p2.id = pr.prestamo_id " +
           "WHERE p2.cliente_id = c.id AND pr.fecha_prometida = :hoy ORDER BY pr.id DESC LIMIT 1)",
         "compromisoValor",
       )
