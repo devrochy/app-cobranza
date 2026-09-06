@@ -21,6 +21,10 @@ export interface ClienteDiaPublic {
   color: ColorListaDelDia;
   /** True si hoy ya se le registró una visita (pago/abono o no pago). */
   visitaRegistrada: boolean;
+  /** Días de mora (hoy − vencimiento de la cuota vencida más antigua). */
+  diasMora: number;
+  /** Monto prometido de un compromiso de pago con fecha prometida HOY. */
+  compromisoValor: number | null;
 }
 
 export interface MarkerClientePublic {
@@ -68,11 +72,13 @@ export class ListaClientesDelDiaService {
     const clientes = await this.listarClientesConEstado(rutaId);
     const pagaronHoy = new Set(await this.clientesConVisitaPagoHoy(rutaId));
 
-    return clientes.map((c) => ({
+    const lista = clientes.map((c) => ({
       clienteId: c.clienteId,
       nombre: c.nombre,
       enTrayecto: enTrayectoIds.has(c.clienteId),
       visitaRegistrada: pagaronHoy.has(c.clienteId),
+      diasMora: c.diasMora,
+      compromisoValor: c.compromisoValor,
       color: colorListaDelDia(
         c.atraso,
         umbral,
@@ -80,6 +86,17 @@ export class ListaClientesDelDiaService {
         pagaronHoy.has(c.clienteId),
       ),
     }));
+
+    // Los clientes que ya pagaron hoy van a la cola de la lista; el resto se
+    // ordena por días de mora descendente (más mora primero).
+    return lista.sort((a, b) => {
+      const aPagado = pagaronHoy.has(a.clienteId);
+      const bPagado = pagaronHoy.has(b.clienteId);
+      if (aPagado !== bPagado) {
+        return aPagado ? 1 : -1;
+      }
+      return b.diasMora - a.diasMora;
+    });
   }
 
   async obtenerMapa(rutaId: number, requester: RequesterListaDiaContext): Promise<MarkerClientePublic[]> {
@@ -151,7 +168,16 @@ export class ListaClientesDelDiaService {
 
   private async listarClientesConEstado(
     rutaId: number,
-  ): Promise<Array<{ clienteId: number; nombre: string; atraso: number; esNuevo: boolean }>> {
+  ): Promise<
+    Array<{
+      clienteId: number;
+      nombre: string;
+      atraso: number;
+      esNuevo: boolean;
+      diasMora: number;
+      compromisoValor: number | null;
+    }>
+  > {
     const hoy = this.fechaLocal(new Date());
     const filas = await this.logRepo.manager
       .createQueryBuilder()
@@ -162,12 +188,20 @@ export class ListaClientesDelDiaService {
         "atraso",
       )
       .addSelect(
+        "MAX(CASE WHEN cu.estatus IN ('pendiente','atrasada') AND cu.fecha_vencimiento < :hoy " +
+          "THEN :hoy::date - cu.fecha_vencimiento::date ELSE 0 END)",
+        "diasMora",
+      )
+      .addSelect(
         "CASE WHEN COUNT(cu.id) = 0 THEN true ELSE false END",
         "esNuevo",
       )
+      .addSelect(
+        "(SELECT pr.valor_promedido FROM promesas_pago pr JOIN prestamos p2 ON p2.id = pr.prestamo_id " +
+          "WHERE p2.cliente_id = c.id AND pr.fecha_prometida = :hoy ORDER BY pr.id DESC LIMIT 1)",
+        "compromisoValor",
+      )
       .from("clientes", "c")
-      // Solo clientes con préstamo VIGENTE aparecen en la lista del día; los
-      // que no tienen deuda activa (sin préstamos o liquidados) se excluyen.
       .innerJoin(
         "prestamos",
         "p",
@@ -177,9 +211,25 @@ export class ListaClientesDelDiaService {
       .where("c.ruta_id = :rutaId", { rutaId })
       .andWhere("c.estatus = 'activo'")
       .groupBy("c.id")
-      .orderBy("c.nombre", "ASC")
+      // Solo aparecen en la lista del día los clientes con:
+      // - una cuota que vence HOY (pendiente, atrasada o ya pagada), o
+      // - una cuota en mora (vencida sin pagar), o
+      // - un compromiso de pago con fecha prometida HOY.
+      .having(
+        "MAX(CASE WHEN cu.fecha_vencimiento = :hoy AND cu.estatus IN ('pendiente','atrasada','pagada') THEN 1 ELSE 0 END) = 1 " +
+          "OR MAX(CASE WHEN cu.estatus IN ('pendiente','atrasada') AND cu.fecha_vencimiento < :hoy THEN 1 ELSE 0 END) = 1 " +
+          "OR EXISTS (SELECT 1 FROM promesas_pago pr JOIN prestamos p2 ON p2.id = pr.prestamo_id " +
+          "WHERE p2.cliente_id = c.id AND pr.fecha_prometida = :hoy)",
+      )
       .setParameter("hoy", hoy)
-      .getRawMany<{ clienteId: string; nombre: string; atraso: string; esNuevo: string }>();
+      .getRawMany<{
+        clienteId: string;
+        nombre: string;
+        atraso: string;
+        esNuevo: string;
+        diasMora: string;
+        compromisoValor: string | null;
+      }>();
 
     return filas.map((f) => {
       const esNuevo = String(f.esNuevo);
@@ -188,6 +238,11 @@ export class ListaClientesDelDiaService {
         nombre: f.nombre,
         atraso: Number(f.atraso),
         esNuevo: esNuevo === "true" || esNuevo === "t" || esNuevo === "1",
+        diasMora: Number(f.diasMora ?? 0),
+        compromisoValor:
+          f.compromisoValor === null || f.compromisoValor === undefined
+            ? null
+            : Number(f.compromisoValor),
       };
     });
   }
