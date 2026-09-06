@@ -741,4 +741,31 @@ describe("ClienteService", () => {
       expect.objectContaining({ tipo: "foto_facial" }),
     );
   });
+
+  it("permite subir una evidencia a un cliente sin ninguna otra (edición de a una)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: true,
+      registroDocumentoCliente: true,
+    } as RutaConfig);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, rutaId: 1 });
+    // El cliente no tiene ninguna evidencia (p. ej. clientes test sin silueta).
+    (evidenciaRepo.find as jest.Mock).mockResolvedValue([]);
+    (evidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (evidenciaRepo.create as jest.Mock).mockImplementation((e: Partial<ClienteEvidencia>) => e as ClienteEvidencia);
+    (evidenciaRepo.save as jest.Mock).mockImplementation(async (e: Partial<ClienteEvidencia>) => ({ id: 9, ...e }) as ClienteEvidencia);
+
+    // Subir SOLO el documento frente no debe rechazarse aunque falte la foto.
+    await expect(
+      service.agregarEvidencias(
+        1,
+        1,
+        [{ tipo: "documento_frente", archivo: archivoFixture() }],
+        adminContext,
+      ),
+    ).resolves.toEqual({ clienteId: 1 });
+    expect(evidenciaRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: "documento_frente" }),
+    );
+  });
 });

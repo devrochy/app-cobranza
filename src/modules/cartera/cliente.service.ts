@@ -198,27 +198,10 @@ export class ClienteService {
       throw new NotFoundException("El cliente no existe");
     }
 
-    const config =
-      (await this.configRepo.findOne({ where: { ruta: { id: rutaId } } })) ??
-      (RutaConfigDefaults as RutaConfig);
-
-    // Evidencias que el cliente ya tiene (para no exigir re-subir las que ya
-    // están guardadas). El cobrador puede actualizar SOLO la foto o SOLO el
-    // documento sin que la validación de la config lo rechace.
-    const existentes = await this.evidenciaRepo.find({
-      where: { cliente: { id: clienteId } },
-    });
-    const tiposExistentes = new Set(existentes.map((e) => e.tipo));
-    const tiposPresentes = new Set([
-      ...tiposExistentes,
-      ...evidencias.map((e) => e.tipo),
-    ]);
-    if (config.reconocimientoFacialActivo && !tiposPresentes.has("foto_facial")) {
-      throw new BadRequestException("La foto facial es obligatoria");
-    }
-    if (config.registroDocumentoCliente && !tiposPresentes.has("documento_frente")) {
-      throw new BadRequestException("La foto de documento es obligatoria");
-    }
+    // Nota: no se exige aquí la config (foto/documento obligatorios). Esa
+    // validación aplica al CREAR un cliente; al agregar/actualizar evidencias
+    // de un cliente ya existente se permite subir de a una (solo foto, solo
+    // frente, solo reverso), aunque el cliente aún no tenga la otra.
 
     for (const evidencia of evidencias) {
       let existente = await this.evidenciaRepo.findOne({
