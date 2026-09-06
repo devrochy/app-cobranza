@@ -132,10 +132,21 @@ describe("Lista de clientes del día (e2e)", () => {
         longitud: -63.18,
       });
     const c1Id = c1.body.id as number;
-    await request(app.getHttpServer())
+    const prestamoConDeuda = await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId: c1Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
+    // La cuota debe vencer HOY para que el cliente aparezca en la lista del día.
+    const hoy = (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })();
+    await cuotaRepo
+      .createQueryBuilder()
+      .update()
+      .set({ fechaVencimiento: hoy })
+      .where("prestamo_id = :pid", { pid: prestamoConDeuda.body.id })
+      .execute();
 
     // Cliente 2 sin deuda (al día).
     await request(app.getHttpServer())
@@ -149,6 +160,25 @@ describe("Lista de clientes del día (e2e)", () => {
         latitud: -17.79,
         longitud: -63.19,
       });
+
+    // Cliente 4 con préstamo VIGENTE pero cuota FUTURA (no vence hoy): no debe
+    // aparecer en la lista del día.
+    const cFuturo = await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/clientes`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({
+        nombre: "Futuro",
+        apellido: "Ldia",
+        negocio: "N4",
+        telefonoWhatsapp: "+59171160105",
+        latitud: -17.81,
+        longitud: -63.21,
+      });
+    const cFuturoId = cFuturo.body.id as number;
+    await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/prestamos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ clienteId: cFuturoId, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
 
     // Cliente 3 con préstamo liquidado (sin deuda vigente → esNuevo/blanco).
     const c3 = await request(app.getHttpServer())
@@ -182,7 +212,7 @@ describe("Lista de clientes del día (e2e)", () => {
     await app.close();
   });
 
-  it("GET /rutas/:id/dia/clientes solo incluye clientes con préstamo vigente", async () => {
+  it("GET /rutas/:id/dia/clientes solo incluye clientes con cuota de hoy, mora o compromiso", async () => {
     // Generar trayectos para que el cliente con deuda quede en trayecto.
     await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/dia/trayectos`)
@@ -204,15 +234,20 @@ describe("Lista de clientes del día (e2e)", () => {
     const liquidado = res.body.find((c: { clienteId: number; nombre: string }) =>
       c.nombre.includes("Liquidado"),
     );
+    const futuro = res.body.find((c: { clienteId: number; nombre: string }) =>
+      c.nombre.includes("Futuro"),
+    );
 
-    // Solo el cliente con préstamo VIGENTE aparece en la lista del día.
+    // Aparece el cliente con préstamo vigente y cuota que vence HOY.
     expect(conDeuda).toBeDefined();
     expect(conDeuda.enTrayecto).toBe(true);
     expect(["verde", "rojo", "blanco"]).toContain(conDeuda.color);
+    expect(typeof conDeuda.diasMora).toBe("number");
 
-    // Cliente sin préstamos y con préstamo liquidado NO deben estar en la lista.
+    // Sin préstamos, liquidado o con cuota futura NO deben estar en la lista.
     expect(sinDeuda).toBeUndefined();
     expect(liquidado).toBeUndefined();
+    expect(futuro).toBeUndefined();
   });
 
   it("GET /rutas/:id/dia/clientes con ruta inexistente -> 404", async () => {
