@@ -329,3 +329,9 @@ Formato de cada entrada:
   carga y el borrado. Fix sugerido: en `eliminarAbono`, si `abono.liquidado` →
   BadRequest.
 - Prioridad sugerida: media
+
+## Test de fechas de cuotas dependiente de zona horaria (prestamo.service.spec)
+- Detectado en: docs/ai/tasks/socio-dashboard.md (check.sh previo a merge)
+- Fecha: 2026-09-06
+- Descripción: `prestamo.service.spec.ts:292` compara `fechaVencimiento.getTime() - fechaOtorgado.getTime()` con `7*86400000` exacto; falla en máquinas con zona horaria distinta a UTC (DST). Flaky/pre-existente, ajeno al cambio de dashboard. Normalizar las fechas a UTC o usar diferencia en días.
+- Prioridad sugerida: baja

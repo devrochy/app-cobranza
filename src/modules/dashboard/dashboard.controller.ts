@@ -1,13 +1,16 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
+import type { Request } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
+import { AuthTokenPayload } from "../auth/auth.service";
 import { DashboardService } from "./dashboard.service";
 import { MonitoreoIaService } from "./monitoreo-ia.service";
 import { ListarDashboardDto } from "./dto/listar-dashboard.dto";
 
 /**
- * Endpoints del panel admin (Épica 5). Admin-only: sin @PermisoRequerido, el
- * PermisoGuard deja pasar solo a rol admin.
+ * Endpoints del panel admin (Épica 5). Sin @PermisoRequerido, el PermisoGuard
+ * deja pasar solo a rol admin; `dashboard` admite además rol socio con su
+ * propio dashboard (socioId = sub, se ignora rutaId del query).
  */
 @Controller()
 export class DashboardController {
@@ -18,10 +21,14 @@ export class DashboardController {
 
   @Get("dashboard")
   @UseGuards(JwtAuthGuard, PermisoGuard)
-  dashboard(@Query() dto: ListarDashboardDto) {
+  dashboard(
+    @Query() dto: ListarDashboardDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    const esSocio = req.user.rol === "socio";
     return this.dashboardService.obtener(new Date(), {
-      rutaId: dto.rutaId,
-      socioId: dto.socioId,
+      rutaId: esSocio ? undefined : dto.rutaId,
+      socioId: esSocio ? req.user.sub : dto.socioId,
     });
   }
 
