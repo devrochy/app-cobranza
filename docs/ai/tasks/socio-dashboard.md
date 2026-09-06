@@ -2,8 +2,9 @@
 
 - **Origen:** Petición directa del usuario (sesión opencode 2026-09-06) — el panel admin
   redirige al socio a /dashboard, pero `GET /dashboard` es admin-only → 403 → loop.
-- **Estado:** completada (pendiente de PR)
+- **Estado:** completada (PR #97 mergeado a `develop`, SHA `f9d7ad1`)
 - **Fecha inicio:** 2026-09-06
+- **Fecha merge:** 2026-09-06 (rebase sobre develop con fix #98 del test de fechas + squash `f9d7ad1`)
 
 ## Objetivo
 Permitir que el rol `socio` consuma `GET /dashboard` con su propio dashboard, forzando
