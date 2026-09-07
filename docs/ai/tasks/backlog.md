@@ -335,3 +335,18 @@ Formato de cada entrada:
 - Fecha: 2026-09-06
 - Descripción: `prestamo.service.spec.ts:292` compara `fechaVencimiento.getTime() - fechaOtorgado.getTime()` con `7*86400000` exacto; falla en máquinas con zona horaria distinta a UTC (DST). Flaky/pre-existente, ajeno al cambio de dashboard. Normalizar las fechas a UTC o usar diferencia en días.
 - Prioridad sugerida: baja
+
+## Observabilidad avanzada: OpenTelemetry (traces) + métricas Prometheus + redacción de sensibles
+- Detectado en: docs/setup-opencode.md (Fase 3 — observabilidad, 2026-09-07)
+- Descripción: ampliar la observabilidad del backend más allá del structured
+  logging del interceptor (PR #101):
+  1. **OpenTelemetry**: traces de requests y de acceso a BD (OTEL SDK de NestJS).
+  2. **Métricas**: exportar métricas básicas (latencia por endpoint, tasa de
+     error, count) en formato Prometheus.
+  3. **Redacción de sensibles**: redactar datos de clientes (teléfonos, nombres,
+     montos) y evitar trazas de BD en el campo `error` del log (hoy se loguea el
+     body de error truncado a 500 chars).
+- Nota: diferido a propósito — se hará cuando se ajusten temas funcionales en el
+  panel (`app-cobranza-admin`) y la APK (`app-cobranza-apk`), para no mezclarlo
+  con trabajo funcional en curso.
+- Prioridad sugerida: media
