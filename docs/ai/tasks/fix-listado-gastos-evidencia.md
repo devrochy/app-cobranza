@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: fix-listado-gastos-evidencia (listado de gastos con evidencias)
 
 - **Origen:** Bug detectado en pruebas visuales del panel (entrar a `test-Ruta Centro` → 500): `EntityPropertyNotFoundError: Property "gastoId" was not found in "GastoEvidencia"`.

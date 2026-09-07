@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: data-prueba-seed (migración de datos de prueba)
 
 - **Origen:** Plan aprobado por el usuario (cargar migración de data de prueba para pruebas visuales e identificar mejoras).

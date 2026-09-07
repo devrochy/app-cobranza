@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Consulta de saldo y próxima cuota por WhatsApp (HU-27)
 
 - **Origen:** Roadmap Fase 4 ítem 28 (docs/plan-feature-roadmap.md:57) — HU-27 (docs/APP_REQUIREMENTS.md:87).

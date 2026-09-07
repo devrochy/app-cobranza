@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: A1-backend — mis-rutas expone tipoInteres y numCuotas de la ruta
 
 - **Origen:** Plan consolidado aprobado por el usuario 2026-09-02 (Epic A1 — autocompletar préstamo en la APK).

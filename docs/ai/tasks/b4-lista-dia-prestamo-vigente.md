@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: B4 — Lista del día solo con clientes de préstamo vigente
 
 - **Origen:** Plan consolidado aprobado por el usuario 2026-09-02 (Epic B4).

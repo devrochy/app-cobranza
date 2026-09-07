@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Refactor de helpers compartidos (assertOwned y numericTransformer)
 
 - **Origen:** backlog "assertOwned duplicado" y "numericTransformer duplicado" + Fase 0 del roadmap (ítem 3)

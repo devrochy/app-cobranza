@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Historial de liquidaciones consultable y exportable (HU-22/HU-50)
 
 - **Origen:** Roadmap Fase 2 ítem 15 (docs/plan-feature-roadmap.md:36) — HU-22 (docs/APP_REQUIREMENTS.md:74) y HU-50 (:75).

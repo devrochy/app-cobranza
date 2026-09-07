@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Registrar y aprobar gastos de ruta con evidencias (HU-17)
 
 - **Origen:** Roadmap Fase 1 ítem 9 (docs/plan-feature-roadmap.md:27) — HU-17 (docs/APP_REQUIREMENTS.md:60). Tablas PRD 4.2:302,305; notas PRD 4.3:365,366.

@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Lista de clientes del día con colores (HU-56)
 
 - **Origen:** Roadmap Fase 3 ítem 18 (docs/plan-feature-roadmap.md:42) — HU-56 (docs/APP_REQUIREMENTS.md:106), amplía HU-13.

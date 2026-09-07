@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Configuración del socio: nombre de oficina de cobro y campos de configuración (HU-62)
 
 - **Origen:** Roadmap Fase 5 ítem 34 (docs/plan-feature-roadmap.md:66) — HU-62 (docs/APP_REQUIREMENTS.md:39). Tabla `socios` PRD 4.2:255 (`pais`, `nombre_oficina_cobro`, `dias_tolerancia_cobro`); permiso `editar_configuracion_socio` PRD 4.2:258.

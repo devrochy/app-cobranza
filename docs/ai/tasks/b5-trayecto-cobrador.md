@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: B5 — Generar trayecto del día desde la APK
 
 - **Origen:** Plan consolidado aprobado por el usuario 2026-09-02 (Epic B5) + decisión "generar desde la APK".

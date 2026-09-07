@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Bloqueo automático por mora de cobro y auto-habilitación al pagar (HU-61)
 
 - **Origen:** Roadmap Fase 5 ítem 36 (docs/plan-feature-roadmap.md:68) — HU-61 (docs/APP_REQUIREMENTS.md:38). Dependencias: `socios.dias_tolerancia_cobro` (HU-62, :39/:255), `cobros_socio` (HU-60, :125/:346-347), cascada HU-05 (:34), revalidación JWT por request.

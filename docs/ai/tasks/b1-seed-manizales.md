@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: B1 — Ruta de prueba Manizales/COP con nombres reales y multi-préstamo
 
 - **Origen:** Plan consolidado aprobado por el usuario 2026-09-02 (Epic B1).

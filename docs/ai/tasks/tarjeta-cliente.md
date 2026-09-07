@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Tarjeta de cliente con detalle (HU-58)
 
 - **Origen:** Roadmap Fase 3 ítem 20 (docs/plan-feature-roadmap.md:44) — HU-58 (docs/APP_REQUIREMENTS.md:108).

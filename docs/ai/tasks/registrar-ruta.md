@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Registrar ruta (HU-08)
 
 - **Origen:** HU-08 (docs/APP_REQUIREMENTS.md:42)

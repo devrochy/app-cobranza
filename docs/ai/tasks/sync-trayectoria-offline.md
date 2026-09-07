@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: sync-trayectoria-offline (evento trayectoria en la sync offline)
 
 - **Origen:** Plan aprobado del usuario para dejar la APK desarrollada (Fase 4a, 2026-09-01). HU-49/64 (docs/APP_REQUIREMENTS.md:66,128): trayectoria GPS real offline.

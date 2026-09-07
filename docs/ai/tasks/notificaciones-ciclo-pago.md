@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Notificaciones de pago de cuota en ciclo completo con config por ruta (HU-52)
 
 - **Origen:** Roadmap Fase 4 ítem 24 (docs/plan-feature-roadmap.md:53) — HU-52 (docs/APP_REQUIREMENTS.md:95), amplía HU-30. Config PRD 4.2:276 (`dias_anticipacion_notificacion`, `aviso_dia_cobro`, `umbral_mora_notificacion`).

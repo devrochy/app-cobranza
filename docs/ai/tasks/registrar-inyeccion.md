@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Registrar inyección de capital (HU-11)
 
 - **Origen:** HU-11 (docs/APP_REQUIREMENTS.md:45)

@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # backend-eliminar-pago
 
 - **Rama:** `feature/backend-eliminar-pago` (desde `develop`)

@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Negociación de refinanciación o abono parcial por WhatsApp (HU-29)
 
 - **Origen:** Roadmap Fase 4 ítem 30 (docs/plan-feature-roadmap.md:59) — HU-29 (docs/APP_REQUIREMENTS.md:89).

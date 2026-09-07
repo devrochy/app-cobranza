@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: cobrador-prestamos (endpoint POST /cobrador/rutas/:id/prestamos)
 
 - **Origen:** Plan aprobado del usuario para dejar la APK desarrollada (Fase 3a, 2026-09-01). HU-14 (docs/APP_REQUIREMENTS.md:57): registrar préstamo desde la APK.

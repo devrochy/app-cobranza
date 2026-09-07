@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: cartera-reportes-global (secciones consolidadas de cartera y reportes)
 
 - **Origen:** Plan aprobado por el usuario (sesión de cartera y reporte consolidada global en el panel).

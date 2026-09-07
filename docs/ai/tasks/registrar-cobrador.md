@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Registrar cobrador (HU-03)
 
 - **Origen:** HU-03 (docs/APP_REQUIREMENTS.md:32)

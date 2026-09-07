@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: apertura-ruta-auditoria (registrar apertura de la ruta del día)
 
 - **Origen:** Plan aprobado del usuario para dejar la APK desarrollada (Fase 4b, 2026-09-01). HU-41 (docs/APP_REQUIREMENTS.md:106): registrar timestamp + coordenadas al abrir la ruta del día.

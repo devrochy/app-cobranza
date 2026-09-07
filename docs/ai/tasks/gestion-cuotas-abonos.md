@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Gestión de cuotas y abonos con auditoría imborrable y re-autenticación (HU-48)
 
 - **Origen:** Roadmap Fase 1 ítem 12 (docs/plan-feature-roadmap.md:30) — HU-48 (docs/APP_REQUIREMENTS.md:65). Tabla PRD 4.2:329 (auditoria_cartera).

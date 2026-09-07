@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Acceso del socio limitado a sus permisos habilitados (HU-07)
 
 - **Origen:** HU-07 (docs/APP_REQUIREMENTS.md:36)

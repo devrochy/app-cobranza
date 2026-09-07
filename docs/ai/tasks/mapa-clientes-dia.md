@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Mapa de clientes desde la lista del día (HU-57)
 
 - **Origen:** Roadmap Fase 3 ítem 19 (docs/plan-feature-roadmap.md:43) — HU-57 (docs/APP_REQUIREMENTS.md:107).

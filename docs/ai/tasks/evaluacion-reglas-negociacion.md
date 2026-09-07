@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Evaluación de cada negociación contra las reglas configuradas antes de confirmar (HU-31)
 
 - **Origen:** Roadmap Fase 4 ítem 31 (docs/plan-feature-roadmap.md:60) — HU-31 (docs/APP_REQUIREMENTS.md:91). PRD 3.3 "IA propone, reglas deciden" (líneas 172-174). Consume `reglas_negociacion_ia` (HU-25).

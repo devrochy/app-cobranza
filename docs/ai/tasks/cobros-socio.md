@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Cobro mensual a socios (HU-60)
 
 - **Origen:** Roadmap Fase 5 ítem 35 (docs/plan-feature-roadmap.md:67) — HU-60 (docs/APP_REQUIREMENTS.md:125). Tablas `cobros_socio`/`conversaciones_socio`/`mensajes_socio`/`links_pago` PRD 4.2:346-356; `rutas.costo_cobro` PRD 4.2:273; mock de pago PRD 6.4:419-423.

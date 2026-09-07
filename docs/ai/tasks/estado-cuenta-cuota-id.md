@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: estado-cuenta-cuota-id
 
 - **Origen:** Petición del usuario (panel admin `app-cobranza-admin`, bloque 6 de `gestion-cartera`): el estado de cuenta no expone el id de entidad de la cuota, pero `POST /rutas/:rutaId/pagos` y la visita `tipoPago: "cuota"` lo exigen.

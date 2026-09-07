@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Segmentación de la ruta del día en trayectos (HU-55)
 
 - **Origen:** Roadmap Fase 3 ítem 17 (docs/plan-feature-roadmap.md:41) — HU-55 (docs/APP_REQUIREMENTS.md:105), amplía HU-35/36. Tabla `ruta_optimizada_log` PRD 4.2:344.

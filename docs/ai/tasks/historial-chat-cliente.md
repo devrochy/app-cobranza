@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Historial unificado de conversación con el cliente, chat por simulador y enlace wa.me (HU-53)
 
 - **Origen:** Roadmap Fase 4 ítem 25 (docs/plan-feature-roadmap.md:54) — HU-53 (docs/APP_REQUIREMENTS.md:96), amplía HU-19/HU-33.

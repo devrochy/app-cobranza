@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Generación de liquidación de ruta (HU-20)
 
 - **Origen:** Roadmap Fase 2 ítem 14 (docs/plan-feature-roadmap.md:35) — HU-20 (docs/APP_REQUIREMENTS.md:72). Tabla PRD 4.2:317 (liquidaciones); `periodo_liquidacion` PRD 4.2:276.

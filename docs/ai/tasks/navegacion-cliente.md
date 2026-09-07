@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Navegación al cliente con enlaces Google Maps/Waze (HU-59)
 
 - **Origen:** Roadmap Fase 3 ítem 21 (docs/plan-feature-roadmap.md:45) — HU-59 (docs/APP_REQUIREMENTS.md:109), amplía HU-37.

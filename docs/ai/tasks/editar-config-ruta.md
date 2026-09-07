@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Editar configuración de ruta (9a)
 
 - **Origen:** 9a (docs/plan-feature-roadmap.md:27) — amplía HU-09 (docs/APP_REQUIREMENTS.md:43)

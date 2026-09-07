@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Editar socio o cobrador (HU-04)
 
 - **Origen:** HU-04 (docs/APP_REQUIREMENTS.md:33)

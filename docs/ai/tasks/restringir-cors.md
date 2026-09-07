@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: restringir-cors (whitelist de orígenes para CORS)
 
 - **Origen:** Seguridad del panel admin / APK — el backend habilitaba CORS abierto (`app.enableCors()` sin opciones). Aprobado por el usuario 2026-09-01.

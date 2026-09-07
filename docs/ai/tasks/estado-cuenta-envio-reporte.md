@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Estado de cuenta del préstamo y envío del reporte por WhatsApp (HU-54)
 
 - **Origen:** Roadmap Fase 4 ítem 26 (docs/plan-feature-roadmap.md:55) — HU-54 (docs/APP_REQUIREMENTS.md:97), amplía HU-27 (docs/APP_REQUIREMENTS.md:87).

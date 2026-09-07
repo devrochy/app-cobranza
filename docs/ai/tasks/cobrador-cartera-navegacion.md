@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: cobrador-cartera-navegacion (lista de clientes + estado de cuenta APK)
 
 - **Origen:** Petición directa del usuario 2026-09-02 (rediseño APK: lista de clientes de ruta + canvas de cuotas con abonos).
