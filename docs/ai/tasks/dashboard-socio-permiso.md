@@ -2,7 +2,7 @@
 
 - **Origen:** Petición directa del usuario (sesión opencode 2026-09-06) — juanita (socio
   con todos los permisos) no accede a su dashboard.
-- **Estado:** completada (pendiente de PR/merge)
+- **Estado:** completada (PR #100 mergeado a `develop`, SHA `82ea462`)
 - **Fecha inicio:** 2026-09-06
 
 ## Objetivo
