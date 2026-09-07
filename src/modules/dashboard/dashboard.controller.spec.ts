@@ -5,6 +5,7 @@ import { DataSource } from "typeorm";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
+import { PERMISO_REQUERIDO_KEY } from "../auth/permiso-requerido.decorator";
 import { DashboardController } from "./dashboard.controller";
 import { DashboardService } from "./dashboard.service";
 import { MonitoreoIaService } from "./monitoreo-ia.service";
@@ -76,6 +77,15 @@ describe("DashboardController", () => {
     expect(dashboard.obtener).toHaveBeenCalledWith(expect.any(Date), {
       socioId: 3,
     });
+  });
+
+  it("exige ver_reportes para que un socio pueda acceder a su dashboard", () => {
+    const permiso = Reflect.getMetadata(
+      PERMISO_REQUERIDO_KEY,
+      DashboardController.prototype.dashboard,
+    );
+
+    expect(permiso).toBe("ver_reportes");
   });
 
   it("monitoreo IA delega en el servicio", async () => {
