@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Infraestructura del simulador de WhatsApp y motor de notificaciones (Ítem 23)
 
 - **Origen:** Roadmap Fase 4 ítem 23 (docs/plan-feature-roadmap.md:52) — prerrequisito para HUs de conversación (HU-52/53/54) y recálculo (HU-36). PRD Fase 1 6.1 (simulador sin costo).

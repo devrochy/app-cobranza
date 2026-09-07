@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Inventario de endpoints backend (panel + APK)
 
 - **Origen:** solicitud del usuario 2026-09-02 (barrido de endpoints, decidir obsolescencia).

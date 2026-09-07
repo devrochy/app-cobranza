@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Bloquear o activar socio y cobrador (HU-05)
 
 - **Origen:** HU-05 (docs/APP_REQUIREMENTS.md:34)

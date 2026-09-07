@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: B3 — HU-44 tiempo real por polling (posición cobrador + posiciones panel)
 
 - **Origen:** Plan consolidado aprobado por el usuario 2026-09-02 (Epic B3) + decisión "polling HTTP".

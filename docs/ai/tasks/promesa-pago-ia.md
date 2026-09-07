@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Registro de promesa de pago en lenguaje natural (HU-28)
 
 - **Origen:** Roadmap Fase 4 ítem 29 (docs/plan-feature-roadmap.md:58) — HU-28 (docs/APP_REQUIREMENTS.md:88). Tabla `promesas_pago` PRD 4.2:337-338.

@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Persistir trayectorias planificada y real en reporte diario (HU-49)
 
 - **Origen:** Roadmap Fase 3 ítem 22 (docs/plan-feature-roadmap.md:46) — HU-49 (docs/APP_REQUIREMENTS.md:66), amplía HU-18/HU-38. Tabla `reportes_diarios` PRD 4.2:320.

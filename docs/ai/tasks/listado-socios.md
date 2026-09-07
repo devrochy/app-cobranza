@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: listado-socios
 
 - **Origen:** Petición directa del usuario (panel admin Fase P2 — `docs/plan-panel-admin.md` del repo `app-cobranza-admin`). El listado `GET /socios` no existe en el backend.

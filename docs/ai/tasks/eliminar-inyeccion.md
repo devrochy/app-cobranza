@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Eliminar inyección con trazabilidad (HU-12)
 
 - **Origen:** HU-12 (docs/APP_REQUIREMENTS.md:46)

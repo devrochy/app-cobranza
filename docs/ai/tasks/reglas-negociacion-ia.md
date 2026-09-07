@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Configuración de límites financieros y reglas de negociación del asistente de IA (HU-25)
 
 - **Origen:** Roadmap Fase 4 ítem 27 (docs/plan-feature-roadmap.md:56) — HU-25 (docs/APP_REQUIREMENTS.md:82). Tabla `reglas_negociacion_ia` PRD 4.2:340-341.

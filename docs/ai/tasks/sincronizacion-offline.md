@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: API de sincronización de eventos offline con idempotencia por dispositivo (HU-64)
 
 - **Origen:** Roadmap Fase 6 ítem 39 (docs/plan-feature-roadmap.md:74) — HU-64 (docs/APP_REQUIREMENTS.md:130). Tabla `sincronizacion_offline` PRD 4.2:358-359; modo offline :371; sección 6.5 :431-436 (MVP solo API, APK real Fase 2).

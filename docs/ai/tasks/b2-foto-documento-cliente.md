@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: B2 — fotoUrl en lista de clientes + endpoint cobrador de evidencias
 
 - **Origen:** Plan consolidado aprobado por el usuario 2026-09-02 (Epic B2) + decisión "foto real en lista + backend".

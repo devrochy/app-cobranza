@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Matriz de parámetros por ruta — ruta_config (HU-10)
 
 - **Origen:** HU-10 (docs/APP_REQUIREMENTS.md:44); tabla ruta_config (PRD 4.2:229)

@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Endpoints de panel: dashboard consolidado (HU-23) y monitoreo IA (HU-24)
 
 - **Origen:** Épica 5 — HU-23 (docs/APP_REQUIREMENTS.md:80) y HU-24 (:81). Workstream A del plan del panel admin (repo separado). El backend no tiene hoy estos endpoints.

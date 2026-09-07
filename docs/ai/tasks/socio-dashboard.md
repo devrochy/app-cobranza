@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: socio-dashboard (GET /dashboard para rol socio)
 
 - **Origen:** Petición directa del usuario (sesión opencode 2026-09-06) — el panel admin

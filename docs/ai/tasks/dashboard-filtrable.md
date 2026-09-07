@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: dashboard-filtrable
 
 - **Origen:** Petición del usuario (panel admin `app-cobranza-admin`, mejora de producto P5): el dashboard consolidado es global; se quiere filtrar por ruta o socio.

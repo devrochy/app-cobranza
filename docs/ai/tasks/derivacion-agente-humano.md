@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Detección y derivación a agente humano de casos complejos (HU-32)
 
 - **Origen:** Roadmap Fase 4 ítem 32 (docs/plan-feature-roadmap.md:61) — HU-32 (docs/APP_REQUIREMENTS.md:92). PRD 4.2:332 (`conversaciones_ia.estado/motivo_derivacion/agente_asignado_id`). Incluye el wiring diferido de `umbral_saldo_autonomo` (HU-31).

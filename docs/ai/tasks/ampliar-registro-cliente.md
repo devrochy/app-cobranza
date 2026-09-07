@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Ampliar registro de cliente y préstamo (dos direcciones, fotos, tope deuda, fecha ±30 días, fiador) (amplía HU-14)
 
 - **Origen:** Roadmap Fase 1 ítem 10 (docs/plan-feature-roadmap.md:28) — HU-14 (docs/APP_REQUIREMENTS.md:57). Tablas PRD 4.2:285 (clientes), 289 (prestamos), 307 (cliente_evidencias), 276 (ruta_config).

@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Registrar préstamo a cliente respetando el cupo (HU-14)
 
 - **Origen:** HU-14 (docs/APP_REQUIREMENTS.md:53)

@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: cobrador-apk-api (controller del cobrador para la APK)
 
 - **Origen:** Plan del APK del cobrador (Paso 1, Enfoque A) aprobado por el usuario 2026-08-31. Requiere la infra de `acceso-cobrador-dominio` (#76, ya en develop).

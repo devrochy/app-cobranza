@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Matriz de permisos por socio (HU-06)
 
 - **Origen:** HU-06 (docs/APP_REQUIREMENTS.md:35)

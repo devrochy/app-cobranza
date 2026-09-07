@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: cobrador-cuotas-abonos (editar/eliminar cuotas y abonos desde la APK)
 
 - **Origen:** Plan aprobado del usuario para dejar la APK desarrollada (Fase 3b, 2026-09-01). HU-48 (docs/APP_REQUIREMENTS.md:65): editar/eliminar cuotas y abonos con auditoría y re-autenticación.

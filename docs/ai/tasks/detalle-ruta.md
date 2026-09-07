@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Detalle/resumen de ruta con visibilidad por flags (HU-51)
 
 - **Origen:** Roadmap Fase 2 ítem 16 (docs/plan-feature-roadmap.md:37) — HU-51 (docs/APP_REQUIREMENTS.md:76). Catálogo `ver_cartera` PRD:264 (cobrador).

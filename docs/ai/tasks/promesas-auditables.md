@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Promesas de pago y acuerdos como entidades auditables vinculadas al préstamo (HU-34)
 
 - **Origen:** Roadmap Fase 4 ítem 33 (docs/plan-feature-roadmap.md:62) — HU-34 (docs/APP_REQUIREMENTS.md:94). Tabla `promesas_pago` PRD 4.2:337-338; auditoría via `auditoria_cartera` (patrón HU-48).

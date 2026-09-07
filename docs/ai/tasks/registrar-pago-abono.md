@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Registrar pago de cuota y abono con método de pago, actualizando caja (HU-15)
 
 - **Origen:** Roadmap Fase 1 ítem 7 (docs/plan-feature-roadmap.md:25) — HU-15 (docs/APP_REQUIREMENTS.md:58). Tablas PRD 4.2:296,298; nota PRD 4.3:366.

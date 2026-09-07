@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Registrar socio (HU-02)
 
 - **Origen:** HU-02 (docs/APP_REQUIREMENTS.md:31)

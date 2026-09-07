@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Regla de días de cobro (ajuste por día no laborable + mora)
 
 - **Origen:** Roadmap Fase 1 ítem 5 (docs/plan-feature-roadmap.md:23) — HU-13/HU-15/HU-16 (docs/APP_REQUIREMENTS.md:47,50,58,59)

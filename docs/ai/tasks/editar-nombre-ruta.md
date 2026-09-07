@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Editar nombre y descripción de ruta (HU-09)
 
 - **Origen:** HU-09 (docs/APP_REQUIREMENTS.md:43)

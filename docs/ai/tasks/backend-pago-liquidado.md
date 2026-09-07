@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # backend-pago-liquidado
 
 - **Rama:** `feature/backend-pago-liquidado` (desde `develop`)

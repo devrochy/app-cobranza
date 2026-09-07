@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Registrar visita de cliente con resultado, catálogo de motivos y promesa de pago (HU-46/HU-16)
 
 - **Origen:** Roadmap Fase 1 ítem 8 (docs/plan-feature-roadmap.md:26) — HU-46 (docs/APP_REQUIREMENTS.md:63) y HU-16 (:59). Tablas PRD 4.2:310-311 (visitas) y :337-338 (promesas_pago).

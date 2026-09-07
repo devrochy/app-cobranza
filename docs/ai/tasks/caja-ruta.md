@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Caja de ruta (saldo inicial, saldo vivo, historial de ajustes, wiring inyecciones)
 
 - **Origen:** Roadmap Fase 1 ítem 6 (docs/plan-feature-roadmap.md:24) — amplía HU-08 (docs/APP_REQUIREMENTS.md:45) y HU-11 (:48). Tablas PRD 4.2:278-282, nota PRD 4.3:366.

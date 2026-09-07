@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: dashboard-socio-permiso (GET /dashboard accesible para socio con ver_reportes)
 
 - **Origen:** Petición directa del usuario (sesión opencode 2026-09-06) — juanita (socio

@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Login del administrador (HU-01)
 
 - **Origen:** HU-01 (docs/APP_REQUIREMENTS.md:30) — prerequisito lógico de HU-02

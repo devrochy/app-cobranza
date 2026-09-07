@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # backend-liquidacion-cobrador
 
 - **Rama:** `feature/backend-liquidacion-cobrador` (desde `develop`)

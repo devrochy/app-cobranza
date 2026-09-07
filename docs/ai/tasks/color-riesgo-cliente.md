@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Código de color por cliente según nivel de atraso (HU-13)
 
 - **Origen:** HU-13 (docs/APP_REQUIREMENTS.md:47)

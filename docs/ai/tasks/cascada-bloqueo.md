@@ -1,3 +1,8 @@
+---
+estado: en progreso
+tags: [tarea]
+---
+
 # Tarea: Cascada de bloqueo socio → cobradores → rutas con transacción (HU-05/HU-61)
 
 - **Origen:** HU-05/HU-61 (docs/APP_REQUIREMENTS.md:34,44) + backlog "Cascada de bloqueo de rutas sin transacción"

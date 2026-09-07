@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Notas de ruta — crear, ver, editar y eliminar (HU-45)
 
 - **Origen:** Roadmap Fase 1 ítem 13 (docs/plan-feature-roadmap.md:31) — HU-45 (docs/APP_REQUIREMENTS.md:51). Tabla PRD 4.2:323 (ruta_notas); permisos `anotar_notas_ruta` (PRD:258 socio, :264 cobrador).
