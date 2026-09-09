@@ -350,3 +350,12 @@ Formato de cada entrada:
   panel (`app-cobranza-admin`) y la APK (`app-cobranza-apk`), para no mezclarlo
   con trabajo funcional en curso.
 - Prioridad sugerida: media
+
+## Traducir la regla de "cobro HOY" a SQL compartido y validar geometrías en el trayecto
+- Detectado en: docs/ai/tasks/trayecto-optimo-filtro-y-origen.md (review code-reviewer, 2026-09-08)
+- Descripción:
+  1. La cláusula HAVING de "cobro HOY" quedó duplicada entre `RutaOptimizacionService.obtenerClientesDelDia` (ruta-optimizacion.service.ts) y `ListaClientesDelDiaService.listarClientesConEstado` (lista-clientes-dia.service.ts). Si la regla cambia, un lugar puede quedar desincronizado silenciosamente. Extraerla a un builder/constante SQL compartida.
+  2. "Riesgo de recursión infinita en `subdividir`/`kMeans` (segmentacion-trayectos.ts)": con >= maxParadas+1 paradas con coordenadas idénticas y maxParadas=9, kMeans colapsa a 1 grupo (empate al primer centroide) y `subdividir` se auto-recurre con el mismo grupo → stack overflow. Caso realista: clientes en el mismo edificio.
+  3. `c.ubicacion IS NOT NULL` no garantiza geometría casteable: `ST_Y/ST_X(c.ubicacion::geometry)` puede fallar con geometry malformado y coordenadas (0,0) entran como paradas válidas. Validar con `ST_IsValid`/rango de coords o manejar el fallo de cast. La misma precondición existe en `ListaClientesDelDiaService.coordenadasDeClientes`.
+  4. `fechaLocal` está duplicado en ruta-optimizacion.service.ts y lista-clientes-dia.service.ts; extraer a util compartido.
+- Prioridad sugerida: media (1,2,4), baja (3)
