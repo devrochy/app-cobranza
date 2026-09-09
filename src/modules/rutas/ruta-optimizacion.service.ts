@@ -3,8 +3,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
-import { calcularDistanciaKm, ParadaGeo, segmentarTrayectos, Trayecto } from "../../domain/segmentacion-trayectos";
+import { calcularDistanciaKm, ParadaGeo, PuntoInicio, segmentarTrayectos, Trayecto } from "../../domain/segmentacion-trayectos";
 import { Ruta } from "./ruta.entity";
+import { PosicionCobrador } from "./posicion-cobrador.entity";
 import { RutaOptimizadaLog, TipoTrayecto } from "./ruta-optimizada-log.entity";
 
 export const MAX_PARADAS_POR_TRAYECTO = 9;
@@ -33,6 +34,8 @@ export class RutaOptimizacionService {
     private readonly rutaRepo: Repository<Ruta>,
     @InjectRepository(RutaOptimizadaLog)
     private readonly logRepo: Repository<RutaOptimizadaLog>,
+    @InjectRepository(PosicionCobrador)
+    private readonly posicionRepo: Repository<PosicionCobrador>,
   ) {}
 
   async generar(rutaId: number, requester: RequesterTrayectoContext): Promise<Trayecto[]> {
@@ -43,7 +46,8 @@ export class RutaOptimizacionService {
     assertOwned(ruta, requester);
 
     const paradas = await this.obtenerClientesDelDia(rutaId);
-    const trayectos = segmentarTrayectos(paradas, MAX_PARADAS_POR_TRAYECTO);
+    const inicio = await this.ubicacionDelCobrador(ruta, requester);
+    const trayectos = segmentarTrayectos(paradas, MAX_PARADAS_POR_TRAYECTO, inicio);
 
     const log = this.logRepo.create({
       ruta: { id: rutaId } as Ruta,
@@ -106,21 +110,47 @@ export class RutaOptimizacionService {
     return Math.round(total * 100) / 100;
   }
 
+  /** Última posición conocida del cobrador de la ruta; sin ella, undefined. */
+  private async ubicacionDelCobrador(
+    ruta: Ruta,
+    requester: RequesterTrayectoContext,
+  ): Promise<PuntoInicio | undefined> {
+    const cobradorId = ruta.cobradorId ?? (requester.rol === "cobrador" ? requester.sub : undefined);
+    if (cobradorId === undefined) {
+      return undefined;
+    }
+    const posicion = await this.posicionRepo.findOne({
+      where: { cobradorId, rutaId: ruta.id },
+    });
+    return posicion ? { latitud: posicion.latitud, longitud: posicion.longitud } : undefined;
+  }
+
   private async obtenerClientesDelDia(rutaId: number): Promise<ParadaGeo[]> {
+    // Misma regla de "cobro HOY" que ListaClientesDelDiaService.listarClientesConEstado:
+    // entra al trayecto quien tiene una cuota que VENCE HOY, una cuota en mora, o un
+    // compromiso de pago prometido HOY. Además se exige coordenadas (sin ubicación no
+    // hay parada válida: las distancias serían NaN).
+    const hoy = this.fechaLocal(new Date());
     const filas = await this.logRepo.manager
       .createQueryBuilder()
       .select("c.id", "clienteId")
       .addSelect("ST_Y(c.ubicacion::geometry)", "latitud")
       .addSelect("ST_X(c.ubicacion::geometry)", "longitud")
       .from("clientes", "c")
-      .innerJoin("prestamos", "p", "p.cliente_id = c.id")
-      .innerJoin("cuotas", "cu", "cu.prestamo_id = p.id")
+      .innerJoin("prestamos", "p", "p.cliente_id = c.id AND p.estatus = 'vigente'")
+      .leftJoin("cuotas", "cu", "cu.prestamo_id = p.id")
       .where("c.ruta_id = :rutaId", { rutaId })
-      .andWhere("c.estatus = :clienteActivo", { clienteActivo: "activo" })
-      .andWhere("p.estatus = :vigente", { vigente: "vigente" })
-      .andWhere("cu.estatus IN (:...estatus)", { estatus: ["pendiente", "atrasada"] })
+      .andWhere("c.estatus = 'activo'")
+      .andWhere("c.ubicacion IS NOT NULL")
       .groupBy("c.id")
-      .getRawMany<{ clienteId: number; latitud: string; longitud: string }>();
+      .having(
+        "MAX(CASE WHEN cu.fecha_vencimiento = :hoy AND cu.estatus IN ('pendiente','atrasada','pagada') THEN 1 ELSE 0 END) = 1 " +
+          "OR MAX(CASE WHEN cu.estatus IN ('pendiente','atrasada') AND cu.fecha_vencimiento < :hoy THEN 1 ELSE 0 END) = 1 " +
+          "OR EXISTS (SELECT 1 FROM promesas_pago pr JOIN prestamos p2 ON p2.id = pr.prestamo_id " +
+          "WHERE p2.cliente_id = c.id AND pr.fecha_prometida = :hoy)",
+      )
+      .setParameter("hoy", hoy)
+      .getRawMany<{ clienteId: string; latitud: string; longitud: string }>();
     return filas.map((f) => ({
       clienteId: Number(f.clienteId),
       latitud: Number(f.latitud),
