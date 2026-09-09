@@ -4,6 +4,12 @@ export interface ParadaGeo {
   longitud: number;
 }
 
+/** Posición conocida del cobrador: permite que la ruta parta de donde está. */
+export interface PuntoInicio {
+  latitud: number;
+  longitud: number;
+}
+
 export type Trayecto = ParadaGeo[];
 
 /**
@@ -27,23 +33,39 @@ export function calcularDistanciaKm(
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-function distanciaEntre(a: ParadaGeo, b: ParadaGeo): number {
+function distanciaEntre(a: PuntoInicio, b: PuntoInicio): number {
   return calcularDistanciaKm(a.latitud, a.longitud, b.latitud, b.longitud);
 }
 
 /**
- * Ordena las paradas de un grupo por vecino más cercano (greedy), empezando
- * por la parada de menor latitud+longitud (ancla determinista).
+ * Ordena las paradas de un grupo por vecino más cercano (greedy). Sin `inicio`
+ * parte de la parada de menor latitud+longitud (ancla determinista); con
+ * `inicio` parte de la parada más cercana a la ubicación del cobrador.
  */
-function ordenarPorVecinoMasCercano(paradas: ParadaGeo[]): ParadaGeo[] {
+function ordenarPorVecinoMasCercano(paradas: ParadaGeo[], inicio?: PuntoInicio): ParadaGeo[] {
   if (paradas.length <= 1) {
     return paradas;
   }
   const pendientes = [...paradas];
-  pendientes.sort((a, b) => a.latitud + a.longitud - (b.latitud + b.longitud));
-  const inicio = pendientes.shift()!;
-  const ordenadas: ParadaGeo[] = [inicio];
-  let actual = inicio;
+  let primera: ParadaGeo;
+  if (inicio) {
+    let idxInicio = 0;
+    let dMin = Infinity;
+    for (let i = 0; i < pendientes.length; i++) {
+      const d = distanciaEntre(inicio, pendientes[i]);
+      if (d < dMin) {
+        dMin = d;
+        idxInicio = i;
+      }
+    }
+    primera = pendientes[idxInicio];
+    pendientes.splice(idxInicio, 1);
+  } else {
+    pendientes.sort((a, b) => a.latitud + a.longitud - (b.latitud + b.longitud));
+    primera = pendientes.shift()!;
+  }
+  const ordenadas: ParadaGeo[] = [primera];
+  let actual = primera;
   while (pendientes.length > 0) {
     let idxMin = 0;
     let dMin = Infinity;
@@ -121,18 +143,26 @@ function subdividir(grupo: ParadaGeo[], maxParadas: number): ParadaGeo[][] {
 /**
  * Segmenta la ruta del día en trayectos de hasta `maxParadas` paradas,
  * agrupando por cercanía geográfica (K-means) y ordenando cada trayecto por
- * vecino más cercano. Devuelve un array de trayectos (cada uno es un array de
- * paradas ordenado).
+ * vecino más cercano. Si se conoce la posición del cobrador (`inicio`), la
+ * primera parada es la más cercana a esa posición y los trayectos se visitan
+ * del más cercano al más lejano. Devuelve un array de trayectos (cada uno es
+ * un array de paradas ordenado).
  */
-export function segmentarTrayectos(paradas: ParadaGeo[], maxParadas: number): Trayecto[] {
+export function segmentarTrayectos(paradas: ParadaGeo[], maxParadas: number, inicio?: PuntoInicio): Trayecto[] {
   if (paradas.length === 0 || maxParadas <= 0) {
     return [];
   }
   if (paradas.length <= maxParadas) {
-    return [ordenarPorVecinoMasCercano(paradas)];
+    return [ordenarPorVecinoMasCercano(paradas, inicio)];
   }
   const k = Math.ceil(paradas.length / maxParadas);
   const grupos = kMeans(paradas, k);
   const gruposFinales = grupos.flatMap((g) => subdividir(g, maxParadas));
-  return gruposFinales.map(ordenarPorVecinoMasCercano);
+  const trayectos = gruposFinales.map((g) => ordenarPorVecinoMasCercano(g, inicio));
+  if (!inicio) {
+    return trayectos;
+  }
+  return trayectos.sort(
+    (a, b) => distanciaEntre(inicio, a[0]) - distanciaEntre(inicio, b[0]),
+  );
 }

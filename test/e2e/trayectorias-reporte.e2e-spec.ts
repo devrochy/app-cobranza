@@ -136,10 +136,23 @@ describe("Persistencia de trayectorias en reporte diario (e2e)", () => {
         longitud: -63.18,
       });
     const c1Id = c1.body.id as number;
-    await request(app.getHttpServer())
+    const prestamoC1 = await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId: c1Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
+
+    // La regla de "cobro HOY" exige cuotas que vencen HOY (o mora / promesa HOY);
+    // el fixture forzará el vencimiento de HOY, igual que mapa-clientes-dia.e2e-spec.
+    const hoy = (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })();
+    await cuotaRepo
+      .createQueryBuilder()
+      .update()
+      .set({ fechaVencimiento: hoy })
+      .where("prestamo_id = :id", { id: prestamoC1.body.id })
+      .execute();
 
     // Generar el trayecto planificado (item 17).
     await request(app.getHttpServer())
