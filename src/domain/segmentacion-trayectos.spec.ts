@@ -65,6 +65,39 @@ describe("segmentarTrayectos", () => {
     expect(ids[0]).toBe(2);
   });
 
+  it("con un punto de inicio, la primera parada es la más cercana al cobrador", () => {
+    const paradas: ParadaGeo[] = [
+      { clienteId: 1, latitud: -17.7, longitud: -63.1 },
+      { clienteId: 2, latitud: -17.71, longitud: -63.11 },
+      { clienteId: 3, latitud: -17.69, longitud: -63.09 },
+    ];
+    // El cobrador está pegado al cliente 3; el ancla determinista (cliente 2)
+    // queda lejos, así que la ruta debe partir de la parada más cercana.
+    const inicio = { latitud: -17.6901, longitud: -63.0901 };
+    const result = segmentarTrayectos(paradas, 9, inicio);
+    const ids = result[0].map((p) => p.clienteId);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    expect(ids[0]).toBe(3);
+  });
+
+  it("con inicio y múltiples trayectos, visita primero el grupo más cercano al cobrador", () => {
+    const norte: ParadaGeo[] = [];
+    for (let i = 0; i < 6; i++) {
+      norte.push({ clienteId: i + 1, latitud: 6.2 + i * 0.001, longitud: -75.5 });
+    }
+    const sur: ParadaGeo[] = [];
+    for (let i = 0; i < 6; i++) {
+      sur.push({ clienteId: i + 7, latitud: 5.0 + i * 0.001, longitud: -75.5 });
+    }
+    const inicio = { latitud: 6.2, longitud: -75.5 };
+    const result = segmentarTrayectos([...sur, ...norte], 6, inicio);
+    expect(result).toHaveLength(2);
+    // El primer trayecto empieza en el punto más cercano al inicio (grupo norte).
+    expect(result[0][0].latitud).toBe(6.2);
+    expect(result[0][0].longitud).toBe(-75.5);
+  });
+
   it("devuelve vacío si maxParadas es <= 0", () => {
     const paradas: ParadaGeo[] = [
       { clienteId: 1, latitud: -17.7, longitud: -63.1 },
