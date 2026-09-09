@@ -120,6 +120,7 @@ describe("Segmentación de trayectos de la ruta del día (e2e)", () => {
     rutaId = rutaRes.body.id as number;
 
     // 3 clientes cercanos con préstamo (deuda pendiente).
+    const prestamoIds: number[] = [];
     for (let i = 1; i <= 3; i++) {
       const clienteRes = await request(app.getHttpServer())
         .post(`/rutas/${rutaId}/clientes`)
@@ -133,11 +134,25 @@ describe("Segmentación de trayectos de la ruta del día (e2e)", () => {
           longitud: -63.18 + i * 0.002,
         });
       const clienteId = clienteRes.body.id as number;
-      await request(app.getHttpServer())
+      const prestamoRes = await request(app.getHttpServer())
         .post(`/rutas/${rutaId}/prestamos`)
         .set("Authorization", `Bearer ${accessTokenAdmin}`)
         .send({ clienteId, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
+      prestamoIds.push(prestamoRes.body.id as number);
     }
+
+    // La regla de "cobro HOY" exige cuotas que vencen HOY (o mora / promesa HOY);
+    // el fixture forzará el vencimiento de HOY, igual que mapa-clientes-dia.e2e-spec.
+    const hoy = (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })();
+    await cuotaRepo
+      .createQueryBuilder()
+      .update()
+      .set({ fechaVencimiento: hoy })
+      .where("prestamo_id IN (:...ids)", { ids: prestamoIds })
+      .execute();
 
     // 1 cliente sin deuda (sin préstamo): NO debe aparecer en los trayectos del día.
     await request(app.getHttpServer())
