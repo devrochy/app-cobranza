@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
+import { generateKeyPairSync } from "crypto";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AppModule } from "../../src/app.module";
@@ -35,6 +36,12 @@ describe("Sincronización offline (e2e)", () => {
   const PASSWORD = "password-seguro";
   const UUID_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const UUID_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  const deviceKeyPair = generateKeyPairSync("x25519");
+  const publicKeyBase64 = Buffer.from(
+    deviceKeyPair.publicKey.export({ format: "jwk" }).x as string,
+    "base64url",
+  ).toString("base64");
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "sync-e2e-access-secret";
@@ -143,7 +150,7 @@ describe("Sincronización offline (e2e)", () => {
         cobradorId,
         imei: "imei-e2e",
         whatsappNumber: "+59172260060",
-        publicKey: "pk-e2e-x25519",
+        publicKey: publicKeyBase64,
       });
 
     expect(res.status).toBe(201);
@@ -249,15 +256,17 @@ describe("Sincronización offline (e2e)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("GET /sync-offline/dia devuelve el snapshot del día (ruta + clientes + trayectos)", async () => {
+  it("GET /sync-offline/dia devuelve el snapshot del día cifrado (HU-40)", async () => {
     const res = await request(app.getHttpServer())
       .get(`/sync-offline/dia?rutaId=${rutaId}`)
       .set("x-device-key", apiKey);
 
     expect(res.status).toBe(200);
-    expect(res.body.ruta.id).toBe(rutaId);
-    expect(Array.isArray(res.body.clientes)).toBe(true);
-    expect(res.body.trayectos).toBeNull();
+    expect(res.body.cifrado).toBe(true);
+    expect(res.body.algoritmo).toBe("x25519-hkdf-sha256-aes256gcm");
+    expect(res.body.clavePublicaEfimera).toBeDefined();
+    expect(res.body.nonce).toBeDefined();
+    expect(res.body.datos).toBeDefined();
   });
 
   it("GET /sync-offline/dia sin API key -> 401", async () => {
