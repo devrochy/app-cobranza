@@ -51,8 +51,14 @@ describe("SincronizacionOfflineController", () => {
   });
 
   it("registrar dispositivo delega en el servicio", async () => {
-    await controller.registrar({ rutaId: 5 });
-    expect(devices.registrar).toHaveBeenCalledWith({ rutaId: 5 });
+    const dto = {
+      cobradorId: 20,
+      imei: "imei-1",
+      whatsappNumber: "+59170000000",
+      publicKey: "pk-x25519",
+    };
+    await controller.registrar(dto);
+    expect(devices.registrar).toHaveBeenCalledWith(dto);
   });
 
   it("sincronizar eventos usa el dispositivo del guard y aplica los aceptados", async () => {
@@ -67,8 +73,8 @@ describe("SincronizacionOfflineController", () => {
     expect(mockAplicar.aplicarPendientesDeDispositivo).toHaveBeenCalledWith({ id: 3, rutaId: 5 });
   });
 
-  it("obtener snapshot del día delega con el dispositivo", async () => {
-    await controller.snapshotDia(deviceReq);
-    expect(snapshot.obtenerSnapshot).toHaveBeenCalledWith({ id: 3, rutaId: 5 });
+  it("obtener snapshot del día delega con el dispositivo y la ruta", async () => {
+    await controller.snapshotDia(deviceReq, 5);
+    expect(snapshot.obtenerSnapshot).toHaveBeenCalledWith({ id: 3, rutaId: 5 }, 5);
   });
 });

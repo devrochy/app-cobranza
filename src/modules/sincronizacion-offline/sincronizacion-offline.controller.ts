@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
 import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service";
@@ -29,6 +29,18 @@ export class SincronizacionOfflineController {
     return this.devicesService.registrar(dto);
   }
 
+  @Get("devices")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarDispositivos() {
+    return this.devicesService.listar();
+  }
+
+  @Patch("devices/:id/revocar")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  revocarDispositivo(@Param("id", ParseIntPipe) id: number) {
+    return this.devicesService.revocar(id);
+  }
+
   @Post("sync-offline/eventos")
   @UseGuards(DeviceApiKeyGuard)
   async sincronizar(
@@ -48,7 +60,10 @@ export class SincronizacionOfflineController {
 
   @Get("sync-offline/dia")
   @UseGuards(DeviceApiKeyGuard)
-  snapshotDia(@Req() req: RequestWithDevice) {
-    return this.snapshotDiaService.obtenerSnapshot(req.device!);
+  snapshotDia(
+    @Req() req: RequestWithDevice,
+    @Query("rutaId", ParseIntPipe) rutaId: number,
+  ) {
+    return this.snapshotDiaService.obtenerSnapshot(req.device!, rutaId);
   }
 }

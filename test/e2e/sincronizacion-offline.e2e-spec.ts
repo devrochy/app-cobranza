@@ -28,6 +28,7 @@ describe("Sincronización offline (e2e)", () => {
   let rutaId: number;
   let apiKey: string;
   let deviceId: number;
+  let cobradorId: number;
 
   const ADMIN_USERNAME = "sync-e2e-admin";
   const ADMIN_PASSWORD = "sync-e2e-password";
@@ -101,6 +102,7 @@ describe("Sincronización offline (e2e)", () => {
       codigo: "CB-SYNC-1",
       estatus: "activo",
     });
+    cobradorId = cobrador.id;
     const ruta = await rutaRepo.save({
       socio: { id: socio.id },
       cobrador: { id: cobrador.id },
@@ -114,7 +116,7 @@ describe("Sincronización offline (e2e)", () => {
     });
     rutaId = ruta.id;
 
-    await deviceRepo.delete({ rutaId });
+    await deviceRepo.delete({ cobradorId });
   });
 
   afterAll(async () => {
@@ -125,7 +127,7 @@ describe("Sincronización offline (e2e)", () => {
     // antes de borrar la ruta (FK).
     await evidenciaRepo.createQueryBuilder().delete().execute();
     await gastoRepo.createQueryBuilder().delete().execute();
-    await deviceRepo.delete({ rutaId });
+    await deviceRepo.delete({ cobradorId });
     await rutaRepo.delete({ id: rutaId });
     await cobradorRepo.delete({ codigo: "CB-SYNC-1" });
     await socioRepo.delete({ codigo: "SC-SYNC-1" });
@@ -137,18 +139,25 @@ describe("Sincronización offline (e2e)", () => {
     const res = await request(app.getHttpServer())
       .post("/devices")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ rutaId });
+      .send({
+        cobradorId,
+        imei: "imei-e2e",
+        whatsappNumber: "+59172260060",
+        publicKey: "pk-e2e-x25519",
+      });
 
     expect(res.status).toBe(201);
     expect(res.body.codigo).toBeDefined();
     expect(res.body.apiKey).toContain(".");
-    expect(res.body.rutaId).toBe(rutaId);
+    expect(res.body.cobradorId).toBe(cobradorId);
     apiKey = res.body.apiKey as string;
     deviceId = res.body.codigo ? (await deviceRepo.findOne({ where: { codigo: res.body.codigo } }))!.id : 0;
   });
 
   it("POST /devices sin token -> 401", async () => {
-    const res = await request(app.getHttpServer()).post("/devices").send({ rutaId });
+    const res = await request(app.getHttpServer())
+      .post("/devices")
+      .send({ cobradorId, imei: "x", whatsappNumber: "y", publicKey: "z" });
     expect(res.status).toBe(401);
   });
 
@@ -158,8 +167,8 @@ describe("Sincronización offline (e2e)", () => {
       .set("x-device-key", apiKey)
       .send({
         eventos: [
-          { eventoIdCliente: UUID_A, tipoEvento: "visita", payload: { resultado: "pago", monto: 250 } },
-          { eventoIdCliente: UUID_B, tipoEvento: "gasto", payload: { descripcion: "gasolina", valor: 50 } },
+          { eventoIdCliente: UUID_A, tipoEvento: "visita", payload: { rutaId, resultado: "pago", monto: 250 } },
+          { eventoIdCliente: UUID_B, tipoEvento: "gasto", payload: { rutaId, descripcion: "gasolina", valor: 50 } },
         ],
       });
 
@@ -211,6 +220,7 @@ describe("Sincronización offline (e2e)", () => {
             eventoIdCliente: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
             tipoEvento: "trayectoria",
             payload: {
+              rutaId,
               puntos: [
                 { latitud: -17.78, longitud: -63.18 },
                 { latitud: -17.79, longitud: -63.19 },
@@ -241,7 +251,7 @@ describe("Sincronización offline (e2e)", () => {
 
   it("GET /sync-offline/dia devuelve el snapshot del día (ruta + clientes + trayectos)", async () => {
     const res = await request(app.getHttpServer())
-      .get("/sync-offline/dia")
+      .get(`/sync-offline/dia?rutaId=${rutaId}`)
       .set("x-device-key", apiKey);
 
     expect(res.status).toBe(200);
@@ -251,7 +261,7 @@ describe("Sincronización offline (e2e)", () => {
   });
 
   it("GET /sync-offline/dia sin API key -> 401", async () => {
-    const res = await request(app.getHttpServer()).get("/sync-offline/dia");
+    const res = await request(app.getHttpServer()).get(`/sync-offline/dia?rutaId=${rutaId}`);
     expect(res.status).toBe(401);
   });
 });

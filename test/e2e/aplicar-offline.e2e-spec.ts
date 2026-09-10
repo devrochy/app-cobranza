@@ -228,6 +228,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
             eventoIdCliente: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
             tipoEvento: "visita",
             payload: {
+              rutaId,
               prestamoId,
               clienteId,
               resultado: "pago",
@@ -263,7 +264,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
           {
             eventoIdCliente: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
             tipoEvento: "visita",
-            payload: { prestamoId, clienteId, resultado: "no_pago", motivoNoPago: "no_esta" },
+            payload: { rutaId, prestamoId, clienteId, resultado: "no_pago", motivoNoPago: "no_esta" },
           },
         ],
       });
@@ -285,6 +286,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
             eventoIdCliente: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb01",
             tipoEvento: "gasto",
             payload: {
+              rutaId,
               descripcion: "Combustible offline",
               valor: 50,
               evidencias: [

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -15,7 +15,10 @@ describe("SnapshotDiaService", () => {
   let trayectos: RutaOptimizacionService;
 
   const device = (overrides: Partial<Device> = {}): Device =>
-    ({ id: 1, rutaId: 5, ...overrides }) as Device;
+    ({ id: 1, cobradorId: 20, ...overrides }) as Device;
+
+  const rutaDe = (overrides: Partial<Ruta> = {}): Ruta =>
+    ({ id: 5, nombre: "Ruta Centro", cobradorId: 20, ...overrides }) as Ruta;
 
   const mockRutaRepo = { findOne: jest.fn() };
   const mockLista = { obtener: jest.fn().mockResolvedValue([{ id: 10, nombre: "Ana" }]) };
@@ -38,10 +41,10 @@ describe("SnapshotDiaService", () => {
     trayectos = module.get(RutaOptimizacionService);
   });
 
-  it("compone ruta + clientes del día + trayectos", async () => {
-    (rutaRepo.findOne as jest.Mock).mockResolvedValue({ id: 5, nombre: "Ruta Centro" });
+  it("compone ruta + clientes del día + trayectos para una ruta del cobrador", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaDe());
 
-    const result = await service.obtenerSnapshot(device());
+    const result = await service.obtenerSnapshot(device(), 5);
 
     expect(result.ruta).toEqual({ id: 5, nombre: "Ruta Centro" });
     expect(result.clientes).toEqual([{ id: 10, nombre: "Ana" }]);
@@ -50,22 +53,27 @@ describe("SnapshotDiaService", () => {
     expect(trayectos.consultar).toHaveBeenCalledWith(5, { rol: "admin", sub: 0 });
   });
 
-  it("rechaza si el dispositivo no tiene ruta asignada", async () => {
-    await expect(service.obtenerSnapshot(device({ rutaId: null }))).rejects.toThrow(
-      BadRequestException,
-    );
+  it("rechaza si el dispositivo no tiene cobrador vinculado", async () => {
+    await expect(
+      service.obtenerSnapshot(device({ cobradorId: null }), 5),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it("lanza NotFound si la ruta no existe", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(null);
-    await expect(service.obtenerSnapshot(device())).rejects.toThrow(NotFoundException);
+    await expect(service.obtenerSnapshot(device(), 5)).rejects.toThrow(NotFoundException);
+  });
+
+  it("lanza Forbidden si la ruta no es del cobrador del dispositivo", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaDe({ cobradorId: 99 }));
+    await expect(service.obtenerSnapshot(device(), 5)).rejects.toThrow(ForbiddenException);
   });
 
   it("devuelve trayectos null si no hay trayecto planificado", async () => {
-    (rutaRepo.findOne as jest.Mock).mockResolvedValue({ id: 5, nombre: "Ruta Centro" });
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaDe());
     (mockTrayectos.consultar as jest.Mock).mockRejectedValue(new NotFoundException("No hay trayecto"));
 
-    const result = await service.obtenerSnapshot(device());
+    const result = await service.obtenerSnapshot(device(), 5);
 
     expect(result.trayectos).toBeNull();
     expect(result.clientes).toEqual([{ id: 10, nombre: "Ana" }]);

@@ -29,6 +29,11 @@ export class Device {
   @Column({ name: "whatsapp_number", type: "varchar", nullable: true })
   whatsappNumber!: string | null;
 
+  /** Clave pública X25519 del dispositivo (HU-40: cifrado del snapshot). */
+  @Column({ name: "public_key", type: "text", nullable: true })
+  publicKey!: string | null;
+
+  /** @deprecated MVP: el vínculo correcto es device↔cobrador (cobrador_id). */
   @Column({ name: "ruta_id", type: "int", nullable: true })
   rutaId!: number | null;
 
