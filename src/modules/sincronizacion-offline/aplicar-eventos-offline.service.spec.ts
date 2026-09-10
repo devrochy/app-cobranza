@@ -27,7 +27,7 @@ describe("AplicarEventosOfflineService", () => {
   let trayectorias: { registrarReal: jest.Mock };
   let permisosCobrador: { tienePermiso: jest.Mock };
 
-  const device: Device = { id: 1, rutaId: 1779 } as Device;
+  const device: Device = { id: 1, cobradorId: 20 } as Device;
   const requester = { rol: "cobrador", sub: 20 };
 
   function evento(overrides: Partial<SincronizacionOffline> = {}): SincronizacionOffline {
@@ -44,6 +44,7 @@ describe("AplicarEventosOfflineService", () => {
   }
 
   const payloadVisitaValido = {
+    rutaId: 1779,
     prestamoId: 1,
     clienteId: 2,
     resultado: "pago",
@@ -96,7 +97,9 @@ describe("AplicarEventosOfflineService", () => {
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
-    expect(visitas.registrar).toHaveBeenCalledWith(1779, payloadVisitaValido, requester);
+    const payloadSinRuta: Record<string, unknown> = { ...payloadVisitaValido };
+    delete payloadSinRuta.rutaId;
+    expect(visitas.registrar).toHaveBeenCalledWith(1779, payloadSinRuta, requester);
     expect(permisosCobrador.tienePermiso).toHaveBeenCalledWith(20, "registrar_pago");
     expect(repo.update).toHaveBeenCalledWith(1, {
       estado: "sincronizado",
@@ -142,7 +145,7 @@ describe("AplicarEventosOfflineService", () => {
   it("marca error si el cobrador no tiene el permiso", async () => {
     rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
     permisosCobrador.tienePermiso.mockResolvedValue(false);
-    const e = evento({ tipoEvento: "gasto", payloadJson: { descripcion: "x", valor: 10 } });
+    const e = evento({ tipoEvento: "gasto", payloadJson: { rutaId: 1779, descripcion: "x", valor: 10 } });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
@@ -155,7 +158,7 @@ describe("AplicarEventosOfflineService", () => {
 
   it("rechaza un monto negativo (payload inválido)", async () => {
     rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
-    const e = evento({ tipoEvento: "gasto", payloadJson: { descripcion: "x", valor: -50 } });
+    const e = evento({ tipoEvento: "gasto", payloadJson: { rutaId: 1779, descripcion: "x", valor: -50 } });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
@@ -166,15 +169,15 @@ describe("AplicarEventosOfflineService", () => {
     expect(gastos.registrar).not.toHaveBeenCalled();
   });
 
-  it("marca error si el dispositivo no tiene ruta vinculada", async () => {
-    const sinRuta = { id: 1, rutaId: null } as Device;
+  it("marca error si el dispositivo no tiene cobrador vinculado", async () => {
+    const sinCobrador = { id: 1, cobradorId: null } as Device;
     const e = evento();
 
-    await service.aplicarEventosDeDispositivo(sinRuta, [e]);
+    await service.aplicarEventosDeDispositivo(sinCobrador, [e]);
 
     expect(repo.update).toHaveBeenCalledWith(1, {
       estado: "error",
-      errorMotivo: expect.stringContaining("ruta"),
+      errorMotivo: expect.stringContaining("cobrador"),
     });
   });
 
@@ -183,6 +186,7 @@ describe("AplicarEventosOfflineService", () => {
     const e = evento({
       tipoEvento: "gasto",
       payloadJson: {
+        rutaId: 1779,
         descripcion: "Combustible",
         valor: 50,
         evidencias: [{ nombre: "a.jpg", mimetype: "image/jpeg", base64: "AAAA" }],
@@ -205,7 +209,7 @@ describe("AplicarEventosOfflineService", () => {
 
   it("marca error si el tipo de evento no se puede aplicar", async () => {
     rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
-    const e = evento({ tipoEvento: "desconocido" });
+    const e = evento({ tipoEvento: "desconocido", payloadJson: { rutaId: 1779 } });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
@@ -221,7 +225,7 @@ describe("AplicarEventosOfflineService", () => {
       { latitud: -17.78, longitud: -63.18 },
       { latitud: -17.79, longitud: -63.19 },
     ];
-    const e = evento({ tipoEvento: "trayectoria", payloadJson: { puntos } });
+    const e = evento({ tipoEvento: "trayectoria", payloadJson: { rutaId: 1779, puntos } });
     trayectorias.registrarReal.mockResolvedValue({ id: 1, tipo: "real" });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
@@ -237,7 +241,7 @@ describe("AplicarEventosOfflineService", () => {
 
   it("rechaza una trayectoria con menos de 2 puntos (payload inválido)", async () => {
     rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
-    const e = evento({ tipoEvento: "trayectoria", payloadJson: { puntos: [{ latitud: -17.78, longitud: -63.18 }] } });
+    const e = evento({ tipoEvento: "trayectoria", payloadJson: { rutaId: 1779, puntos: [{ latitud: -17.78, longitud: -63.18 }] } });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
@@ -254,6 +258,7 @@ describe("AplicarEventosOfflineService", () => {
     const e = evento({
       tipoEvento: "trayectoria",
       payloadJson: {
+        rutaId: 1779,
         puntos: [
           { latitud: -17.78, longitud: -63.18 },
           { latitud: -17.79, longitud: -63.19 },

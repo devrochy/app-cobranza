@@ -69,16 +69,12 @@ export class AplicarEventosOfflineService {
     device: Device,
     eventos: SincronizacionOffline[],
   ): Promise<void> {
-    if (device.rutaId == null) {
-      await this.marcarError(eventos, "El dispositivo no tiene ruta vinculada");
+    if (device.cobradorId == null) {
+      await this.marcarError(eventos, "El dispositivo no tiene cobrador vinculado");
       return;
     }
-    const ruta = await this.rutaRepo.findOne({ where: { id: device.rutaId } });
-    if (!ruta) {
-      await this.marcarError(eventos, "La ruta del dispositivo no existe");
-      return;
-    }
-    const requester: RequesterOwned = { rol: "cobrador", sub: ruta.cobradorId };
+    const cobradorId = device.cobradorId;
+    const requester: RequesterOwned = { rol: "cobrador", sub: cobradorId };
 
     for (const evento of eventos) {
       if (evento.estado === "sincronizado") {
@@ -97,10 +93,13 @@ export class AplicarEventosOfflineService {
         continue;
       }
       try {
+        // El evento indica su ruta activa; debe pertenecer al cobrador del
+        // dispositivo (permite operar todas las rutas del cobrador).
+        const rutaId = await this.rutaDelEvento(evento, cobradorId);
         const permiso = this.permisoPorTipo(evento);
         if (permiso) {
           const tiene = await this.permisosCobrador.tienePermiso(
-            ruta.cobradorId,
+            cobradorId,
             permiso,
           );
           if (!tiene) {
@@ -110,7 +109,7 @@ export class AplicarEventosOfflineService {
           }
         }
         await this.validarPayload(evento.tipoEvento, evento.payloadJson);
-        await this.aplicarUno(device.rutaId, evento, requester);
+        await this.aplicarUno(rutaId, evento, requester);
         await this.repo.update(evento.id, {
           estado: "sincronizado",
           syncedAt: new Date(),
@@ -123,6 +122,25 @@ export class AplicarEventosOfflineService {
         await this.repo.increment({ id: evento.id }, "reintentos", 1);
       }
     }
+  }
+
+  /** Resuelve la ruta del evento y valida que sea del cobrador del dispositivo. */
+  private async rutaDelEvento(
+    evento: SincronizacionOffline,
+    cobradorId: number,
+  ): Promise<number> {
+    const payload = (evento.payloadJson ?? {}) as Record<string, unknown>;
+    const rutaId = Number(payload.rutaId);
+    if (!Number.isInteger(rutaId) || rutaId <= 0) {
+      throw new BadRequestException("El evento no incluye rutaId");
+    }
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta || ruta.cobradorId !== cobradorId) {
+      throw new ForbiddenException(
+        "La ruta no pertenece al cobrador del dispositivo",
+      );
+    }
+    return rutaId;
   }
 
   async aplicarPendientesDeDispositivo(device: Device): Promise<void> {
@@ -179,7 +197,10 @@ export class AplicarEventosOfflineService {
     evento: SincronizacionOffline,
     requester: RequesterOwned,
   ): Promise<void> {
-    const payload = (evento.payloadJson ?? {}) as Record<string, unknown>;
+    // `rutaId` es un campo de transporte del evento; no forma parte de los
+    // payloads de dominio.
+    const payload = { ...((evento.payloadJson ?? {}) as Record<string, unknown>) };
+    delete payload.rutaId;
 
     switch (evento.tipoEvento) {
       case "visita":
