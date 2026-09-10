@@ -29,7 +29,10 @@ export class AuthController {
 
   @Post("cobrador/login")
   loginCobrador(@Body() dto: LoginDto) {
-    return this.authService.loginCobrador(dto.usuario, dto.password);
+    return this.authService.loginCobrador(dto.usuario, dto.password, {
+      imei: dto.imei,
+      whatsappNumber: dto.whatsappNumber,
+    });
   }
 
   @Post("refresh")
