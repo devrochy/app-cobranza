@@ -1,0 +1,46 @@
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { Test, TestingModule } from "@nestjs/testing";
+import { DataSource } from "typeorm";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { PerfilController } from "./perfil.controller";
+import { PerfilService } from "./perfil.service";
+
+describe("PerfilController", () => {
+  let controller: PerfilController;
+  const mockService = { actualizar: jest.fn() };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [PerfilController],
+      providers: [
+        { provide: PerfilService, useValue: mockService },
+        JwtAuthGuard,
+        { provide: DataSource, useValue: {} },
+        { provide: JwtService, useValue: new JwtService() },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+
+    controller = module.get(PerfilController);
+  });
+
+  it("delega en el servicio con el rol y sub del usuario autenticado", async () => {
+    mockService.actualizar.mockResolvedValue({
+      id: 7,
+      usuario: "cob1",
+      nombre: "Nuevo",
+      apellido: "Pérez",
+    });
+
+    await controller.actualizar({ nombre: "Nuevo", apellido: "Pérez" }, {
+      user: { rol: "cobrador", sub: 7 },
+    } as never);
+
+    expect(mockService.actualizar).toHaveBeenCalledWith("cobrador", 7, {
+      nombre: "Nuevo",
+      apellido: "Pérez",
+    });
+  });
+});
