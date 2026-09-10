@@ -118,6 +118,8 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
       apellido: "Paga",
       negocio: "Tienda",
       telefonoWhatsapp: "+59171160071",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
       ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
       estatus: "activo",
       colorRiesgo: "blanco",

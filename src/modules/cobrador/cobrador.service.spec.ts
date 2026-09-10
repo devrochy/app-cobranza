@@ -402,6 +402,8 @@ describe("CobradorService", () => {
         telefonoWhatsapp: "+59170001111",
         latitud: -17.78,
         longitud: -63.18,
+        tipoDocumento: "ci" as const,
+        numeroDocumento: "1234567",
       };
       const evidencias = [
         { tipo: "foto_facial" as const, archivo: {} as never },

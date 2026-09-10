@@ -49,6 +49,8 @@ describe("ClienteTarjetaService", () => {
       topeMaximoDeuda: null,
       estatus: "activo",
       colorRiesgo: "azul",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
       createdAt: new Date(),
       ...overrides,
     } as Cliente;
@@ -112,6 +114,8 @@ describe("ClienteTarjetaService", () => {
     expect(result.fotoUrl).toBe("/uploads/foto.jpg");
     expect(result.documentoFrenteUrl).toBeNull();
     expect(result.documentoReversoUrl).toBeNull();
+    expect(result.tipoDocumento).toBe("ci");
+    expect(result.numeroDocumento).toBe("1234567");
     expect(result.tipoPago).toBe("semanal");
     expect(result.saldoPendiente).toBe(1000);
     expect(result.diasMora).toBeGreaterThan(0);

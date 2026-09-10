@@ -133,6 +133,8 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
         apellido: "Cliente",
         negocio: "N",
         telefonoWhatsapp: "+59171160171",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

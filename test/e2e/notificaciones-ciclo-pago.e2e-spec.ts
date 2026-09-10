@@ -153,6 +153,8 @@ describe("Notificaciones de pago en ciclo completo (e2e)", () => {
         apellido: "Cliente",
         negocio: "N",
         telefonoWhatsapp: "+59171160161",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

@@ -161,6 +161,8 @@ describe("CobradorController", () => {
       telefonoWhatsapp: "+59170001111",
       latitud: -17.78,
       longitud: -63.18,
+      tipoDocumento: "ci" as const,
+      numeroDocumento: "1234567",
     };
     const archivo = { originalname: "foto.jpg", size: 1024 } as Express.Multer.File;
     mockService.crearCliente.mockResolvedValue({ id: 90 });

@@ -138,6 +138,8 @@ describe("Negociación de abono parcial o refinanciación por WhatsApp (e2e, HU-
         apellido: "Cliente",
         negocio: "N",
         telefonoWhatsapp: "+59171160151",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

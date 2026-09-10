@@ -54,7 +54,7 @@ Basado en: registro/edición de rutas, configuración de permisos de ruta (APK),
 
 Basado en: reportes diarios/semanales, gestión de gastos, notificaciones de no pago.
 
-- **HU-14.** Como Cobrador, quiero registrar un nuevo préstamo a un cliente (valor, cuotas, ubicación, tipo de interés, periodo por días, fecha del préstamo editable ±30 días y fiador opcional) respetando el cupo máximo configurado en la ruta y el tope de deuda del cliente, para otorgar crédito dentro de los límites de riesgo definidos. El cliente se registra con dos direcciones (negocio obligatoria y domicilio opcional), fotos facial y de documento (según flags de la ruta) y tope de deuda propio; el préstamo usa la ubicación del negocio del cliente.
+- **HU-14.** Como Cobrador, quiero registrar un nuevo préstamo a un cliente (valor, cuotas, ubicación, tipo de interés, periodo por días, fecha del préstamo editable ±30 días y fiador opcional) respetando el cupo máximo configurado en la ruta y el tope de deuda del cliente, para otorgar crédito dentro de los límites de riesgo definidos. El cliente se registra con dos direcciones (negocio obligatoria y domicilio opcional), **documento de identidad obligatorio (tipo —CI/Pasaporte/NIT/Otro— y número, validado por tipo)**, fotos facial y de documento (según flags de la ruta) y tope de deuda propio; el préstamo usa la ubicación del negocio del cliente.
 - **HU-15.** Como Cobrador, quiero registrar el pago de una cuota o un abono parcial de un cliente, indicando obligatoriamente el método de pago (efectivo, QR, transferencia, tarjeta, depósito, según los permitidos por la ruta) en el momento de marcar la visita, para mantener actualizada la cartera y la caja de la ruta. Cada visita corresponde a un cliente (con su préstamo principal) y permite validar el estado de sus demás préstamos activos.
 - **HU-16.** Como Cobrador, quiero registrar el motivo por el cual un cliente no pagó, seleccionando de un catálogo fijo del sistema (no está, no tiene dinero, se voló, pagó ya, no hay nadie, se trasladó, está enfermo, compromiso de pago, otro), para que el Administrador y el Socio tengan visibilidad del contexto de cobranza. El motivo "compromiso de pago" genera una promesa de pago formal vinculada al préstamo.
 - **HU-17.** Como Cobrador, Socio o Administrador, quiero registrar y/o eliminar un gasto operativo (descripción, valor) asociado a la ruta, con trazabilidad de quién lo creó, flujo de aprobación (campo aprobado), evidencias adjuntas (imágenes/PDF) y marca de tiempo exacta, para auditar el flujo de caja diario.
@@ -282,7 +282,7 @@ erDiagram
 `id (PK), caja_id (FK), valor_anterior, valor_nuevo, motivo, actor_rol, actor_id, created_at`
 
 **clientes**
-`id (PK), ruta_id (FK), nombre, apellido, negocio, telefono_whatsapp, tope_maximo_deuda, ubicacion (geography(Point,4326), negocio), ubicacion_domicilio (geography(Point,4326), opcional), estatus (activo/bloqueado), color_riesgo (verde/azul/rojo/blanco), created_at`
+`id (PK), ruta_id (FK), nombre, apellido, negocio, telefono_whatsapp, tope_maximo_deuda, ubicacion (geography(Point,4326), negocio), ubicacion_domicilio (geography(Point,4326), opcional), tipo_documento (ci/pasaporte/nit/otro), numero_documento, estatus (activo/bloqueado), color_riesgo (verde/azul/rojo/blanco), created_at`
 > Nota: las coordenadas se modelan como `geography(Point)` de PostGIS (ADR-0002) en lugar de `latitud/longitud` planos. La API expone `latitud`/`longitud` y el backend convierte a `Point` al persistir.
 
 **prestamos**

@@ -128,6 +128,8 @@ describe("Lista de clientes del día (e2e)", () => {
         apellido: "Ldia",
         negocio: "N1",
         telefonoWhatsapp: "+59171160101",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });
@@ -157,6 +159,8 @@ describe("Lista de clientes del día (e2e)", () => {
         apellido: "Ldia",
         negocio: "N2",
         telefonoWhatsapp: "+59171160102",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.79,
         longitud: -63.19,
       });
@@ -171,6 +175,8 @@ describe("Lista de clientes del día (e2e)", () => {
         apellido: "Ldia",
         negocio: "N4",
         telefonoWhatsapp: "+59171160105",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.81,
         longitud: -63.21,
       });
@@ -189,6 +195,8 @@ describe("Lista de clientes del día (e2e)", () => {
         apellido: "Ldia",
         negocio: "N3",
         telefonoWhatsapp: "+59171160104",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.8,
         longitud: -63.2,
       });

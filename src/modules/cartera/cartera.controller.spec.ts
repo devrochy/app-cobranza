@@ -96,6 +96,8 @@ describe("CarteraController", () => {
     telefonoWhatsapp: "+59171111111",
     latitud: -17.78,
     longitud: -63.18,
+    tipoDocumento: "ci" as const,
+    numeroDocumento: "1234567",
   };
 
   beforeEach(async () => {

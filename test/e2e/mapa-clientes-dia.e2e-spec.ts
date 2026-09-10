@@ -129,6 +129,8 @@ describe("Mapa de clientes del día (e2e)", () => {
         apellido: "Mapa",
         negocio: "N1",
         telefonoWhatsapp: "+59171160111",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
         latitudDomicilio: -17.79,
@@ -149,6 +151,8 @@ describe("Mapa de clientes del día (e2e)", () => {
         apellido: "Mapa",
         negocio: "N2",
         telefonoWhatsapp: "+59171160112",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.8,
         longitud: -63.2,
       });

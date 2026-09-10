@@ -35,6 +35,8 @@ describe("Registro de préstamos (e2e)", () => {
     apellido: "Pérez",
     negocio: "Tienda",
     telefonoWhatsapp: "+59171160001",
+    tipoDocumento: "ci",
+    numeroDocumento: "1234567",
     latitud: -17.78,
     longitud: -63.18,
   };

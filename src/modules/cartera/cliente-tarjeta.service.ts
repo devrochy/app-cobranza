@@ -5,6 +5,7 @@ import { assertOwned } from "../../common/ownership";
 import { urlArchivoServible } from "../../common/url-archivo";
 import { RolUsuario } from "../auth/auth.service";
 import { ColorRiesgo } from "../../domain/color-riesgo";
+import { TipoDocumento } from "../../domain/tipo-documento";
 import { diasDeMora, TipoPagoTarjeta, tipoPagoDesdeDiasEntreCuotas } from "../../domain/tarjeta-cliente";
 import { Ruta } from "../rutas/ruta.entity";
 import { Cliente } from "./cliente.entity";
@@ -25,6 +26,8 @@ export interface ClienteTarjetaPublic {
   fotoUrl: string | null;
   documentoFrenteUrl: string | null;
   documentoReversoUrl: string | null;
+  tipoDocumento: TipoDocumento | null;
+  numeroDocumento: string | null;
   tipoPago: TipoPagoTarjeta | null;
   saldoPendiente: number;
   diasMora: number;
@@ -84,6 +87,8 @@ export class ClienteTarjetaService {
       fotoUrl: urlDe("foto_facial"),
       documentoFrenteUrl: urlDe("documento_frente"),
       documentoReversoUrl: urlDe("documento_reverso"),
+      tipoDocumento: cliente.tipoDocumento,
+      numeroDocumento: cliente.numeroDocumento,
       tipoPago,
       saldoPendiente,
       diasMora: diasDeMora(fechaVencidaMasAntigua),

@@ -124,6 +124,8 @@ describe("Tarjeta de cliente (e2e)", () => {
         apellido: "Tarjeta",
         negocio: "Tienda",
         telefonoWhatsapp: "+59171160121",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

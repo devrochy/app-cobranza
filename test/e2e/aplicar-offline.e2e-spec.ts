@@ -166,6 +166,8 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
         apellido: "Offline",
         negocio: "Tienda",
         telefonoWhatsapp: "+59175550002",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });
