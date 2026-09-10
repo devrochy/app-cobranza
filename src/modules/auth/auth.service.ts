@@ -9,6 +9,7 @@ import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Device } from "../sincronizacion-offline/device.entity";
+import { IntentosAccesoService } from "../sincronizacion-offline/intentos-acceso.service";
 
 export interface AuthTokenPair {
   accessToken: string;
@@ -78,6 +79,7 @@ export class AuthService {
     private readonly cobradorRepo: Repository<Cobrador>,
     @InjectRepository(Device)
     private readonly deviceRepo: Repository<Device>,
+    private readonly intentosAcceso: IntentosAccesoService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly password: PasswordService,
@@ -191,6 +193,13 @@ export class AuthService {
         device?.imei === registrado.imei &&
         device?.whatsappNumber === registrado.whatsappNumber;
       if (!coincide) {
+        // HU-42: registrar el intento no autorizado antes de rechazar.
+        await this.intentosAcceso.registrar({
+          cobradorId: cobrador.id,
+          imei: device?.imei ?? null,
+          whatsappNumber: device?.whatsappNumber ?? null,
+          motivo: "imei_no_coincide",
+        });
         throw new ForbiddenException(
           "Dispositivo no autorizado para este cobrador",
         );
