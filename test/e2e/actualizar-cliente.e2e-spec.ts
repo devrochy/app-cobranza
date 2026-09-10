@@ -121,6 +121,8 @@ describe("Actualización de cliente con aprobación (HU-47, e2e)", () => {
       .field("nombre", "Juan")
       .field("apellido", "Cliente")
       .field("telefonoWhatsapp", "+59171160053")
+      .field("tipoDocumento", "ci")
+      .field("numeroDocumento", "1234567")
       .field("latitud", "-17.78")
       .field("longitud", "-63.18");
     clienteId = clienteRes.body.id as number;
