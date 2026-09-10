@@ -7,17 +7,17 @@ export type TipoDocumento = (typeof TIPOS_DOCUMENTO)[number];
 
 /** Etiquetas legibles para panel/APK. */
 export const ETIQUETAS_TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
-  ci: "Cédula de Identidad",
+  ci: "Documento de Identidad",
   pasaporte: "Pasaporte",
   nit: "NIT",
   otro: "Otro",
 };
 
 const PATRONES: Record<TipoDocumento, RegExp> = {
-  // CI: 6-9 dígitos con complemento/extensión opcional (p. ej. "1234567-1P").
-  ci: /^[0-9]{6,9}([- ][A-Z0-9]{1,3})?$/,
-  pasaporte: /^[A-Z0-9]{6,12}$/,
-  nit: /^[0-9]{7,15}$/,
+  // CI: solo números (5-15 dígitos).
+  ci: /^[0-9]{5,15}$/,
+  pasaporte: /^[A-Z0-9]{5,15}$/,
+  nit: /^[0-9-]{5,20}$/,
   otro: /^[A-Za-z0-9-]{3,30}$/,
 };
 
