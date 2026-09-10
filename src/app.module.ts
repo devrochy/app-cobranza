@@ -13,6 +13,7 @@ import { CobradoresModule } from "./modules/cobradores/cobradores.module";
 import { CobradorModule } from "./modules/cobrador/cobrador.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { HealthModule } from "./modules/health/health.module";
+import { PerfilModule } from "./modules/perfil/perfil.module";
 import { RutasModule } from "./modules/rutas/rutas.module";
 import { ReglasNegociacionIaModule } from "./modules/reglas-negociacion-ia/reglas-negociacion-ia.module";
 import { SecurityModule } from "./modules/security/security.module";
@@ -42,6 +43,7 @@ import { TestDataModule } from "./modules/test-data/test-data.module";
     SincronizacionOfflineModule,
     DashboardModule,
     HealthModule,
+    PerfilModule,
     TestDataModule,
   ],
   providers: [
