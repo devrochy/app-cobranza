@@ -130,6 +130,8 @@ describe("Segmentación de trayectos de la ruta del día (e2e)", () => {
           apellido: "Tray",
           negocio: `Negocio${i}`,
           telefonoWhatsapp: `+5917116009${i}`,
+          tipoDocumento: "ci",
+          numeroDocumento: "1234567",
           latitud: -17.78 + i * 0.002,
           longitud: -63.18 + i * 0.002,
         });
@@ -163,6 +165,8 @@ describe("Segmentación de trayectos de la ruta del día (e2e)", () => {
         apellido: "Tray",
         negocio: "SinDeuda",
         telefonoWhatsapp: "+59171160094",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

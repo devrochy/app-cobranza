@@ -164,6 +164,8 @@ describe("Cartera y reportes globales (e2e)", () => {
         .field("nombre", nombre)
         .field("apellido", "E2E")
         .field("telefonoWhatsapp", "+59170002001")
+        .field("tipoDocumento", "ci")
+        .field("numeroDocumento", "1234567")
         .field("latitud", "-17.78")
         .field("longitud", "-63.18");
 

@@ -116,6 +116,8 @@ describe("Navegación al cliente (e2e)", () => {
         apellido: "Navegacion",
         negocio: "Tienda",
         telefonoWhatsapp: "+59171160131",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

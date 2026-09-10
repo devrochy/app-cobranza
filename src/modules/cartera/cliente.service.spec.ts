@@ -28,6 +28,8 @@ describe("ClienteService", () => {
     topeMaximoDeuda: 5000,
     latitudDomicilio: -17.79,
     longitudDomicilio: -63.19,
+    tipoDocumento: "ci",
+    numeroDocumento: "1234567",
   };
 
   const adminContext = { rol: "admin" as const, sub: 0 };
@@ -181,6 +183,8 @@ describe("ClienteService", () => {
       telefonoWhatsapp: baseInput.telefonoWhatsapp,
       latitud: baseInput.latitud,
       longitud: baseInput.longitud,
+      tipoDocumento: baseInput.tipoDocumento,
+      numeroDocumento: baseInput.numeroDocumento,
     };
     const result = await service.crear(1, sinDomicilio, [], adminContext);
 
@@ -251,6 +255,108 @@ describe("ClienteService", () => {
     );
   });
 
+  it("persiste el tipo y número de documento (normalizado)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: false,
+      registroDocumentoCliente: false,
+    });
+    (clienteRepo.create as jest.Mock).mockImplementation((e: Partial<Cliente>) => e as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cliente>) => ({
+      id: 1,
+      rutaId: 1,
+      ...e,
+      createdAt: new Date(),
+    }) as Cliente);
+
+    const result = await service.crear(
+      1,
+      { ...baseInput, tipoDocumento: "pasaporte", numeroDocumento: " ab123456 " },
+      [],
+      adminContext,
+    );
+
+    const creado = (clienteRepo.create as jest.Mock).mock.results[0].value as Partial<Cliente>;
+    expect(creado.tipoDocumento).toBe("pasaporte");
+    expect(creado.numeroDocumento).toBe("AB123456");
+    expect(result.tipoDocumento).toBe("pasaporte");
+    expect(result.numeroDocumento).toBe("AB123456");
+  });
+
+  it("rechaza el alta si el número de documento no es válido para el tipo", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: false,
+      registroDocumentoCliente: false,
+    });
+
+    await expect(
+      service.crear(
+        1,
+        { ...baseInput, tipoDocumento: "ci", numeroDocumento: "ABC" },
+        [],
+        adminContext,
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(clienteRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("exige documento al editar un cliente que aún no lo tiene", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      rutaId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      tipoDocumento: null,
+      numeroDocumento: null,
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      createdAt: new Date(),
+    } as Cliente);
+
+    await expect(
+      service.actualizar(1, 1, { nombre: "Nuevo" }, adminContext),
+    ).rejects.toThrow(BadRequestException);
+    expect(clienteRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("permite editar el número de documento de un cliente existente", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      rutaId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      createdAt: new Date(),
+    } as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (c: Cliente) => c);
+
+    const result = (await service.actualizar(
+      1,
+      1,
+      { numeroDocumento: "7654321" },
+      adminContext,
+    )) as unknown as Cliente;
+
+    expect(result.numeroDocumento).toBe("7654321");
+    expect(clienteRepo.save).toHaveBeenCalled();
+  });
+
   it("actualiza el cliente directamente si el requester tiene actualizar_cliente", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     (mockPermisosSocio.tienePermiso as jest.Mock).mockResolvedValue(true);
@@ -266,6 +372,8 @@ describe("ClienteService", () => {
       topeMaximoDeuda: null,
       estatus: "activo",
       colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
       createdAt: new Date(),
     } as Cliente);
     (clienteRepo.save as jest.Mock).mockImplementation(async (c: Cliente) => c);
@@ -297,6 +405,8 @@ describe("ClienteService", () => {
       topeMaximoDeuda: null,
       estatus: "activo",
       colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
       createdAt: new Date(),
     } as Cliente);
     (cambioRepo.create as jest.Mock).mockImplementation((e: Partial<CambioClientePendiente>) => e as CambioClientePendiente);
@@ -340,6 +450,8 @@ describe("ClienteService", () => {
       topeMaximoDeuda: null,
       estatus: "activo",
       colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
       createdAt: new Date(),
     } as Cliente;
     (cambioRepo.findOne as jest.Mock).mockResolvedValue({
@@ -379,6 +491,8 @@ describe("ClienteService", () => {
       topeMaximoDeuda: null,
       estatus: "activo",
       colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
       createdAt: new Date(),
     } as Cliente;
     (cambioRepo.findOne as jest.Mock).mockResolvedValue({
@@ -504,6 +618,8 @@ describe("ClienteService", () => {
       topeMaximoDeuda: null,
       estatus: "activo",
       colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
       createdAt: new Date(),
     } as Cliente);
     (cambioRepo.create as jest.Mock).mockImplementation((e: Partial<CambioClientePendiente>) => e as CambioClientePendiente);

@@ -245,6 +245,8 @@ describe("API del cobrador para la APK (e2e)", () => {
         apellido: "Apk",
         negocio: "Tienda",
         telefonoWhatsapp: "+59173330002",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

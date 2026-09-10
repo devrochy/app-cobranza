@@ -1,5 +1,6 @@
 import { Type } from "class-transformer";
-import { IsNotEmpty, IsNumber, IsOptional, IsPhoneNumber, IsPositive, IsString, Max, Min } from "class-validator";
+import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsPhoneNumber, IsPositive, IsString, Max, Min } from "class-validator";
+import { TIPOS_DOCUMENTO, TipoDocumento } from "../../../domain/tipo-documento";
 
 export class CreateClienteDto {
   @IsString()
@@ -48,4 +49,11 @@ export class CreateClienteDto {
   @Min(-180, { message: "La longitud del domicilio no es válida" })
   @Max(180, { message: "La longitud del domicilio no es válida" })
   longitudDomicilio?: number;
+
+  @IsIn(TIPOS_DOCUMENTO, { message: "El tipo de documento no es válido" })
+  tipoDocumento!: TipoDocumento;
+
+  @IsString()
+  @IsNotEmpty({ message: "El número de documento es obligatorio" })
+  numeroDocumento!: string;
 }

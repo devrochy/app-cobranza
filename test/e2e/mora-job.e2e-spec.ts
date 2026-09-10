@@ -120,6 +120,8 @@ describe("Job de mora (e2e)", () => {
       apellido: "Mora",
       negocio: null,
       telefonoWhatsapp: "+59171160099",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
       ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
       estatus: "activo",
       colorRiesgo: "blanco",

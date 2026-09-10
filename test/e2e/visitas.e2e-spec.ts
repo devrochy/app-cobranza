@@ -144,6 +144,8 @@ describe("Registro de visitas (e2e)", () => {
         apellido: "Visita",
         negocio: "Tienda",
         telefonoWhatsapp: "+59171160023",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

@@ -12,6 +12,11 @@ import { Cliente, ClienteEstatus } from "./cliente.entity";
 import { ClienteEvidencia, ClienteEvidenciaTipo } from "./cliente-evidencia.entity";
 import { CambioClientePendiente, CambioClienteEstado } from "./cambio-cliente-pendiente.entity";
 import { ColorRiesgo } from "../../domain/color-riesgo";
+import {
+  TipoDocumento,
+  normalizarNumeroDocumento,
+  validarNumeroDocumento,
+} from "../../domain/tipo-documento";
 import { fromPoint, toPoint } from "../../common/geo";
 
 export interface ArchivoSubido {
@@ -37,6 +42,8 @@ export interface CreateClienteInput {
   topeMaximoDeuda?: number;
   latitudDomicilio?: number;
   longitudDomicilio?: number;
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
 }
 
 export interface RequesterCarteraContext {
@@ -59,6 +66,8 @@ export interface ClientePublic {
   estatus: ClienteEstatus;
   colorRiesgo: ColorRiesgo;
   fotoUrl: string | null;
+  tipoDocumento: TipoDocumento | null;
+  numeroDocumento: string | null;
   createdAt: Date;
 }
 
@@ -81,6 +90,8 @@ export interface ActualizarClienteInput {
   longitud?: number;
   latitudDomicilio?: number;
   longitudDomicilio?: number;
+  tipoDocumento?: TipoDocumento;
+  numeroDocumento?: string;
 }
 
 export interface ClienteCambioPublic {
@@ -137,6 +148,8 @@ export class ClienteService {
       throw new BadRequestException("La foto de documento es obligatoria");
     }
 
+    this.validarDocumento(input.tipoDocumento, input.numeroDocumento);
+
     const cliente = this.repo.create({
       ruta: { id: rutaId } as Ruta,
       rutaId,
@@ -150,6 +163,8 @@ export class ClienteService {
           ? toPoint(input.latitudDomicilio, input.longitudDomicilio)
           : null,
       topeMaximoDeuda: input.topeMaximoDeuda ?? null,
+      tipoDocumento: input.tipoDocumento,
+      numeroDocumento: normalizarNumeroDocumento(input.numeroDocumento),
       estatus: "activo",
       colorRiesgo: "blanco",
     });
@@ -258,6 +273,7 @@ export class ClienteService {
     const puedeEditar = await this.puedeEditar(requester);
     if (puedeEditar) {
       this.aplicarCambios(cliente, input);
+      this.validarDocumento(cliente.tipoDocumento, cliente.numeroDocumento);
       const saved = await this.repo.save(cliente);
       return this.toPublic(saved, rutaId);
     }
@@ -319,6 +335,10 @@ export class ClienteService {
         cambio.estado = "aprobado";
         const clienteActualizado = cambio.cliente;
         this.aplicarCamposPropuestos(clienteActualizado, cambio.camposPropuestos);
+        this.validarDocumento(
+          clienteActualizado.tipoDocumento,
+          clienteActualizado.numeroDocumento,
+        );
         await clienteRepo.save(clienteActualizado);
       } else {
         cambio.estado = "rechazado";
@@ -353,6 +373,10 @@ export class ClienteService {
     } else if (input.latitudDomicilio === null || input.longitudDomicilio === null) {
       cliente.ubicacionDomicilio = null;
     }
+    if (input.tipoDocumento !== undefined) cliente.tipoDocumento = input.tipoDocumento;
+    if (input.numeroDocumento !== undefined) {
+      cliente.numeroDocumento = normalizarNumeroDocumento(input.numeroDocumento);
+    }
   }
 
   private camposPropuestos(input: ActualizarClienteInput): Record<string, unknown> {
@@ -365,6 +389,10 @@ export class ClienteService {
     if (input.longitud !== undefined) campos.longitud = input.longitud;
     if (input.latitudDomicilio !== undefined) campos.latitudDomicilio = input.latitudDomicilio;
     if (input.longitudDomicilio !== undefined) campos.longitudDomicilio = input.longitudDomicilio;
+    if (input.tipoDocumento !== undefined) campos.tipoDocumento = input.tipoDocumento;
+    if (input.numeroDocumento !== undefined) {
+      campos.numeroDocumento = normalizarNumeroDocumento(input.numeroDocumento);
+    }
     return campos;
   }
 
@@ -382,6 +410,26 @@ export class ClienteService {
       } else {
         cliente.ubicacionDomicilio = null;
       }
+    }
+    if (campos.tipoDocumento !== undefined) {
+      cliente.tipoDocumento = campos.tipoDocumento as TipoDocumento;
+    }
+    if (campos.numeroDocumento !== undefined) {
+      cliente.numeroDocumento = String(campos.numeroDocumento);
+    }
+  }
+
+  private validarDocumento(
+    tipo: TipoDocumento | null,
+    numero: string | null,
+  ): void {
+    if (!tipo || !numero) {
+      throw new BadRequestException("El documento de identidad es obligatorio");
+    }
+    if (!validarNumeroDocumento(tipo, numero)) {
+      throw new BadRequestException(
+        "El número de documento no es válido para el tipo seleccionado",
+      );
     }
   }
 
@@ -530,6 +578,8 @@ export class ClienteService {
       estatus: cliente.estatus,
       colorRiesgo: cliente.colorRiesgo,
       fotoUrl,
+      tipoDocumento: cliente.tipoDocumento,
+      numeroDocumento: cliente.numeroDocumento,
       createdAt: cliente.createdAt,
     };
   }

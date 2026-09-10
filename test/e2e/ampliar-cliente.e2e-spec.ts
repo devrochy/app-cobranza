@@ -140,6 +140,8 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
       .field("nombre", "Juan")
       .field("apellido", "Cliente")
       .field("telefonoWhatsapp", "+59171160043")
+      .field("tipoDocumento", "ci")
+      .field("numeroDocumento", "1234567")
       .field("latitud", "-17.78")
       .field("longitud", "-63.18")
       .field("latitudDomicilio", "-17.79")
@@ -210,6 +212,8 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
       .field("nombre", "X")
       .field("apellido", "Y")
       .field("telefonoWhatsapp", "+59171160044")
+      .field("tipoDocumento", "ci")
+      .field("numeroDocumento", "1234567")
       .field("latitud", "-17")
       .field("longitud", "-63");
 

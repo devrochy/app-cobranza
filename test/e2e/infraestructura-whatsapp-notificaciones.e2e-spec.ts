@@ -132,6 +132,8 @@ describe("Infraestructura de WhatsApp y notificaciones (e2e)", () => {
         apellido: "Cliente",
         negocio: "N",
         telefonoWhatsapp: "+59171160151",
+        tipoDocumento: "ci",
+        numeroDocumento: "1234567",
         latitud: -17.78,
         longitud: -63.18,
       });

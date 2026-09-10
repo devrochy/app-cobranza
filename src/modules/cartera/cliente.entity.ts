@@ -10,6 +10,7 @@ import {
 } from "typeorm";
 import { Ruta } from "../rutas/ruta.entity";
 import { ColorRiesgo } from "../../domain/color-riesgo";
+import { TipoDocumento } from "../../domain/tipo-documento";
 import { GeoPoint } from "../../common/geo";
 import { numericTransformer } from "../../common/numeric-transformer";
 
@@ -49,6 +50,12 @@ export class Cliente {
 
   @Column({ name: "tope_maximo_deuda", type: "numeric", precision: 10, scale: 2, nullable: true, transformer: numericTransformer })
   topeMaximoDeuda!: number | null;
+
+  @Column({ name: "tipo_documento", type: "varchar", nullable: true })
+  tipoDocumento!: TipoDocumento | null;
+
+  @Column({ name: "numero_documento", type: "varchar", nullable: true })
+  numeroDocumento!: string | null;
 
   @Column({ type: "varchar", default: "activo" })
   estatus!: ClienteEstatus;
