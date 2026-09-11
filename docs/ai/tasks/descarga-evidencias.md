@@ -34,6 +34,8 @@ Exponer endpoints autenticados que devuelvan (streaming) la evidencia de un gast
 - Respuesta `inline` por defecto y `attachment` con `?descargar=1`.
 - Panel consume directo por `/api/backend/...` (el proxy inyecta el Bearer); no requiere route handlers nuevos.
 - `EvidenciaArchivo` vive en `src/common/descarga-archivo.ts` (compartido por ambos servicios).
+- El helper rechaza symlinks que escapan del base y directorios (`realpath` + `isFile`), y codifica `filename*` según RFC 5987.
+- Un gasto soft-eliminado conserva su evidencia descargable (trazabilidad/auditoría); el panel no la enlaza (solo lista gastos activos).
 
 ## Ambigüedades resueltas con el usuario
 - Pregunta: alcance ahora → Respuesta: Backend + Panel (diferir APK y quitar `/uploads` público).
@@ -41,14 +43,14 @@ Exponer endpoints autenticados que devuelvan (streaming) la evidencia de un gast
 - Pregunta: clave del endpoint de cliente → Respuesta: por `tipo`.
 
 ## Resultado final (llenar al completar)
-- Comandos ejecutados para verificar: `bash scripts/check.sh` (107 suites, 946 tests) + `npm run test:e2e` (55 suites, 403 tests) → verde.
+- Comandos ejecutados para verificar: `bash scripts/check.sh` (107 suites, 949 tests) + `npm run test:e2e` (55 suites, 403 tests) → verde.
 - Archivos modificados:
-  - `src/common/descarga-archivo.ts` (+ `.spec.ts`) — helper de descarga segura y `pideDescarga`.
+  - `src/common/descarga-archivo.ts` (+ `.spec.ts`, 8 tests) — helper de descarga segura (anti traversal/symlink/directorio), `pideDescarga` y saneo de nombre.
   - `src/modules/rutas/gastos.service.ts` (+ `.spec.ts`) — `descargarEvidencia`, `EvidenciaArchivo` compartido y normalización de `rutaArchivo`.
   - `src/modules/rutas/rutas.controller.ts` — endpoint `GET /rutas/:id/gastos/:gastoId/evidencias/:evidenciaId`.
   - `src/modules/cartera/cliente-evidencia.entity.ts` — `esTipoEvidenciaCliente`.
   - `src/modules/cartera/cliente-tarjeta.service.ts` (+ `.spec.ts`) — `descargarEvidencia` por tipo.
   - `src/modules/cartera/cartera.controller.ts` — endpoint `GET /rutas/:rutaId/clientes/:clienteId/evidencias/:tipo`.
-  - `test/e2e/descarga-evidencias.e2e-spec.ts` — 7 tests.
+  - `test/e2e/descarga-evidencias.e2e-spec.ts` — 8 tests (200 inline/attachment, 401 gasto/cliente, 403 sin permiso, 404 inexistente/tipo inválido).
   - `src/modules/cartera/prestamo.service.spec.ts` — fix del time-bomb de fecha (2026-08-12 + 30 días) con `jest.useFakeTimers`/`setSystemTime`.
 - Pendientes/seguimiento: Fase 3 (APK) y Fase 4 (dejar de servir `/uploads/*` público).

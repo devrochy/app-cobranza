@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { NotFoundException } from "@nestjs/common";
-import { prepararDescargaEvidencia } from "./descarga-archivo";
+import { prepararDescargaEvidencia, sanearNombreArchivo } from "./descarga-archivo";
 
 describe("prepararDescargaEvidencia", () => {
   let baseDir: string;
@@ -90,5 +90,39 @@ describe("prepararDescargaEvidencia", () => {
     });
 
     expect(resultado.headers["Content-Disposition"]).toContain('filename="evidencia"');
+  });
+
+  it("sanea CR/LF del nombre para evitar inyección de headers", () => {
+    expect(sanearNombreArchivo("factura\r\nX-Evil: 1.pdf")).not.toMatch(/[\r\n]/);
+  });
+
+  it("rechaza un symlink dentro del base que apunta fuera", () => {
+    const fuera = join(baseDir, "..", `secreto-symlink-${Date.now()}.txt`);
+    writeFileSync(fuera, "secreto");
+    const enlace = join(baseDir, "enlace.txt");
+    symlinkSync(fuera, enlace);
+
+    expect(() =>
+      prepararDescargaEvidencia({
+        rutaArchivo: enlace,
+        mimetype: "text/plain",
+        nombreOriginal: "enlace.txt",
+        baseDir,
+      }),
+    ).toThrow(NotFoundException);
+  });
+
+  it("rechaza un directorio (no es un archivo)", () => {
+    const subdir = join(baseDir, "sub");
+    mkdirSync(subdir);
+
+    expect(() =>
+      prepararDescargaEvidencia({
+        rutaArchivo: subdir,
+        mimetype: "application/octet-stream",
+        nombreOriginal: "sub",
+        baseDir,
+      }),
+    ).toThrow(NotFoundException);
   });
 });

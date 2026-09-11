@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { existsSync, realpathSync, statSync } from "fs";
 import { resolve, sep } from "path";
 import { NotFoundException } from "@nestjs/common";
 
@@ -53,10 +53,22 @@ export function prepararDescargaEvidencia(
   const objetivo = resolve(datos.rutaArchivo);
   const base = resolve(datos.baseDir);
 
-  if (objetivo !== base && !objetivo.startsWith(base + sep)) {
+  if (!estaDentro(objetivo, base)) {
     throw new NotFoundException("La evidencia no existe");
   }
   if (!existsSync(objetivo)) {
+    throw new NotFoundException("La evidencia no existe");
+  }
+
+  // Resuelve symlinks para que un enlace dentro del base no escape a otra ruta.
+  let real: string;
+  try {
+    real = realpathSync(objetivo);
+  } catch {
+    throw new NotFoundException("La evidencia no existe");
+  }
+  const baseReal = existsSync(base) ? realpathSync(base) : base;
+  if (!estaDentro(real, baseReal) || !statSync(real).isFile()) {
     throw new NotFoundException("La evidencia no existe");
   }
 
@@ -68,9 +80,21 @@ export function prepararDescargaEvidencia(
       "Content-Type": datos.mimetype,
       "Content-Disposition": `${disposicion}; filename="${sanearNombreArchivo(
         datos.nombreOriginal,
-      )}"; filename*=UTF-8''${encodeURIComponent(datos.nombreOriginal)}`,
+      )}"; filename*=UTF-8''${codificarNombreArchivo(datos.nombreOriginal)}`,
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, no-store",
     },
   };
+}
+
+function estaDentro(objetivo: string, base: string): boolean {
+  return objetivo === base || objetivo.startsWith(base + sep);
+}
+
+/** Codificación estricta RFC 5987 para `filename*` (encodeURIComponent deja `'()*`). */
+function codificarNombreArchivo(nombre: string): string {
+  return encodeURIComponent(nombre).replace(
+    /['()*]/g,
+    (caracter) => `%${caracter.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }

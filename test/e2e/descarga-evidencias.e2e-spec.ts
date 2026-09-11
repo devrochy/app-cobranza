@@ -229,6 +229,14 @@ describe("Descarga de evidencias (e2e)", () => {
     expect(res.body.toString()).toBe("img-data");
   });
 
+  it("GET evidencia de cliente sin token -> 401", async () => {
+    const res = await request(app.getHttpServer()).get(
+      `/rutas/${rutaId}/clientes/${clienteId}/evidencias/foto_facial`,
+    );
+
+    expect(res.status).toBe(401);
+  });
+
   it("GET evidencia de cliente con tipo inválido -> 404", async () => {
     const res = await request(app.getHttpServer())
       .get(`/rutas/${rutaId}/clientes/${clienteId}/evidencias/otro`)
