@@ -7,6 +7,7 @@ import { Cobrador } from "../cobradores/cobrador.entity";
 import { CobradoresModule } from "../cobradores/cobradores.module";
 import { Socio } from "../socios/socio.entity";
 import { SociosModule } from "../socios/socios.module";
+import { Device } from "../sincronizacion-offline/device.entity";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { CobradorPermisoGuard } from "./cobrador-permiso.guard";
@@ -15,7 +16,7 @@ import { PermisoGuard } from "./permiso.guard";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AdminUser, Socio, Cobrador]),
+    TypeOrmModule.forFeature([AdminUser, Socio, Cobrador, Device]),
     JwtModule.register({}),
     SecurityModule,
     SociosModule,

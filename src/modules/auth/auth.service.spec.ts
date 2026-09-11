@@ -7,6 +7,7 @@ import { PasswordService } from "../security/password.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
+import { Device } from "../sincronizacion-offline/device.entity";
 import { AuthService } from "./auth.service";
 
 describe("AuthService", () => {
@@ -27,6 +28,10 @@ describe("AuthService", () => {
   };
 
   const mockCobradorRepo = {
+    findOne: jest.fn(),
+  };
+
+  const mockDeviceRepo = {
     findOne: jest.fn(),
   };
 
@@ -97,12 +102,14 @@ describe("AuthService", () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockDeviceRepo.findOne.mockResolvedValue(null);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: getRepositoryToken(AdminUser), useValue: mockRepo },
         { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
         { provide: getRepositoryToken(Cobrador), useValue: mockCobradorRepo },
+        { provide: getRepositoryToken(Device), useValue: mockDeviceRepo },
         { provide: ConfigService, useValue: mockConfig },
         { provide: JwtService, useValue: new JwtService() },
         PasswordService,
@@ -262,6 +269,49 @@ describe("AuthService", () => {
       await expect(
         service.loginCobrador("cobrador1", PLAIN_PASSWORD),
       ).rejects.toThrow("Credenciales inválidas");
+    });
+
+    it("permite el login si el cobrador aún no tiene device vinculado", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+      mockDeviceRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.loginCobrador("cobrador1", PLAIN_PASSWORD);
+
+      expect(result.accessToken).toBeDefined();
+    });
+
+    it("rechaza el login si el IMEI/WhatsApp no coincide con el device vinculado", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+      mockDeviceRepo.findOne.mockResolvedValue({
+        cobradorId: 20,
+        imei: "imei-registrado",
+        whatsappNumber: "+59171111111",
+        estado: "activo",
+      } as Device);
+
+      await expect(
+        service.loginCobrador("cobrador1", PLAIN_PASSWORD, {
+          imei: "imei-distinto",
+          whatsappNumber: "+59171111111",
+        }),
+      ).rejects.toThrow("Dispositivo no autorizado");
+    });
+
+    it("permite el login si el IMEI y WhatsApp coinciden con el device vinculado", async () => {
+      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+      mockDeviceRepo.findOne.mockResolvedValue({
+        cobradorId: 20,
+        imei: "imei-registrado",
+        whatsappNumber: "+59171111111",
+        estado: "activo",
+      } as Device);
+
+      const result = await service.loginCobrador("cobrador1", PLAIN_PASSWORD, {
+        imei: "imei-registrado",
+        whatsappNumber: "+59171111111",
+      });
+
+      expect(result.accessToken).toBeDefined();
     });
   });
 

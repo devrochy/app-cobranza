@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService, JwtSignOptions } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -8,6 +8,7 @@ import { PasswordService } from "../security/password.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
+import { Device } from "../sincronizacion-offline/device.entity";
 
 export interface AuthTokenPair {
   accessToken: string;
@@ -75,6 +76,8 @@ export class AuthService {
     private readonly socioRepo: Repository<Socio>,
     @InjectRepository(Cobrador)
     private readonly cobradorRepo: Repository<Cobrador>,
+    @InjectRepository(Device)
+    private readonly deviceRepo: Repository<Device>,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly password: PasswordService,
@@ -150,7 +153,11 @@ export class AuthService {
     };
   }
 
-  async loginCobrador(usuario: string, password: string): Promise<CobradorLoginResult> {
+  async loginCobrador(
+    usuario: string,
+    password: string,
+    device?: { imei?: string; whatsappNumber?: string },
+  ): Promise<CobradorLoginResult> {
     const cobrador = await this.cobradorRepo.findOne({
       where: { usuario },
       select: {
@@ -171,6 +178,23 @@ export class AuthService {
     const passwordOk = await this.password.compare(password, cobrador.passwordHash);
     if (cobrador.estatus !== "activo" || !passwordOk) {
       throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
+    }
+
+    // HU-39: si el cobrador tiene un dispositivo vinculado, el login debe venir
+    // de ese dispositivo (IMEI + WhatsApp). Si aún no tiene, se permite el login
+    // para que el administrador pueda vincularlo después.
+    const registrado = await this.deviceRepo.findOne({
+      where: { cobradorId: cobrador.id, estado: "activo" },
+    });
+    if (registrado) {
+      const coincide =
+        device?.imei === registrado.imei &&
+        device?.whatsappNumber === registrado.whatsappNumber;
+      if (!coincide) {
+        throw new ForbiddenException(
+          "Dispositivo no autorizado para este cobrador",
+        );
+      }
     }
 
     const tokens = await this.issueTokens("cobrador", cobrador);

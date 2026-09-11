@@ -77,9 +77,14 @@ describe("AuthController", () => {
     const result = await controller.loginCobrador({
       usuario: "cobrador1",
       password: "s3cret",
+      imei: "imei-1",
+      whatsappNumber: "+59171111111",
     });
 
-    expect(authService.loginCobrador).toHaveBeenCalledWith("cobrador1", "s3cret");
+    expect(authService.loginCobrador).toHaveBeenCalledWith("cobrador1", "s3cret", {
+      imei: "imei-1",
+      whatsappNumber: "+59171111111",
+    });
     expect(result.cobrador.usuario).toBe("cobrador1");
   });
 
