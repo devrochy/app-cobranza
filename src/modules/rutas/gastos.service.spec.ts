@@ -20,7 +20,7 @@ describe("GastosService", () => {
 
   const mockRutaRepo = { findOne: jest.fn() };
   const mockGastoRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn() };
-  const mockEvidenciaRepo = { find: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockEvidenciaRepo = { find: jest.fn(), findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
   const mockCajaService = { aplicarMovimiento: jest.fn() };
   const mockPermisosSocio = { tienePermiso: jest.fn() };
   const mockDataSource = {
@@ -341,5 +341,83 @@ describe("GastosService", () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
 
     await expect(service.listar(1, socioContext)).rejects.toThrow(ForbiddenException);
+  });
+
+  it("normaliza rutaArchivo a URL servible al listar evidencias", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (gastoRepo.find as jest.Mock).mockResolvedValue([gastoFixture()]);
+    (evidenciaRepo.find as jest.Mock).mockResolvedValue([
+      {
+        id: 1,
+        gastoId: 1,
+        nombreOriginal: "factura.pdf",
+        mimetype: "application/pdf",
+        tamaño: 1024,
+        rutaArchivo: "/Users/x/apps/uploads/gastos/abc.pdf",
+      },
+    ]);
+
+    const result = await service.listar(1, adminContext);
+
+    expect(result[0].evidencias[0].rutaArchivo).toBe("/uploads/gastos/abc.pdf");
+  });
+
+  it("descargarEvidencia lanza NotFound si la ruta no existe", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.descargarEvidencia(999, 1, 7, adminContext)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("descargarEvidencia devuelve los datos del archivo de la evidencia", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (gastoRepo.findOne as jest.Mock).mockResolvedValue(gastoFixture());
+    (evidenciaRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 7,
+      gastoId: 1,
+      nombreOriginal: "factura.pdf",
+      mimetype: "application/pdf",
+      tamaño: 1024,
+      rutaArchivo: "/uploads/gastos/abc.pdf",
+    });
+
+    const result = await service.descargarEvidencia(1, 1, 7, adminContext);
+
+    expect(result).toEqual({
+      rutaArchivo: "/uploads/gastos/abc.pdf",
+      mimetype: "application/pdf",
+      nombreOriginal: "factura.pdf",
+    });
+    expect(evidenciaRepo.findOne).toHaveBeenCalledWith({
+      where: { id: 7, gasto: { id: 1 } },
+    });
+  });
+
+  it("un socio no puede descargar la evidencia de una ruta ajena -> 403", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
+
+    await expect(service.descargarEvidencia(1, 1, 7, socioContext)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it("descargarEvidencia lanza NotFound si el gasto no existe en la ruta", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (gastoRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.descargarEvidencia(1, 999, 7, adminContext)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("descargarEvidencia lanza NotFound si la evidencia no existe", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (gastoRepo.findOne as jest.Mock).mockResolvedValue(gastoFixture());
+    (evidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.descargarEvidencia(1, 1, 999, adminContext)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });
