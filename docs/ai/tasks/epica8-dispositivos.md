@@ -28,5 +28,16 @@ accesos no autorizados (HU-42) y permitir re-vinculación (HU-43).
 - [x] B6 (HU-42): tabla de intentos no autorizados + consulta (`GET /intentos-acceso`) + alerta (mock `AlertasService`). → PR #110
 - [x] B7 (HU-43): re-vinculación. → cubierta por B1 (`POST /devices` revoca el anterior 1:1).
 
-## Resultado final (llenar al completar)
-- (pendiente)
+## Resultado final
+- B1–B7 implementados y mergeados en `develop` (PRs #107, #108, #109, #110; script #111).
+- `bash scripts/check.sh` verde (918 tests); e2e `sincronizacion-offline` + `auth` verdes.
+- Verificado end-to-end con `scripts/probar-epica8.sh` (device, intento, snapshot cifrado + descifrado, apertura, revocación).
+
+## Pendiente post-MVP — Vinculación autoservicio desde la APK (Opción 2b)
+La vinculación del dispositivo **iniciada por la APK** (autoservicio, con aprobación del admin) queda fuera del MVP: hoy la APK no envía `imei`/`whatsappNumber` en el login, así que con un device vinculado el login da 403 (comportamiento esperado hasta retomar esta opción). Del lado backend implica:
+- `POST /cobrador/dispositivo` (JWT de cobrador) para que el cobrador vincule su propio device.
+- Dejar el device en `pendiente_revalidacion` + endpoint de aprobación admin (`PATCH /devices/:id/aprobar`).
+- Exponer el `telefono` del cobrador en el login/perfil.
+- Alerta al admin al recibir una solicitud (reusar `AlertasService`).
+
+Plan detallado y decisiones abiertas: `app-cobranza-apk/docs/ai/tasks/apk-autovinculacion-dispositivo.md`.
