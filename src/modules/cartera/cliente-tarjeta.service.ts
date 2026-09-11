@@ -9,7 +9,8 @@ import { TipoDocumento } from "../../domain/tipo-documento";
 import { diasDeMora, TipoPagoTarjeta, tipoPagoDesdeDiasEntreCuotas } from "../../domain/tarjeta-cliente";
 import { Ruta } from "../rutas/ruta.entity";
 import { Cliente } from "./cliente.entity";
-import { ClienteEvidencia } from "./cliente-evidencia.entity";
+import { ClienteEvidencia, esTipoEvidenciaCliente } from "./cliente-evidencia.entity";
+import type { EvidenciaArchivo } from "../../common/descarga-archivo";
 
 export interface RequesterTarjetaContext {
   rol: RolUsuario;
@@ -92,6 +93,43 @@ export class ClienteTarjetaService {
       tipoPago,
       saldoPendiente,
       diasMora: diasDeMora(fechaVencidaMasAntigua),
+    };
+  }
+
+  async descargarEvidencia(
+    rutaId: number,
+    clienteId: number,
+    tipo: string,
+    requester: RequesterTarjetaContext,
+  ): Promise<EvidenciaArchivo> {
+    if (!esTipoEvidenciaCliente(tipo)) {
+      throw new NotFoundException("La evidencia no existe");
+    }
+
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const cliente = await this.clienteRepo.findOne({
+      where: { id: clienteId, ruta: { id: rutaId } },
+    });
+    if (!cliente) {
+      throw new NotFoundException("El cliente no existe en esta ruta");
+    }
+
+    const evidencia = await this.evidenciaRepo.findOne({
+      where: { cliente: { id: clienteId }, tipo },
+    });
+    if (!evidencia) {
+      throw new NotFoundException("La evidencia no existe");
+    }
+
+    return {
+      rutaArchivo: evidencia.rutaArchivo,
+      mimetype: evidencia.mimetype,
+      nombreOriginal: evidencia.nombreOriginal,
     };
   }
 

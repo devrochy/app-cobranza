@@ -9,12 +9,16 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  StreamableFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileFieldsInterceptor } from "@nestjs/platform-express";
-import type { Request } from "express";
+import { createReadStream } from "fs";
+import type { Request, Response } from "express";
+import { pideDescarga, prepararDescargaEvidencia } from "../../common/descarga-archivo";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
@@ -26,7 +30,7 @@ import { AbonosService } from "./abonos.service";
 import { VisitasService } from "./visitas.service";
 import { CuotaService } from "./cuota.service";
 import { ClienteEvidenciaInput } from "./cliente.service";
-import { clienteFotosMulterOptions } from "./cliente-foto-upload";
+import { clienteFotosMulterOptions, CLIENTE_UPLOAD_DIR } from "./cliente-foto-upload";
 import { CreateClienteDto } from "./dto/create-cliente.dto";
 import { CreatePrestamoDto } from "./dto/create-prestamo.dto";
 import { RegistrarPagoDto } from "./dto/registrar-pago.dto";
@@ -325,6 +329,34 @@ export class CarteraController {
       rol: req.user.rol,
       sub: req.user.sub,
     });
+  }
+
+  @Get("clientes/:clienteId/evidencias/:tipo")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  async descargarEvidenciaCliente(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("clienteId", ParseIntPipe) clienteId: number,
+    @Param("tipo") tipo: string,
+    @Query("descargar") descargar: string | undefined,
+    @Req() req: Request & { user: AuthTokenPayload },
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const evidencia = await this.clienteTarjetaService.descargarEvidencia(
+      rutaId,
+      clienteId,
+      tipo,
+      { rol: req.user.rol, sub: req.user.sub },
+    );
+    const { rutaAbsoluta, headers } = prepararDescargaEvidencia({
+      ...evidencia,
+      baseDir: CLIENTE_UPLOAD_DIR,
+      descargar: pideDescarga(descargar),
+    });
+    for (const [clave, valor] of Object.entries(headers)) {
+      res.setHeader(clave, valor);
+    }
+    return new StreamableFile(createReadStream(rutaAbsoluta));
   }
 
   @Get("clientes/:clienteId/navegacion")

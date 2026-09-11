@@ -12,6 +12,10 @@ import { Cliente } from "./cliente.entity";
 export const CLIENTE_EVIDENCIA_TIPOS = ["foto_facial", "documento_frente", "documento_reverso"] as const;
 export type ClienteEvidenciaTipo = (typeof CLIENTE_EVIDENCIA_TIPOS)[number];
 
+export function esTipoEvidenciaCliente(valor: string): valor is ClienteEvidenciaTipo {
+  return (CLIENTE_EVIDENCIA_TIPOS as readonly string[]).includes(valor);
+}
+
 @Entity("cliente_evidencias")
 export class ClienteEvidencia {
   @PrimaryGeneratedColumn()

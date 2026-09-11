@@ -11,13 +11,16 @@ import {
   Query,
   Req,
   Res,
+  StreamableFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
+import { createReadStream } from "fs";
 import type { Request, Response } from "express";
-import { evidenciasMulterOptions } from "./evidencia-upload";
+import { UPLOAD_DIR, evidenciasMulterOptions } from "./evidencia-upload";
+import { pideDescarga, prepararDescargaEvidencia } from "../../common/descarga-archivo";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
@@ -260,6 +263,32 @@ export class RutasController {
       rol: req.user.rol,
       sub: req.user.sub,
     });
+  }
+
+  @Get(":id/gastos/:gastoId/evidencias/:evidenciaId")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  async descargarEvidenciaGasto(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("gastoId", ParseIntPipe) gastoId: number,
+    @Param("evidenciaId", ParseIntPipe) evidenciaId: number,
+    @Query("descargar") descargar: string | undefined,
+    @Req() req: Request & { user: AuthTokenPayload },
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const evidencia = await this.gastosService.descargarEvidencia(id, gastoId, evidenciaId, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+    const { rutaAbsoluta, headers } = prepararDescargaEvidencia({
+      ...evidencia,
+      baseDir: UPLOAD_DIR,
+      descargar: pideDescarga(descargar),
+    });
+    for (const [clave, valor] of Object.entries(headers)) {
+      res.setHeader(clave, valor);
+    }
+    return new StreamableFile(createReadStream(rutaAbsoluta));
   }
 
   @Patch(":id/gastos/:gastoId/aprobar")

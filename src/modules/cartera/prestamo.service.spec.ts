@@ -105,6 +105,10 @@ describe("PrestamoService", () => {
     service = module.get(PrestamoService);
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   function clienteFixture(overrides: Partial<Cliente> = {}): Cliente {
     return {
       id: 1,
@@ -310,6 +314,9 @@ describe("PrestamoService", () => {
 
     it("atrasa al lunes una cuota cuyo vencimiento cae en domingo (solo_domingos)", async () => {
       setupFeliz();
+      // ahora = 2026-08-12 para que la fecha otorgada quede dentro del rango ±30 días.
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(2026, 7, 12, 12, 0, 0));
       // fechaOtorgado = 2026-08-12 (miércoles). Con diasEntreCuotas=4, la cuota 1
       // vence 2026-08-16 (domingo) -> se atrasa a 2026-08-17 (lunes).
       const result = await service.crear(
@@ -324,6 +331,9 @@ describe("PrestamoService", () => {
 
     it("no ajusta si la cuota no cae en domingo", async () => {
       setupFeliz();
+      // ahora = 2026-08-12 para que la fecha otorgada quede dentro del rango ±30 días.
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(2026, 7, 12, 12, 0, 0));
       // diasEntreCuotas=3: cuota 1 vence 2026-08-15 (sábado) -> sin ajuste.
       const result = await service.crear(
         1,

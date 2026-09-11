@@ -17,7 +17,7 @@ describe("ClienteTarjetaService", () => {
 
   const mockRutaRepo = { findOne: jest.fn() };
   const mockClienteRepo = { findOne: jest.fn() };
-  const mockEvidenciaRepo = { find: jest.fn() };
+  const mockEvidenciaRepo = { find: jest.fn(), findOne: jest.fn() };
   const mockDataSource = { transaction: jest.fn() };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
@@ -168,5 +168,61 @@ describe("ClienteTarjetaService", () => {
     // Una URL que ya es servible (/uploads/...) no se altera.
     expect(result.documentoFrenteUrl).toBe("/uploads/gastos/inexistente.jpg");
     expect(result.documentoReversoUrl).toBe("/uploads/clientes/reverso.jpg");
+  });
+
+  it("descargarEvidencia devuelve los datos del archivo por tipo", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture());
+    (mockEvidenciaRepo.findOne as jest.Mock).mockResolvedValue({
+      tipo: "foto_facial",
+      rutaArchivo: "/uploads/clientes/foto.jpg",
+      nombreOriginal: "foto.jpg",
+      mimetype: "image/jpeg",
+    } as ClienteEvidencia);
+
+    const result = await service.descargarEvidencia(1, 10, "foto_facial", adminContext);
+
+    expect(result).toEqual({
+      rutaArchivo: "/uploads/clientes/foto.jpg",
+      mimetype: "image/jpeg",
+      nombreOriginal: "foto.jpg",
+    });
+    expect(mockEvidenciaRepo.findOne).toHaveBeenCalledWith({
+      where: { cliente: { id: 10 }, tipo: "foto_facial" },
+    });
+  });
+
+  it("descargarEvidencia rechaza un tipo desconocido -> 404", async () => {
+    await expect(
+      service.descargarEvidencia(1, 10, "otro", adminContext),
+    ).rejects.toThrow(NotFoundException);
+    expect(rutaRepo.findOne).not.toHaveBeenCalled();
+  });
+
+  it("un socio no puede descargar la evidencia de una ruta ajena -> 403", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture({ socioId: 2 }));
+
+    await expect(
+      service.descargarEvidencia(1, 10, "foto_facial", socioContext),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it("descargarEvidencia lanza NotFound si el cliente no existe en la ruta", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      service.descargarEvidencia(1, 999, "foto_facial", adminContext),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it("descargarEvidencia lanza NotFound si no hay evidencia de ese tipo", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture());
+    (mockEvidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      service.descargarEvidencia(1, 10, "foto_facial", adminContext),
+    ).rejects.toThrow(NotFoundException);
   });
 });

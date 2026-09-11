@@ -6,6 +6,8 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { urlArchivoServible } from "../../common/url-archivo";
+import type { EvidenciaArchivo } from "../../common/descarga-archivo";
 import { RolUsuario } from "../auth/auth.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CajaService, TipoMovimientoCaja } from "./caja.service";
@@ -245,6 +247,39 @@ export class GastosService {
     }));
   }
 
+  async descargarEvidencia(
+    rutaId: number,
+    gastoId: number,
+    evidenciaId: number,
+    requester: RequesterGastoContext,
+  ): Promise<EvidenciaArchivo> {
+    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+    if (!ruta) {
+      throw new NotFoundException("La ruta no existe");
+    }
+    assertOwned(ruta, requester);
+
+    const gasto = await this.gastoRepo.findOne({
+      where: { id: gastoId, ruta: { id: rutaId } },
+    });
+    if (!gasto) {
+      throw new NotFoundException("El gasto no existe en esta ruta");
+    }
+
+    const evidencia = await this.evidenciaRepo.findOne({
+      where: { id: evidenciaId, gasto: { id: gastoId } },
+    });
+    if (!evidencia) {
+      throw new NotFoundException("La evidencia no existe");
+    }
+
+    return {
+      rutaArchivo: evidencia.rutaArchivo,
+      mimetype: evidencia.mimetype,
+      nombreOriginal: evidencia.nombreOriginal,
+    };
+  }
+
   private async assertPuedeAprobar(
     ruta: Ruta,
     requester: RequesterGastoContext,
@@ -282,7 +317,7 @@ export class GastosService {
       nombreOriginal: evidencia.nombreOriginal,
       mimetype: evidencia.mimetype,
       tamaño: evidencia.tamaño,
-      rutaArchivo: evidencia.rutaArchivo,
+      rutaArchivo: urlArchivoServible(evidencia.rutaArchivo) ?? "",
     };
   }
 }
