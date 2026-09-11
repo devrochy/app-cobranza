@@ -28,8 +28,10 @@ tags: [tarea]
 
 ## Decisiones tomadas durante la implementación
 - Límite 5 intentos / 60s por IP (configurable por `AUTH_THROTTLE_LIMIT` / `AUTH_THROTTLE_TTL_MS`).
+- Contador único por IP para los 3 endpoints de login (`generateKey` custom), no por ruta.
 - Store de throttling en memoria (instancia única, MVP local).
 - Blacklist solo de `jti` revocados (no se persisten todos los emitidos). Sin rotación automática.
+- La blacklist no se purga automáticamente; `expiraEn` queda disponible para un job de limpieza futuro (aceptado en MVP).
 - e2e: límite alto en `test/e2e/setup.ts` para no romper las suites existentes.
 
 ## Ambigüedades resueltas con el usuario
@@ -47,4 +49,6 @@ tags: [tarea]
   - `test/e2e/seguridad-auth.e2e-spec.ts` (throttle), `test/e2e/seguridad-auth-logout.e2e-spec.ts` (revocación).
   - `test/e2e/setup.ts` — límite alto para las suites existentes.
   - `src/modules/cartera/prestamo.service.spec.ts` — fix del time-bomb de fecha (mismo fix que PR #115, pendiente de merge).
-- Pendientes/seguimiento: rotación automática (fuera de alcance); el fix de `prestamo.service.spec.ts` se solapa con el PR #115 (resolver al mergear).
+  - `.env.example` — documenta `AUTH_THROTTLE_LIMIT`/`AUTH_THROTTLE_TTL_MS`.
+  - `src/config/db-options.ts` — exporta `toPositiveInt` (reutilizado por el throttle).
+- Pendientes/seguimiento: rotación automática (fuera de alcance); job de purga de la blacklist; **migración/DDL de `refresh_token_revocados` para producción** (el proyecto usa `synchronize` solo en dev); mensaje específico de 429 en el login del panel; el fix de `prestamo.service.spec.ts` se solapa con el PR #115 (resolver al mergear).

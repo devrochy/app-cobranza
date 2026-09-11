@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { toPositiveInt } from "../../config/db-options";
 import { SecurityModule } from "../security/security.module";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
@@ -26,8 +27,10 @@ import { PermisoGuard } from "./permiso.guard";
         throttlers: [
           {
             name: "login",
-            ttl: Number(config.get<string>("AUTH_THROTTLE_TTL_MS") ?? 60000),
-            limit: Number(config.get<string>("AUTH_THROTTLE_LIMIT") ?? 5),
+            ttl: toPositiveInt(config.get<string>("AUTH_THROTTLE_TTL_MS"), 60000),
+            limit: toPositiveInt(config.get<string>("AUTH_THROTTLE_LIMIT"), 5),
+            // Un solo contador por IP para los tres endpoints de login.
+            generateKey: (_context, tracker) => `login:${tracker}`,
           },
         ],
       }),
