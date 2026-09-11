@@ -8,7 +8,7 @@ import { PerfilService } from "./perfil.service";
 
 describe("PerfilController", () => {
   let controller: PerfilController;
-  const mockService = { actualizar: jest.fn() };
+  const mockService = { actualizar: jest.fn(), obtener: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -42,5 +42,20 @@ describe("PerfilController", () => {
       nombre: "Nuevo",
       apellido: "Pérez",
     });
+  });
+
+  it("obtener delega en el servicio con el rol y sub del usuario autenticado", async () => {
+    mockService.obtener.mockResolvedValue({
+      id: 7,
+      usuario: "cob1",
+      nombre: "Nuevo",
+      apellido: "Pérez",
+    });
+
+    await controller.obtener({
+      user: { rol: "cobrador", sub: 7 },
+    } as never);
+
+    expect(mockService.obtener).toHaveBeenCalledWith("cobrador", 7);
   });
 });

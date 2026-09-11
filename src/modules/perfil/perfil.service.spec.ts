@@ -1,6 +1,7 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { PerfilService } from "./perfil.service";
@@ -8,6 +9,7 @@ import { PerfilService } from "./perfil.service";
 describe("PerfilService", () => {
   let service: PerfilService;
 
+  const adminRepo = { findOne: jest.fn(), save: jest.fn() };
   const cobradorRepo = { findOne: jest.fn(), save: jest.fn() };
   const socioRepo = { findOne: jest.fn(), save: jest.fn() };
 
@@ -16,6 +18,7 @@ describe("PerfilService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PerfilService,
+        { provide: getRepositoryToken(AdminUser), useValue: adminRepo },
         { provide: getRepositoryToken(Cobrador), useValue: cobradorRepo },
         { provide: getRepositoryToken(Socio), useValue: socioRepo },
       ],
@@ -73,6 +76,28 @@ describe("PerfilService", () => {
     });
   });
 
+  it("actualiza nombre y apellido de un admin", async () => {
+    const admin = { id: 1, usuario: "admin", nombre: null, apellido: null };
+    adminRepo.findOne.mockResolvedValue(admin);
+    adminRepo.save.mockImplementation(async (e: unknown) => e);
+
+    const res = await service.actualizar("admin", 1, {
+      nombre: "Root",
+      apellido: "Admin",
+    });
+
+    expect(adminRepo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(adminRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: "Root", apellido: "Admin" }),
+    );
+    expect(res).toEqual({
+      id: 1,
+      usuario: "admin",
+      nombre: "Root",
+      apellido: "Admin",
+    });
+  });
+
   it("lanza NotFound si el cobrador no existe", async () => {
     cobradorRepo.findOne.mockResolvedValue(null);
 
@@ -82,12 +107,54 @@ describe("PerfilService", () => {
     expect(cobradorRepo.save).not.toHaveBeenCalled();
   });
 
-  it("rechaza el rol admin sin tocar repositorios", async () => {
-    await expect(
-      service.actualizar("admin", 1, { nombre: "x", apellido: "y" }),
-    ).rejects.toThrow(ForbiddenException);
+  it("lanza NotFound si el admin no existe", async () => {
+    adminRepo.findOne.mockResolvedValue(null);
 
-    expect(cobradorRepo.findOne).not.toHaveBeenCalled();
-    expect(socioRepo.findOne).not.toHaveBeenCalled();
+    await expect(
+      service.actualizar("admin", 99, { nombre: "x", apellido: "y" }),
+    ).rejects.toThrow(NotFoundException);
+    expect(adminRepo.save).not.toHaveBeenCalled();
+  });
+
+  describe("obtener", () => {
+    it("devuelve el perfil del admin normalizando nulos", async () => {
+      adminRepo.findOne.mockResolvedValue({
+        id: 1,
+        usuario: "admin",
+        nombre: null,
+        apellido: null,
+      });
+
+      await expect(service.obtener("admin", 1)).resolves.toEqual({
+        id: 1,
+        usuario: "admin",
+        nombre: "",
+        apellido: "",
+      });
+    });
+
+    it("devuelve el perfil de un socio", async () => {
+      socioRepo.findOne.mockResolvedValue({
+        id: 3,
+        usuario: "soc1",
+        nombre: "Ana",
+        apellido: "Gómez",
+      });
+
+      await expect(service.obtener("socio", 3)).resolves.toEqual({
+        id: 3,
+        usuario: "soc1",
+        nombre: "Ana",
+        apellido: "Gómez",
+      });
+    });
+
+    it("lanza NotFound si el usuario no existe", async () => {
+      cobradorRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.obtener("cobrador", 99)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 });
