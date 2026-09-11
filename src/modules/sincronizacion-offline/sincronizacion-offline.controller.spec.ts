@@ -8,6 +8,7 @@ import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { DeviceApiKeyGuard } from "./device-api-key.guard";
 import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service";
 import { DevicesService } from "./devices.service";
+import { IntentosAccesoService } from "./intentos-acceso.service";
 import { SincronizacionOfflineService } from "./sincronizacion-offline.service";
 import { SincronizacionOfflineController } from "./sincronizacion-offline.controller";
 import { SnapshotDiaService } from "./snapshot-dia.service";
@@ -22,6 +23,7 @@ describe("SincronizacionOfflineController", () => {
   const mockSync = { ingestir: jest.fn() };
   const mockAplicar = { aplicarPendientesDeDispositivo: jest.fn() };
   const mockSnapshot = { obtenerSnapshot: jest.fn() };
+  const mockIntentos = { listar: jest.fn() };
 
   const deviceReq = { device: { id: 3, rutaId: 5 } } as never;
 
@@ -34,6 +36,7 @@ describe("SincronizacionOfflineController", () => {
         { provide: SincronizacionOfflineService, useValue: mockSync },
         { provide: AplicarEventosOfflineService, useValue: mockAplicar },
         { provide: SnapshotDiaService, useValue: mockSnapshot },
+        { provide: IntentosAccesoService, useValue: mockIntentos },
         DeviceApiKeyGuard,
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
@@ -76,5 +79,11 @@ describe("SincronizacionOfflineController", () => {
   it("obtener snapshot del día delega con el dispositivo y la ruta", async () => {
     await controller.snapshotDia(deviceReq, 5);
     expect(snapshot.obtenerSnapshot).toHaveBeenCalledWith({ id: 3, rutaId: 5 }, 5);
+  });
+
+  it("listar intentos de acceso delega en el servicio", async () => {
+    mockIntentos.listar.mockResolvedValue([{ id: 1 }]);
+    await expect(controller.listarIntentosAcceso()).resolves.toEqual([{ id: 1 }]);
+    expect(mockIntentos.listar).toHaveBeenCalled();
   });
 });

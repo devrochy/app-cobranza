@@ -8,6 +8,7 @@ import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Device } from "../sincronizacion-offline/device.entity";
+import { IntentosAccesoService } from "../sincronizacion-offline/intentos-acceso.service";
 import { AuthService } from "./auth.service";
 
 describe("AuthService", () => {
@@ -33,6 +34,10 @@ describe("AuthService", () => {
 
   const mockDeviceRepo = {
     findOne: jest.fn(),
+  };
+
+  const mockIntentosAcceso = {
+    registrar: jest.fn().mockResolvedValue({ id: 1 }),
   };
 
   const mockConfig = {
@@ -110,6 +115,7 @@ describe("AuthService", () => {
         { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
         { provide: getRepositoryToken(Cobrador), useValue: mockCobradorRepo },
         { provide: getRepositoryToken(Device), useValue: mockDeviceRepo },
+        { provide: IntentosAccesoService, useValue: mockIntentosAcceso },
         { provide: ConfigService, useValue: mockConfig },
         { provide: JwtService, useValue: new JwtService() },
         PasswordService,
@@ -295,6 +301,13 @@ describe("AuthService", () => {
           whatsappNumber: "+59171111111",
         }),
       ).rejects.toThrow("Dispositivo no autorizado");
+
+      expect(mockIntentosAcceso.registrar).toHaveBeenCalledWith({
+        cobradorId: 20,
+        imei: "imei-distinto",
+        whatsappNumber: "+59171111111",
+        motivo: "imei_no_coincide",
+      });
     });
 
     it("permite el login si el IMEI y WhatsApp coinciden con el device vinculado", async () => {

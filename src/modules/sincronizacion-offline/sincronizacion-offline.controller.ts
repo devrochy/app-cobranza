@@ -5,6 +5,7 @@ import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service"
 import { DeviceApiKeyGuard, RequestWithDevice } from "./device-api-key.guard";
 import { DevicesService } from "./devices.service";
 import { RegistrarDispositivoDto } from "./dto/registrar-dispositivo.dto";
+import { IntentosAccesoService } from "./intentos-acceso.service";
 import { SincronizarEventosDto } from "./dto/sincronizar-eventos.dto";
 import { SincronizacionOfflineService } from "./sincronizacion-offline.service";
 import { SnapshotDiaService } from "./snapshot-dia.service";
@@ -21,6 +22,7 @@ export class SincronizacionOfflineController {
     private readonly sincronizacionOfflineService: SincronizacionOfflineService,
     private readonly aplicarEventosOfflineService: AplicarEventosOfflineService,
     private readonly snapshotDiaService: SnapshotDiaService,
+    private readonly intentosAccesoService: IntentosAccesoService,
   ) {}
 
   @Post("devices")
@@ -39,6 +41,12 @@ export class SincronizacionOfflineController {
   @UseGuards(JwtAuthGuard, PermisoGuard)
   revocarDispositivo(@Param("id", ParseIntPipe) id: number) {
     return this.devicesService.revocar(id);
+  }
+
+  @Get("intentos-acceso")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  listarIntentosAcceso() {
+    return this.intentosAccesoService.listar();
   }
 
   @Post("sync-offline/eventos")

@@ -20,13 +20,13 @@ accesos no autorizados (HU-42) y permitir re-vinculación (HU-43).
 - Cifrado en reposo de tablas: **fuera de alcance** (tarea aparte).
 
 ## Bloques (checklist TDD)
-- [ ] B1 (HU-39): vinculación device↔cobrador (entidad + DTOs + service + endpoints admin).
-- [ ] B2 (HU-39/42): login valida IMEI+WhatsApp; 403 + registro de intento.
-- [ ] B3 (HU-64/HU-39): apply offline por cobrador (todas sus rutas).
-- [ ] B4 (HU-40): snapshot del día cifrado (X25519+HKDF+AES-256-GCM).
-- [ ] B5 (HU-41): apertura con device/imei.
-- [ ] B6 (HU-42): tabla de intentos no autorizados + consulta.
-- [ ] B7 (HU-43): re-vinculación.
+- [x] B1 (HU-39): vinculación device↔cobrador (entidad + DTOs + service + endpoints admin). → PR #107
+- [x] B2 (HU-39/42): login valida IMEI+WhatsApp; 403. (El registro del intento va en B6.) → PR #108
+- [x] B3 (HU-64/HU-39): apply offline por cobrador (todas sus rutas). → PR #107
+- [x] B4 (HU-40): snapshot del día cifrado (X25519+HKDF+AES-256-GCM). → PR #109
+- [x] B5 (HU-41): apertura (timestamp + coordenadas). → ya existía (`RutasAperturaService`, `POST /cobrador/rutas/:rutaId/apertura`).
+- [x] B6 (HU-42): tabla de intentos no autorizados + consulta (`GET /intentos-acceso`) + alerta (mock `AlertasService`). → PR #110
+- [x] B7 (HU-43): re-vinculación. → cubierta por B1 (`POST /devices` revoca el anterior 1:1).
 
 ## Resultado final (llenar al completar)
 - (pendiente)
