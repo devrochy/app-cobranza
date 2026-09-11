@@ -1,6 +1,7 @@
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { Test, TestingModule } from "@nestjs/testing";
 import type { Request } from "express";
 import { DataSource } from "typeorm";
@@ -19,11 +20,13 @@ describe("AuthController", () => {
     loginSocio: jest.fn(),
     loginCobrador: jest.fn(),
     refresh: jest.fn(),
+    revocar: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
+      imports: [ThrottlerModule.forRoot([{ name: "login", ttl: 60000, limit: 5 }])],
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: mockAuthService },
@@ -98,6 +101,14 @@ describe("AuthController", () => {
 
     expect(authService.refresh).toHaveBeenCalledWith("r");
     expect(result.accessToken).toBe("a2");
+  });
+
+  it("logout delega la revocación al servicio", async () => {
+    (authService.revocar as jest.Mock).mockResolvedValue(undefined);
+
+    await controller.logout({ refreshToken: "r" });
+
+    expect(authService.revocar).toHaveBeenCalledWith("r");
   });
 
   it("me devuelve la identidad del usuario del token", () => {
