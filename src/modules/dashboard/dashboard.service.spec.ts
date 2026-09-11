@@ -262,4 +262,51 @@ describe("DashboardService", () => {
       }),
     );
   });
+
+  describe("series", () => {
+    const hoy = new Date("2026-08-26T00:00:00Z");
+
+    beforeEach(() => {
+      (repos.pago.find as jest.Mock).mockResolvedValue([]);
+      (repos.abono.find as jest.Mock).mockResolvedValue([]);
+      (repos.gasto.find as jest.Mock).mockResolvedValue([]);
+    });
+
+    it("agrupa cobrado (pagos + abonos) y gastos por día y rellena los días vacíos", async () => {
+      (repos.pago.find as jest.Mock).mockResolvedValue([
+        { valor: 100, fechaHora: new Date("2026-08-24T10:00:00Z") },
+        { valor: 50, fechaHora: new Date("2026-08-26T05:00:00Z") },
+      ]);
+      (repos.abono.find as jest.Mock).mockResolvedValue([
+        { valor: 30, fechaHora: new Date("2026-08-24T12:00:00Z") },
+      ]);
+      (repos.gasto.find as jest.Mock).mockResolvedValue([
+        { valor: 20, fechaHora: new Date("2026-08-25T09:00:00Z") },
+      ]);
+
+      const res = await service.series(hoy, {}, 3);
+
+      expect(res.dias).toEqual([
+        { fecha: "2026-08-24", cobrado: 130, gastos: 0 },
+        { fecha: "2026-08-25", cobrado: 0, gastos: 20 },
+        { fecha: "2026-08-26", cobrado: 50, gastos: 0 },
+      ]);
+    });
+
+    it("devuelve 14 días por defecto, en orden ascendente", async () => {
+      const res = await service.series(hoy);
+
+      expect(res.dias).toHaveLength(14);
+      expect(res.dias[0].fecha).toBe("2026-08-13");
+      expect(res.dias[13].fecha).toBe("2026-08-26");
+    });
+
+    it("acota por rutaId sin resolver rutas del socio", async () => {
+      await service.series(hoy, { rutaId: 5 }, 2);
+
+      expect(repos.ruta.find).not.toHaveBeenCalled();
+      const arg = (repos.pago.find as jest.Mock).mock.calls[0][0];
+      expect(arg.where.cliente.ruta.id).toBeDefined();
+    });
+  });
 });
