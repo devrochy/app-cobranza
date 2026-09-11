@@ -15,7 +15,7 @@ describe("DashboardController", () => {
   let dashboard: DashboardService;
   let monitoreo: MonitoreoIaService;
 
-  const mockDashboard = { obtener: jest.fn() };
+  const mockDashboard = { obtener: jest.fn(), series: jest.fn() };
   const mockMonitoreo = { obtener: jest.fn() };
 
   beforeEach(async () => {
@@ -83,6 +83,47 @@ describe("DashboardController", () => {
     const permiso = Reflect.getMetadata(
       PERMISO_REQUERIDO_KEY,
       DashboardController.prototype.dashboard,
+    );
+
+    expect(permiso).toBe("ver_reportes");
+  });
+
+  it("series delega con dias por defecto (14) para admin", async () => {
+    await controller.series(
+      {} as never,
+      { user: { rol: "admin", sub: 1 } } as never,
+    );
+
+    expect(dashboard.series).toHaveBeenCalledWith(expect.any(Date), {}, 14);
+  });
+
+  it("series pasa dias y filtros del query para admin", async () => {
+    await controller.series(
+      { rutaId: 6, socioId: 3, dias: 30 } as never,
+      { user: { rol: "admin", sub: 1 } } as never,
+    );
+
+    expect(dashboard.series).toHaveBeenCalledWith(expect.any(Date), {
+      rutaId: 6,
+      socioId: 3,
+    }, 30);
+  });
+
+  it("series para rol socio fuerza socioId = sub e ignora el query", async () => {
+    await controller.series(
+      { rutaId: 6, socioId: 9, dias: 7 } as never,
+      { user: { rol: "socio", sub: 3 } } as never,
+    );
+
+    expect(dashboard.series).toHaveBeenCalledWith(expect.any(Date), {
+      socioId: 3,
+    }, 7);
+  });
+
+  it("series exige ver_reportes", () => {
+    const permiso = Reflect.getMetadata(
+      PERMISO_REQUERIDO_KEY,
+      DashboardController.prototype.series,
     );
 
     expect(permiso).toBe("ver_reportes");

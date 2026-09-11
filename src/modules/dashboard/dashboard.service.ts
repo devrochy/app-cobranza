@@ -25,6 +25,16 @@ export interface DashboardPublic {
   prestamosVigentes: number;
 }
 
+export interface DashboardSerieDia {
+  fecha: string;
+  cobrado: number;
+  gastos: number;
+}
+
+export interface DashboardSeries {
+  dias: DashboardSerieDia[];
+}
+
 /**
  * Dashboard consolidado multi-ruta (HU-23). Semántica (documentada, ajustable):
  * - carteraActiva: suma del valor esperado de cuotas pendiente/atrasada de préstamos vigentes.
@@ -149,6 +159,70 @@ export class DashboardService {
     };
   }
 
+  /**
+   * Serie histórica diaria (los últimos `dias`): cobrado (pagos + abonos) y
+   * gastos aprobados por día, con los días sin movimiento en 0. Acepta los
+   * mismos filtros que `obtener` (rutaId/socioId).
+   */
+  async series(
+    hoy: Date = new Date(),
+    filtros: { rutaId?: number; socioId?: number } = {},
+    dias = 14,
+  ): Promise<DashboardSeries> {
+    const fin = this.inicioDeDia(hoy);
+    const inicio = this.restarDias(fin, dias - 1);
+
+    const rutaIds = await this.resolverRutaIds(filtros);
+    const filtroRuta = rutaIds ? { ruta: { id: In(rutaIds) } } : {};
+    const filtroPago = rutaIds ? { cliente: { ruta: { id: In(rutaIds) } } } : {};
+    const filtroAbono = rutaIds ? { prestamo: { ruta: { id: In(rutaIds) } } } : {};
+
+    const [pagos, abonos, gastos] = await Promise.all([
+      this.pagoRepo.find({
+        where: { fechaHora: MoreThanOrEqual(inicio), ...filtroPago },
+        select: { valor: true, fechaHora: true },
+      }),
+      this.abonoRepo.find({
+        where: { fechaHora: MoreThanOrEqual(inicio), ...filtroAbono },
+        select: { valor: true, fechaHora: true },
+      }),
+      this.gastoRepo.find({
+        where: {
+          aprobado: true,
+          estado: "activo",
+          fechaHora: MoreThanOrEqual(inicio),
+          ...filtroRuta,
+        },
+        select: { valor: true, fechaHora: true },
+      }),
+    ]);
+
+    const acumulado = new Map<string, { cobrado: number; gastos: number }>();
+    const sumar = (
+      filas: { valor: number; fechaHora: Date }[],
+      campo: "cobrado" | "gastos",
+    ) => {
+      for (const fila of filas) {
+        const fecha = formatDate(fila.fechaHora);
+        const actual = acumulado.get(fecha) ?? { cobrado: 0, gastos: 0 };
+        actual[campo] += Number(fila.valor ?? 0);
+        acumulado.set(fecha, actual);
+      }
+    };
+    sumar(pagos, "cobrado");
+    sumar(abonos, "cobrado");
+    sumar(gastos, "gastos");
+
+    const serie: DashboardSerieDia[] = [];
+    for (let i = 0; i < dias; i++) {
+      const fecha = formatDate(this.sumarDias(inicio, i));
+      const valor = acumulado.get(fecha) ?? { cobrado: 0, gastos: 0 };
+      serie.push({ fecha, cobrado: valor.cobrado, gastos: valor.gastos });
+    }
+
+    return { dias: serie };
+  }
+
   private async resolverRutaIds(filtros: {
     rutaId?: number;
     socioId?: number;
@@ -190,6 +264,12 @@ export class DashboardService {
   private restarDias(fecha: Date, dias: number): Date {
     const resultado = new Date(fecha);
     resultado.setUTCDate(resultado.getUTCDate() - dias);
+    return resultado;
+  }
+
+  private sumarDias(fecha: Date, dias: number): Date {
+    const resultado = new Date(fecha);
+    resultado.setUTCDate(resultado.getUTCDate() + dias);
     return resultado;
   }
 

@@ -7,6 +7,7 @@ import { AuthTokenPayload } from "../auth/auth.service";
 import { DashboardService } from "./dashboard.service";
 import { MonitoreoIaService } from "./monitoreo-ia.service";
 import { ListarDashboardDto } from "./dto/listar-dashboard.dto";
+import { ListarSeriesDto } from "./dto/listar-series.dto";
 
 /**
  * Endpoints del panel admin (Épica 5). `GET /dashboard` exige `ver_reportes`:
@@ -34,6 +35,24 @@ export class DashboardController {
       rutaId: esSocio ? undefined : dto.rutaId,
       socioId: esSocio ? req.user.sub : dto.socioId,
     });
+  }
+
+  @Get("dashboard/series")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  series(
+    @Query() dto: ListarSeriesDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    const esSocio = req.user.rol === "socio";
+    return this.dashboardService.series(
+      new Date(),
+      {
+        rutaId: esSocio ? undefined : dto.rutaId,
+        socioId: esSocio ? req.user.sub : dto.socioId,
+      },
+      dto.dias ?? 14,
+    );
   }
 
   @Get("conversaciones-ia/panel")

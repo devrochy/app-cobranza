@@ -185,6 +185,23 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     expect(res.body.rutasActivas).toBeGreaterThanOrEqual(1);
   });
 
+  it("GET /dashboard/series (admin) devuelve la serie diaria de N días", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/dashboard/series?rutaId=${rutaId}&dias=7`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.dias)).toBe(true);
+    expect(res.body.dias).toHaveLength(7);
+    expect(res.body.dias[0]).toEqual(
+      expect.objectContaining({
+        fecha: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        cobrado: expect.any(Number),
+        gastos: expect.any(Number),
+      }),
+    );
+  });
+
   it("GET /conversaciones-ia/panel (admin) devuelve el monitoreo", async () => {
     const res = await request(app.getHttpServer())
       .get("/conversaciones-ia/panel")
@@ -213,9 +230,22 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     expect(res.status).toBe(403);
   });
 
-  it("GET /dashboard sin token -> 401", async () => {
+  it("GET /dashboard/sin token -> 401", async () => {
     const res = await request(app.getHttpServer()).get("/dashboard");
     expect(res.status).toBe(401);
+  });
+
+  it("GET /dashboard/series sin token -> 401", async () => {
+    const res = await request(app.getHttpServer()).get("/dashboard/series");
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /dashboard/series como socio -> 403", async () => {
+    const res = await request(app.getHttpServer())
+      .get("/dashboard/series")
+      .set("Authorization", `Bearer ${tokenSocio}`);
+
+    expect(res.status).toBe(403);
   });
 
   it("GET /conversaciones-ia/panel sin token -> 401", async () => {
