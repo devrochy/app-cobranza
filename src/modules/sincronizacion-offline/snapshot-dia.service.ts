@@ -5,12 +5,15 @@ import { ListaClientesDelDiaService } from "../rutas/lista-clientes-dia.service"
 import { RutaOptimizacionService } from "../rutas/ruta-optimizacion.service";
 import { Ruta } from "../rutas/ruta.entity";
 import { Device } from "./device.entity";
+import { SnapshotCifrado, SnapshotCryptoService } from "./snapshot-crypto.service";
 
 export interface SnapshotDiaPublic {
   ruta: { id: number; nombre: string };
   clientes: unknown[];
   trayectos: unknown;
 }
+
+export type SnapshotDiaResult = SnapshotDiaPublic | SnapshotCifrado;
 
 /**
  * Snapshot del día para la APK offline (HU-64, PRD 6.5:435): la APK descarga al
@@ -25,9 +28,13 @@ export class SnapshotDiaService {
     private readonly rutaRepo: Repository<Ruta>,
     private readonly listaClientesDelDiaService: ListaClientesDelDiaService,
     private readonly rutaOptimizacionService: RutaOptimizacionService,
+    private readonly crypto: SnapshotCryptoService,
   ) {}
 
-  async obtenerSnapshot(device: Device, rutaId: number): Promise<SnapshotDiaPublic> {
+  async obtenerSnapshot(
+    device: Device,
+    rutaId: number,
+  ): Promise<SnapshotDiaResult> {
     if (device.cobradorId == null) {
       throw new BadRequestException("El dispositivo no tiene cobrador vinculado");
     }
@@ -54,10 +61,21 @@ export class SnapshotDiaService {
       }
     }
 
-    return {
+    const snapshot: SnapshotDiaPublic = {
       ruta: { id: ruta.id, nombre: ruta.nombre },
       clientes,
       trayectos,
     };
+
+    // HU-40: si el dispositivo registró su clave pública X25519, el snapshot se
+    // entrega cifrado (solo la APK con la clave privada puede leerlo).
+    if (device.publicKey) {
+      return this.crypto.cifrar(
+        device.publicKey,
+        Buffer.from(JSON.stringify(snapshot), "utf8"),
+      );
+    }
+
+    return snapshot;
   }
 }
