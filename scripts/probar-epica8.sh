@@ -75,7 +75,8 @@ ok "backend arriba"
 # ---------------------------------------------------------------------------
 paso "1. Login admin"
 login=$(api POST /auth/login "" "{\"usuario\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASS\"}")
-[ "$(estado "$login")" = "200" ] || { info "respuesta: $(cuerpo "$login")"; fallo "login admin falló (revisa ADMIN_USER/ADMIN_PASS)."; }
+codigo_login=$(estado "$login")
+{ [ "$codigo_login" = "200" ] || [ "$codigo_login" = "201" ]; } || { info "respuesta ($codigo_login): $(cuerpo "$login")"; fallo "login admin falló (revisa ADMIN_USER/ADMIN_PASS)."; }
 TOKEN=$(cuerpo "$login" | jq -r .accessToken)
 ok "token admin obtenido"
 
