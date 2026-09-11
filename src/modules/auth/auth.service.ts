@@ -10,6 +10,7 @@ import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Device } from "../sincronizacion-offline/device.entity";
 import { IntentosAccesoService } from "../sincronizacion-offline/intentos-acceso.service";
+import { RefreshTokenRevocado } from "./refresh-token-revocado.entity";
 
 export interface AuthTokenPair {
   accessToken: string;
@@ -79,6 +80,8 @@ export class AuthService {
     private readonly cobradorRepo: Repository<Cobrador>,
     @InjectRepository(Device)
     private readonly deviceRepo: Repository<Device>,
+    @InjectRepository(RefreshTokenRevocado)
+    private readonly revocadoRepo: Repository<RefreshTokenRevocado>,
     private readonly intentosAcceso: IntentosAccesoService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
@@ -232,6 +235,15 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
     }
 
+    if (payload.jti) {
+      const revocado = await this.revocadoRepo.findOne({
+        where: { jti: payload.jti },
+      });
+      if (revocado) {
+        throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
+      }
+    }
+
     if (payload.rol === "socio") {
       const socio = await this.socioRepo.findOne({
         where: { id: payload.sub },
@@ -264,6 +276,35 @@ export class AuthService {
     }
 
     return this.issueTokens("admin", admin);
+  }
+
+  /**
+   * Revoca un refresh token insertando su `jti` en la blacklist (idempotente y
+   * best-effort: si el token es inválido/expirado no hace nada).
+   */
+  async revocar(refreshToken: string): Promise<void> {
+    let payload: (AuthTokenPayload & { exp?: number }) | null;
+    try {
+      payload = await this.jwt.verifyAsync<AuthTokenPayload & { exp?: number }>(
+        refreshToken,
+        { secret: this.config.get<string>("JWT_REFRESH_SECRET") },
+      );
+    } catch {
+      return;
+    }
+
+    if (payload.tipo !== "refresh" || !payload.jti) {
+      return;
+    }
+
+    await this.revocadoRepo.upsert(
+      {
+        jti: payload.jti,
+        revocadoEn: new Date(),
+        expiraEn: payload.exp ? new Date(payload.exp * 1000) : null,
+      },
+      ["jti"],
+    );
   }
 
   private async issueTokens(rol: RolUsuario, sub: TokenSubject): Promise<AuthTokenPair> {

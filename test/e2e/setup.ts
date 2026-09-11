@@ -14,3 +14,7 @@ process.env.DATABASE_URL = base.replace(/\/app_cobranza\?/, "/app_cobranza_e2e?"
 process.env.SEED_TEST_DATA = "false";
 process.env.TYPEORM_RETRY_ATTEMPTS = "1";
 process.env.TYPEORM_RETRY_DELAY = "500";
+// El throttling de login usa un límite por IP; las suites e2e comparten IP
+// (127.0.0.1) y hacen muchos logins, así que se desactiva de facto con un
+// límite alto. El spec `seguridad-auth.e2e-spec.ts` fija su propio límite bajo.
+process.env.AUTH_THROTTLE_LIMIT = "100000";

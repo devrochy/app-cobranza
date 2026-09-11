@@ -9,6 +9,7 @@ import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
 import { Device } from "../sincronizacion-offline/device.entity";
 import { IntentosAccesoService } from "../sincronizacion-offline/intentos-acceso.service";
+import { RefreshTokenRevocado } from "./refresh-token-revocado.entity";
 import { AuthService } from "./auth.service";
 
 describe("AuthService", () => {
@@ -38,6 +39,11 @@ describe("AuthService", () => {
 
   const mockIntentosAcceso = {
     registrar: jest.fn().mockResolvedValue({ id: 1 }),
+  };
+
+  const mockRevocadoRepo = {
+    findOne: jest.fn(),
+    upsert: jest.fn(),
   };
 
   const mockConfig = {
@@ -108,6 +114,8 @@ describe("AuthService", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockDeviceRepo.findOne.mockResolvedValue(null);
+    mockRevocadoRepo.findOne.mockResolvedValue(null);
+    mockRevocadoRepo.upsert.mockResolvedValue({});
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -115,6 +123,7 @@ describe("AuthService", () => {
         { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
         { provide: getRepositoryToken(Cobrador), useValue: mockCobradorRepo },
         { provide: getRepositoryToken(Device), useValue: mockDeviceRepo },
+        { provide: getRepositoryToken(RefreshTokenRevocado), useValue: mockRevocadoRepo },
         { provide: IntentosAccesoService, useValue: mockIntentosAcceso },
         { provide: ConfigService, useValue: mockConfig },
         { provide: JwtService, useValue: new JwtService() },
@@ -472,6 +481,54 @@ describe("AuthService", () => {
       await expect(service.refresh(validRefresh)).rejects.toThrow(
         "Refresh token inválido",
       );
+    });
+
+    it("rechaza un refresh token cuyo jti está en la blacklist", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(adminFixture());
+      mockRevocadoRepo.findOne.mockResolvedValue({ jti: "jti-revocado" });
+      const jwt = new JwtService();
+      const validRefresh = jwt.sign(
+        { sub: 1, rol: "admin", tipo: "refresh", jti: "jti-revocado" },
+        { secret: "test-refresh-secret", expiresIn: "7d" },
+      );
+
+      await expect(service.refresh(validRefresh)).rejects.toThrow(
+        "Refresh token inválido",
+      );
+    });
+  });
+
+  describe("revocar", () => {
+    it("revoca un refresh token insertando su jti en la blacklist", async () => {
+      const jwt = new JwtService();
+      const token = jwt.sign(
+        { sub: 1, rol: "admin", tipo: "refresh", jti: "jti-xyz" },
+        { secret: "test-refresh-secret", expiresIn: "7d" },
+      );
+
+      await service.revocar(token);
+
+      expect(mockRevocadoRepo.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ jti: "jti-xyz" }),
+        ["jti"],
+      );
+    });
+
+    it("no lanza si el token es inválido (revocación best-effort)", async () => {
+      await expect(service.revocar("no-es-un-token")).resolves.toBeUndefined();
+      expect(mockRevocadoRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it("no hace nada si el token no es de tipo refresh", async () => {
+      const jwt = new JwtService();
+      const access = jwt.sign(
+        { sub: 1, rol: "admin", tipo: "access" },
+        { secret: "test-refresh-secret", expiresIn: "15m" },
+      );
+
+      await service.revocar(access);
+
+      expect(mockRevocadoRepo.upsert).not.toHaveBeenCalled();
     });
   });
 });
