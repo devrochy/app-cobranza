@@ -19,6 +19,7 @@ import { IntentosAccesoService } from "./intentos-acceso.service";
 import { SincronizacionOffline } from "./sincronizacion-offline.entity";
 import { SincronizacionOfflineController } from "./sincronizacion-offline.controller";
 import { SincronizacionOfflineService } from "./sincronizacion-offline.service";
+import { SnapshotCryptoService } from "./snapshot-crypto.service";
 import { SnapshotDiaService } from "./snapshot-dia.service";
 
 @Module({
@@ -36,6 +37,7 @@ import { SnapshotDiaService } from "./snapshot-dia.service";
     DevicesService,
     SincronizacionOfflineService,
     SnapshotDiaService,
+    SnapshotCryptoService,
     DeviceApiKeyGuard,
     AplicarEventosOfflineService,
     EvidenciasOfflineService,
