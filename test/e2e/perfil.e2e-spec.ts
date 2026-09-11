@@ -157,14 +157,39 @@ describe("Auto-actualización de perfil (e2e)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("un admin no puede usar /perfil -> 403", async () => {
+  it("PATCH /perfil actualiza el perfil del admin", async () => {
     const token = await tokenDe("admin");
 
     const res = await request(app.getHttpServer())
       .patch("/perfil")
       .set("Authorization", `Bearer ${token}`)
-      .send({ nombre: "x", apellido: "y" });
+      .send({ nombre: "Root", apellido: "Admin" });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(res.body.usuario).toBe(ADMIN_USUARIO);
+    expect(res.body.nombre).toBe("Root");
+    expect(res.body.apellido).toBe("Admin");
+
+    const enDb = await adminRepo.findOne({ where: { usuario: ADMIN_USUARIO } });
+    expect(enDb?.apellido).toBe("Admin");
+  });
+
+  it("GET /perfil devuelve el perfil del usuario autenticado", async () => {
+    const token = await tokenDe("cobrador");
+
+    const res = await request(app.getHttpServer())
+      .get("/perfil")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.usuario).toBe(COBRADOR_USUARIO);
+    expect(res.body).toHaveProperty("nombre");
+    expect(res.body).toHaveProperty("apellido");
+  });
+
+  it("GET /perfil sin token -> 401", async () => {
+    const res = await request(app.getHttpServer()).get("/perfil");
+
+    expect(res.status).toBe(401);
   });
 });
