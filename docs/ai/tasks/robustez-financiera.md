@@ -46,4 +46,5 @@ Eliminar condiciones de carrera y lost-updates en el núcleo financiero: caja (s
   - `src/modules/cartera/abonos.service.ts` (+ `.spec.ts`) — deuda en transacción + lock sobre préstamo + `affected` en `eliminarAbono` (+ se quitó la inyección sin uso de `cuotaRepo`).
   - `src/modules/cartera/cuota.service.ts` (+ `.spec.ts`) — reorden de `eliminarCuota`: desliga el pago, borra, checa `affected` antes de revertir caja.
   - `docs/ai/tasks/robustez-financiera.md` — este archivo.
+- PR: https://github.com/devrochy/app-cobranza/pull/118
 - Pendientes/seguimiento: TOCTOU en `decidirPropuesta` (HU-47), trayectorias no transaccionales (HU-49) y abono que iguala la deuda sin liquidar (ítems separados del backlog).
