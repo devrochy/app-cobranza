@@ -144,6 +144,7 @@ export class CobrosSocioService {
 
     const cobros = await this.cobroRepo.find({
       where,
+      relations: { linkPago: true },
       order: { periodo: "DESC" },
     });
     return cobros.map((cobro) => this.toPublic(cobro));
