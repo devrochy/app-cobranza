@@ -320,6 +320,23 @@ describe("PagosService", () => {
       expect(repoAuditoriaTx.save).toHaveBeenCalled();
     });
 
+    it("reabre la cuota asociada al eliminar el pago", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (mockPagoRepo.findOne as jest.Mock).mockResolvedValue(pagoFixture());
+
+      await service.eliminarPago(
+        1,
+        30,
+        { password: "secreto", motivo: "registro erróneo" },
+        adminContext,
+      );
+
+      expect(repoCuotaTx.update).toHaveBeenCalledWith(
+        { id: 10, estatus: "pagada" },
+        { estatus: "pendiente" },
+      );
+    });
+
     it("no revierte la caja si el pago ya fue eliminado concurrentemente", async () => {
       (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
       (mockPagoRepo.findOne as jest.Mock).mockResolvedValue(pagoFixture());

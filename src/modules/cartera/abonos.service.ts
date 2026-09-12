@@ -122,6 +122,13 @@ export class AbonosService {
       });
       const saved = await abonoRepo.save(abonoNuevo);
 
+      // HU-48/liquidación: si el abono salda la deuda pendiente, el préstamo
+      // pasa a `liquidado` en la misma transacción.
+      if (input.valor >= deudaActual) {
+        prestamoLock.estatus = "liquidado";
+        await prestamoRepo.save(prestamoLock);
+      }
+
       await this.cajaService.aplicarMovimiento(
         rutaId,
         input.valor,
@@ -159,6 +166,9 @@ export class AbonosService {
     const abono = await this.abonoRepo.findOne({ where: { id: abonoId, prestamo: { ruta: { id: rutaId } } } });
     if (!abono) {
       throw new NotFoundException("El abono no existe en esta ruta");
+    }
+    if (abono.liquidado) {
+      throw new BadRequestException("No se puede borrar un abono ya liquidado");
     }
 
     const antes = { valor: abono.valor, metodoPago: abono.metodoPago };

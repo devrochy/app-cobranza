@@ -224,39 +224,21 @@ describe("CuotaService", () => {
     expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
   });
 
-  it("revierte la caja y deja el pago con cuota_id nulo al eliminar una cuota pagada", async () => {
+  it("lanza 400 al intentar eliminar una cuota pagada", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     const cuota = cuotaFixture({ estatus: "pagada" });
     (cuotaRepo.findOne as jest.Mock).mockResolvedValue(cuota);
-    (pagoRepo.findOne as jest.Mock).mockResolvedValue({ id: 30, cuotaId: 10 } as Pago);
     (mockReautenticacion.validar as jest.Mock).mockResolvedValue(undefined);
-    (auditoriaRepo.create as jest.Mock).mockImplementation((e: Partial<AuditoriaCartera>) => e as AuditoriaCartera);
 
-    await service.eliminarCuota(
-      1,
-      10,
-      { password: "ok", motivo: "error" },
-      adminContext,
-    );
-
-    expect(mockCajaService.aplicarMovimiento).toHaveBeenCalledWith(
-      1,
-      -120,
-      TipoMovimientoCaja.PAGO,
-      adminContext,
-      expect.any(String),
-      expect.anything(),
-    );
-    expect(mockPagoRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 30, cuotaId: null }),
-    );
+    await expect(
+      service.eliminarCuota(1, 10, { password: "ok", motivo: "error" }, adminContext),
+    ).rejects.toThrow(BadRequestException);
   });
 
-  it("no revierte la caja si la cuota ya fue eliminada concurrentemente", async () => {
+  it("no revierte la caja si la cuota pendiente ya fue eliminada concurrentemente", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
-    const cuota = cuotaFixture({ estatus: "pagada" });
+    const cuota = cuotaFixture();
     (cuotaRepo.findOne as jest.Mock).mockResolvedValue(cuota);
-    (pagoRepo.findOne as jest.Mock).mockResolvedValue({ id: 30, cuotaId: 10 } as Pago);
     (mockReautenticacion.validar as jest.Mock).mockResolvedValue(undefined);
     (cuotaRepo.delete as jest.Mock).mockResolvedValue({ affected: 0 });
 

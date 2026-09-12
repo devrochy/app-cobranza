@@ -122,16 +122,19 @@ export class PrestamoService {
     }
 
     const saldoVigenteCliente = await this.saldoVigente(cliente.id);
+    // HU-14: los topes se miden contra el saldo CON interés (consistente con
+    // `saldoVigente`); el nuevo préstamo aporta su total con interés.
+    const valorTotalNuevo = input.valor * (1 + tipoInteres / 100);
 
     if (config.manejoCupoActivo) {
-      if (saldoVigenteCliente + input.valor > config.cupoDefault) {
+      if (saldoVigenteCliente + valorTotalNuevo > config.cupoDefault) {
         throw new ConflictException("El préstamo excede el cupo de la ruta");
       }
     }
 
-    // HU-14: tope de deuda del cliente (saldo vigente + valor).
+    // HU-14: tope de deuda del cliente (saldo vigente + nuevo préstamo, ambos con interés).
     if (cliente.topeMaximoDeuda !== null && cliente.topeMaximoDeuda !== undefined) {
-      if (saldoVigenteCliente + input.valor > cliente.topeMaximoDeuda) {
+      if (saldoVigenteCliente + valorTotalNuevo > cliente.topeMaximoDeuda) {
         throw new ConflictException("El préstamo excede el tope de deuda del cliente");
       }
     }

@@ -190,6 +190,15 @@ export class PagosService {
       if (resultado.affected === 0) {
         return; // otro request lo eliminó concurrentemente; no revertir caja
       }
+      // Reabre la cuota asociada: sin el pago, la cuota vuelve a estar pendiente
+      // (el job de mora la marcará "atrasada" si su vencimiento ya pasó).
+      if (pago.cuotaId !== null) {
+        const cuotaRepo = manager.getRepository(Cuota);
+        await cuotaRepo.update(
+          { id: pago.cuotaId, estatus: "pagada" },
+          { estatus: "pendiente" },
+        );
+      }
       await this.cajaService.aplicarMovimiento(
         rutaId,
         -pago.valor,

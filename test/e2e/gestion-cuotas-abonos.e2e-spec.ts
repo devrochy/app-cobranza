@@ -221,38 +221,28 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("DELETE /rutas/:id/cuotas/:cuotaId elimina la cuota pagada, revierte caja y deja el pago con cuota_id nulo", async () => {
+  it("DELETE /rutas/:id/cuotas/:cuotaId de una cuota pagada -> 400 (primero revertir el pago)", async () => {
     const cuota = await obtenerCuota(2);
     await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/pagos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" });
 
-    const pagoAntes = await pagoRepo.findOne({ where: { cuota: { id: cuota.id } } });
-    expect(pagoAntes).toBeDefined();
-    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const pago = await pagoRepo.findOne({ where: { cuota: { id: cuota.id } } });
+    expect(pago).toBeDefined();
 
     const res = await request(app.getHttpServer())
       .delete(`/rutas/${rutaId}/cuotas/${cuota.id}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ password: ADMIN_PASSWORD, motivo: "error de captura" });
 
-    expect(res.status).toBe(200);
-    expect(res.body.id).toBe(cuota.id);
+    expect(res.status).toBe(400);
 
-    const cuotaEliminada = await cuotaRepo.findOne({ where: { id: cuota.id } });
-    expect(cuotaEliminada).toBeNull();
-
-    const pagoDespues = await pagoRepo.findOne({ where: { id: pagoAntes!.id } });
-    expect(pagoDespues).toBeDefined();
-    expect(pagoDespues?.cuotaId).toBeNull();
-
-    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
-    expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual - cuota.valorEsperado);
-
-    const auditoria = await auditoriaRepo.findOne({ where: { entidad: "cuota", entidadId: cuota.id, operacion: "eliminar" } });
-    expect(auditoria).toBeDefined();
-    expect(auditoria?.valoresAntes).toMatchObject({ estatus: "pagada" });
+    // La cuota sigue existiendo y pagada, y el pago sigue ligado (sin huérfano).
+    const cuotaSigue = await cuotaRepo.findOne({ where: { id: cuota.id } });
+    expect(cuotaSigue?.estatus).toBe("pagada");
+    const pagoSigue = await pagoRepo.findOne({ where: { id: pago!.id } });
+    expect(pagoSigue?.cuotaId).toBe(cuota.id);
   });
 
   it("DELETE /rutas/:id/abonos/:abonoId elimina el abono, revierte caja y audita", async () => {

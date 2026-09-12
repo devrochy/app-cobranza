@@ -198,6 +198,19 @@ describe("PrestamoService", () => {
       expect(result.valor).toBe(1000);
     });
 
+    it("rechaza con 409 si el préstamo excede el tope al contar el interés", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture({ topeMaximoDeuda: 1150 }));
+      (configRepo.findOne as jest.Mock).mockResolvedValue(
+        configFixture({ permitirCambioFechaPrestamo: true }),
+      );
+      (cuotaRepo.find as jest.Mock).mockResolvedValue([]);
+
+      await expect(service.crear(1, baseInput, adminContext, fechaOtorgado)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
     it("rechaza con 400 si la fecha del préstamo difiere más de 30 días de hoy", async () => {
       setupFeliz();
       const fechaLejana = new Date();
@@ -254,6 +267,18 @@ describe("PrestamoService", () => {
         { valorEsperado: 500 },
         { valorEsperado: 500 },
       ]);
+
+      await expect(service.crear(1, baseInput, adminContext, fechaOtorgado)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it("rechaza con 409 si el cupo se excede solo al contar el interés", async () => {
+      setupFeliz();
+      (configRepo.findOne as jest.Mock).mockResolvedValue(
+        configFixture({ manejoCupoActivo: true, cupoDefault: 1150, permitirCambioFechaPrestamo: true }),
+      );
+      (cuotaRepo.find as jest.Mock).mockResolvedValue([]);
 
       await expect(service.crear(1, baseInput, adminContext, fechaOtorgado)).rejects.toThrow(
         ConflictException,

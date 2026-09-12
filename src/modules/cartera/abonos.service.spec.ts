@@ -24,7 +24,7 @@ describe("AbonosService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockPrestamoRepo = { findOne: jest.fn() };
+  const mockPrestamoRepo = { findOne: jest.fn(), save: jest.fn(async (e: unknown) => e) };
   const mockCuotaRepo = { find: jest.fn() };
   const mockAbonoRepo = { find: jest.fn(), findOne: jest.fn(), delete: jest.fn(), create: jest.fn((e: unknown) => e), save: jest.fn(async (e: unknown) => e) };
   const mockClienteRepo = { findOne: jest.fn() };
@@ -143,6 +143,38 @@ describe("AbonosService", () => {
     await expect(
       service.registrarAbono(1, { prestamoId: 20, valor: 80, metodoPago: "efectivo" }, adminContext),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it("liquida el préstamo cuando el abono iguala la deuda", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue({ id: 20, estatus: "vigente", cliente: { id: 5 } } as Prestamo);
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([{ valorEsperado: 100 }]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([{ valor: 40 }]);
+
+    await service.registrarAbono(
+      1,
+      { prestamoId: 20, valor: 60, metodoPago: "efectivo" },
+      adminContext,
+    );
+
+    expect(prestamoRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 20, estatus: "liquidado" }),
+    );
+  });
+
+  it("no liquida el préstamo si el abono no salda la deuda", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue({ id: 20, estatus: "vigente", cliente: { id: 5 } } as Prestamo);
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([{ valorEsperado: 100 }]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([{ valor: 40 }]);
+
+    await service.registrarAbono(
+      1,
+      { prestamoId: 20, valor: 30, metodoPago: "efectivo" },
+      adminContext,
+    );
+
+    expect(prestamoRepo.save).not.toHaveBeenCalled();
   });
 
   it("registra el abono y aplica la caja en la misma transacción", async () => {
@@ -288,6 +320,23 @@ describe("AbonosService", () => {
     await service.eliminarAbono(1, 10, { password: "ok", motivo: "m" }, adminContext);
 
     expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
+  });
+
+  it("lanza 400 al eliminar un abono ya liquidado", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (mockReautenticacion.validar as jest.Mock).mockResolvedValue(undefined);
+    (abonoRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 10,
+      prestamoId: 20,
+      clienteId: 5,
+      valor: 30,
+      metodoPago: "qr",
+      liquidado: true,
+    } as Abono);
+
+    await expect(
+      service.eliminarAbono(1, 10, { password: "ok", motivo: "m" }, adminContext),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it("lanza 400 al eliminar abono sin motivo", async () => {

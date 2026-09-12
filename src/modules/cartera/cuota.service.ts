@@ -132,37 +132,20 @@ export class CuotaService {
     }
 
     const cuota = await this.buscarCuota(rutaId, cuotaId);
-    const esPagada = cuota.estatus === "pagada";
+    if (cuota.estatus === "pagada") {
+      throw new BadRequestException(
+        "No se puede eliminar una cuota pagada; primero revierta el pago",
+      );
+    }
     const antes = this.snapshot(cuota);
 
     await this.dataSource.transaction(async (manager) => {
       const cuotaRepo = manager.getRepository(Cuota);
-      const pagoRepo = manager.getRepository(Pago);
       const auditoriaRepo = manager.getRepository(AuditoriaCartera);
-
-      if (esPagada) {
-        const pago = await pagoRepo.findOne({ where: { cuota: { id: cuotaId } } });
-        if (pago) {
-          pago.cuotaId = null;
-          pago.cuota = null;
-          await pagoRepo.save(pago);
-        }
-      }
 
       const resultado = await cuotaRepo.delete({ id: cuota.id });
       if (resultado.affected === 0) {
-        return; // eliminada concurrentemente; no revertir caja
-      }
-
-      if (esPagada) {
-        await this.cajaService.aplicarMovimiento(
-          rutaId,
-          -cuota.valorEsperado,
-          TipoMovimientoCaja.PAGO,
-          requester,
-          `reversión por eliminación de cuota pagada ${cuota.numeroCuota}`,
-          manager,
-        );
+        return; // eliminada concurrentemente
       }
 
       await this.registrarAuditoria(
