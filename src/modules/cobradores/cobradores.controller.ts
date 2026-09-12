@@ -14,7 +14,8 @@ import {
 import type { Request } from "express";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { ACCESO_DENEGADO, PermisoGuard } from "../auth/permiso.guard";
+import { PermisoGuard } from "../auth/permiso.guard";
+import { ACCESO_DENEGADO } from "../../common/ownership";
 import { PermisoRequerido } from "../auth/permiso-requerido.decorator";
 import { UpdateEstatusDto } from "../socios/dto/update-estatus.dto";
 import { CobradoresPermisosService } from "./cobradores-permisos.service";
