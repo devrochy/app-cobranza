@@ -8,6 +8,11 @@ import { GastoEvidencia } from "./gasto-evidencia.entity";
 import { GastosService } from "./gastos.service";
 import { CajaService } from "./caja.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
+import { eliminarArchivosSubidos } from "../../common/archivos";
+
+jest.mock("../../common/archivos", () => ({
+  eliminarArchivosSubidos: jest.fn(),
+}));
 
 describe("GastosService", () => {
   let service: GastosService;
@@ -160,6 +165,22 @@ describe("GastosService", () => {
     expect(result.aprobado).toBe(false);
     expect(result.descripcion).toBe("Combustible");
     expect(evidenciaRepo.save).toHaveBeenCalled();
+  });
+
+  it("limpia las evidencias en disco si el registro falla", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    mockDataSource.transaction.mockRejectedValueOnce(new Error("boom"));
+
+    await expect(
+      service.registrar(
+        1,
+        { descripcion: "X", valor: 10 },
+        [{ path: "/tmp/a.jpg", originalname: "a.jpg", mimetype: "image/jpeg", size: 1, filename: "a.jpg" }],
+        adminContext,
+      ),
+    ).rejects.toThrow("boom");
+
+    expect(eliminarArchivosSubidos).toHaveBeenCalledWith(["/tmp/a.jpg"]);
   });
 
   it("no descuenta caja al registrar (pendiente de aprobación)", async () => {
