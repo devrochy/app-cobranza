@@ -76,6 +76,7 @@ describe("API del cobrador para la APK (e2e)", () => {
     registrar_inyeccion: false,
     ver_cartera: true,
     generar_reporte: true,
+    actualizar_ruta: true,
   };
 
   async function loginCobrador(usuario: string): Promise<string> {
@@ -714,5 +715,44 @@ describe("API del cobrador para la APK (e2e)", () => {
     const res = await request(app.getHttpServer()).get("/cobrador/mis-rutas");
 
     expect(res.status).toBe(401);
+  });
+
+  it("PATCH /cobrador/rutas/:id actualiza el nombre con permiso -> 200", async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/cobrador/rutas/${ruta1Id}`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ nombre: "Ruta APK Uno editada" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.nombre).toBe("Ruta APK Uno editada");
+  });
+
+  it("PATCH /cobrador/rutas/:id/configuracion actualiza tipoInteres/numCuotas -> 200", async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/cobrador/rutas/${ruta1Id}/configuracion`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ tipoInteres: 15, numCuotas: 6 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.tipoInteres).toBe(15);
+    expect(res.body.numCuotas).toBe(6);
+  });
+
+  it("PATCH /cobrador/rutas/:id sin permiso actualizar_ruta -> 403", async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/cobrador/rutas/${ruta1Id}`)
+      .set("Authorization", `Bearer ${tokenCobrador2}`)
+      .send({ nombre: "X" });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("PATCH /cobrador/rutas/:id de una ruta ajena -> 403 (ownership)", async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/cobrador/rutas/${ruta2Id}`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ nombre: "X" });
+
+    expect(res.status).toBe(403);
   });
 });

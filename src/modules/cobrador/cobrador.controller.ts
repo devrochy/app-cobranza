@@ -29,6 +29,8 @@ import { GenerarLiquidacionDto } from "../rutas/dto/generar-liquidacion.dto";
 import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
 import { OperacionAuditadaDto } from "../cartera/dto/operacion-auditada.dto";
 import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
+import { UpdateRutaDto } from "../rutas/dto/update-ruta.dto";
+import { UpdateRutaConfigDto } from "../rutas/dto/update-ruta-config.dto";
 import { RegistrarAperturaDto } from "../rutas/dto/registrar-apertura.dto";
 import { RegistrarPosicionDto } from "../rutas/dto/registrar-posicion.dto";
 import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-real.dto";
@@ -56,6 +58,28 @@ export class CobradorController {
   @CobradorPermisoRequerido("ver_cartera")
   misRutas(@Req() req: Request & { user: AuthTokenPayload }) {
     return this.cobradorService.misRutas(this.requester(req));
+  }
+
+  @Patch("rutas/:rutaId")
+  @CobradorPermisoRequerido("actualizar_ruta")
+  @UseGuards(JwtAuthGuard, CobradorPermisoGuard)
+  actualizarRuta(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: UpdateRutaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.actualizarRuta(rutaId, dto, this.requester(req));
+  }
+
+  @Patch("rutas/:rutaId/configuracion")
+  @CobradorPermisoRequerido("actualizar_ruta")
+  @UseGuards(JwtAuthGuard, CobradorPermisoGuard)
+  actualizarConfiguracionRuta(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Body() dto: UpdateRutaConfigDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.cobradorService.actualizarConfiguracionRuta(rutaId, dto, this.requester(req));
   }
 
   @Post("rutas/:rutaId/posicion")
