@@ -87,7 +87,7 @@ describe("Cambio de contraseña (e2e)", () => {
     const res = await request(app.getHttpServer())
       .patch("/perfil/password")
       .set("Authorization", `Bearer ${accessToken}`)
-      .send({ passwordActual: NEW_PASSWORD, passwordNueva: "corta" });
+      .send({ passwordActual: "cualquiera", passwordNueva: "corta" });
 
     expect(res.status).toBe(400);
   });

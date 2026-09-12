@@ -196,6 +196,22 @@ describe("PerfilService", () => {
       );
     });
 
+    it("valida la contraseña actual y guarda la nueva (cobrador)", async () => {
+      cobradorRepo.findOne.mockResolvedValue({ id: 7, passwordHash: "hash-cob" });
+      passwordService.compare.mockResolvedValue(true);
+      passwordService.hash.mockResolvedValue("hash-nueva-cob");
+
+      await service.cambiarPassword("cobrador", 7, {
+        passwordActual: "clave-vieja",
+        passwordNueva: "clave-nueva",
+      });
+
+      expect(cobradorRepo.update).toHaveBeenCalledWith(
+        { id: 7 },
+        { passwordHash: "hash-nueva-cob" },
+      );
+    });
+
     it("lanza BadRequest si la contraseña actual es incorrecta", async () => {
       adminRepo.findOne.mockResolvedValue({ id: 1, passwordHash: "hash-actual" });
       passwordService.compare.mockResolvedValue(false);
