@@ -16,6 +16,7 @@ export const SOCIO_PERMISOS = [
   "anotar_notas_ruta",
   "eliminar_prestamos",
   "borrar_ultima_cuota",
+  "eliminar_pago",
   "configurar_ruta",
   "eliminar_abono",
   "eliminar_inyeccion",

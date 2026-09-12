@@ -317,6 +317,23 @@ export class CarteraController {
     );
   }
 
+  @Delete("pagos/:pagoId")
+  @PermisoRequerido("eliminar_pago")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  eliminarPago(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Param("pagoId", ParseIntPipe) pagoId: number,
+    @Body() dto: OperacionAuditadaDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.pagosService.eliminarPago(
+      rutaId,
+      pagoId,
+      { password: dto.password, motivo: dto.motivo },
+      { rol: req.user.rol, sub: req.user.sub },
+    );
+  }
+
   @Get("clientes/:clienteId/tarjeta")
   @PermisoRequerido("ver_reportes")
   @UseGuards(JwtAuthGuard, PermisoGuard)

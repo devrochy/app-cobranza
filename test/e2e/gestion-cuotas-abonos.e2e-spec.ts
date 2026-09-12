@@ -245,6 +245,66 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     expect(pagoSigue?.cuotaId).toBe(cuota.id);
   });
 
+  it("DELETE /rutas/:id/pagos/:pagoId borra el pago, reabre la cuota y revierte caja", async () => {
+    const cuota = await obtenerCuota(3);
+    const pagoRes = await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/pagos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" });
+    const pagoId = pagoRes.body.id as number;
+
+    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+
+    const res = await request(app.getHttpServer())
+      .delete(`/rutas/${rutaId}/pagos/${pagoId}`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ password: ADMIN_PASSWORD, motivo: "pago duplicado" });
+
+    expect(res.status).toBe(200);
+    expect(await pagoRepo.findOne({ where: { id: pagoId } })).toBeNull();
+    expect((await cuotaRepo.findOne({ where: { id: cuota.id } }))?.estatus).toBe("pendiente");
+    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual - cuota.valorEsperado);
+  });
+
+  it("DELETE /rutas/:id/pagos/:pagoId de un pago liquidado -> 400", async () => {
+    const cuota = await obtenerCuota(4);
+    const pagoRes = await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/pagos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" });
+    const pagoId = pagoRes.body.id as number;
+    await pagoRepo.update(pagoId, { liquidado: true });
+
+    const res = await request(app.getHttpServer())
+      .delete(`/rutas/${rutaId}/pagos/${pagoId}`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ password: ADMIN_PASSWORD, motivo: "error" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("un socio sin eliminar_pago no puede borrar un pago -> 403", async () => {
+    const socioLogin = await request(app.getHttpServer())
+      .post("/auth/socio/login")
+      .send({ usuario: "socio-cuotas-1", password: PASSWORD });
+    const accessTokenSocio = socioLogin.body.accessToken as string;
+
+    const cuota = await obtenerCuota(1);
+    const pagoRes = await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/pagos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" });
+    const pagoId = pagoRes.body.id as number;
+
+    const res = await request(app.getHttpServer())
+      .delete(`/rutas/${rutaId}/pagos/${pagoId}`)
+      .set("Authorization", `Bearer ${accessTokenSocio}`)
+      .send({ password: PASSWORD, motivo: "error" });
+
+    expect(res.status).toBe(403);
+  });
+
   it("DELETE /rutas/:id/abonos/:abonoId elimina el abono, revierte caja y audita", async () => {
     const abonoRes = await request(app.getHttpServer())
       .post(`/rutas/${rutaId}/abonos`)

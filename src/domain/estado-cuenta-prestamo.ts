@@ -12,6 +12,21 @@ export interface AbonoInput {
   valor: number;
 }
 
+export interface PagoInput {
+  id: number;
+  cuotaId: number;
+  valor: number;
+  fechaHora: string | Date;
+  liquidado: boolean;
+}
+
+export interface PagoCuota {
+  id: number;
+  valor: number;
+  fechaHora: string | Date;
+  liquidado: boolean;
+}
+
 export interface CuotaEstado {
   cuotaId: number;
   numeroCuota: number;
@@ -20,6 +35,7 @@ export interface CuotaEstado {
   estatus: EstadoCuotaEstatus;
   abonosAcumulados: number;
   saldoPendiente: number;
+  pago: PagoCuota | null;
 }
 
 export interface EstadoCuentaPrestamo {
@@ -39,9 +55,17 @@ export function construirEstadoCuentaPrestamo(
   prestamo: { valor: number; numCuotas: number; tipoInteres: number },
   cuotas: CuotaEstadoInput[],
   abonos: AbonoInput[],
+  pagos: PagoInput[] = [],
 ): EstadoCuentaPrestamo {
   const totalAbonos = abonos.reduce((suma, a) => suma + a.valor, 0);
   const cuotasOrdenadas = [...cuotas].sort((a, b) => a.numeroCuota - b.numeroCuota);
+  const pagosPorCuota = new Map(pagos.map((p) => [p.cuotaId, p]));
+  const pagoDe = (cuotaId: number): PagoCuota | null => {
+    const p = pagosPorCuota.get(cuotaId);
+    return p
+      ? { id: p.id, valor: p.valor, fechaHora: p.fechaHora, liquidado: p.liquidado }
+      : null;
+  };
 
   let abonoRestante = totalAbonos;
   let abonoAcumulado = 0;
@@ -59,6 +83,7 @@ export function construirEstadoCuentaPrestamo(
         estatus: c.estatus,
         abonosAcumulados: abonoAcumulado,
         saldoPendiente: 0,
+        pago: pagoDe(c.cuotaId),
       };
     }
 
@@ -78,6 +103,7 @@ export function construirEstadoCuentaPrestamo(
       estatus: c.estatus,
       abonosAcumulados: abonoAcumulado,
       saldoPendiente: Math.max(0, saldo),
+      pago: pagoDe(c.cuotaId),
     };
   });
 
