@@ -21,6 +21,7 @@ import { PosicionCobradorService } from "../rutas/posicion-cobrador.service";
 import { DetalleCuotaService } from "../cartera/detalle-cuota.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { RutasNotasService } from "../rutas/rutas-notas.service";
+import { RutasService } from "../rutas/rutas.service";
 import { TrayectoriasService } from "../rutas/trayectorias.service";
 import { CobradorService } from "./cobrador.service";
 
@@ -47,6 +48,7 @@ describe("CobradorService", () => {
   let detalleCuota: { obtener: jest.Mock };
   let permisosSocio: { getMatriz: jest.Mock; tienePermiso: jest.Mock };
   let notas: { listar: jest.Mock; crear: jest.Mock };
+  let rutas: { actualizarInformacion: jest.Mock; actualizarConfiguracion: jest.Mock };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -71,6 +73,7 @@ describe("CobradorService", () => {
     detalleCuota = { obtener: jest.fn() };
     permisosSocio = { getMatriz: jest.fn(), tienePermiso: jest.fn() };
     notas = { listar: jest.fn(), crear: jest.fn() };
+    rutas = { actualizarInformacion: jest.fn(), actualizarConfiguracion: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -95,6 +98,7 @@ describe("CobradorService", () => {
         { provide: PosicionCobradorService, useValue: posiciones },
         { provide: DetalleCuotaService, useValue: detalleCuota },
         { provide: PermisosSocioService, useValue: permisosSocio },
+        { provide: RutasService, useValue: rutas },
         { provide: RutasNotasService, useValue: notas },
       ],
     }).compile();
@@ -470,6 +474,22 @@ describe("CobradorService", () => {
         service.generarTrayecto(6, requester),
       ).resolves.toEqual([[{ clienteId: 1, latitud: 5.07, longitud: -75.52 }]]);
       expect(optimizacion.generar).toHaveBeenCalledWith(6, requester);
+    });
+
+    it("actualizarRuta delega en RutasService.actualizarInformacion", async () => {
+      rutas.actualizarInformacion.mockResolvedValue({ id: 6 });
+
+      await service.actualizarRuta(6, { nombre: "Nueva" }, requester);
+
+      expect(rutas.actualizarInformacion).toHaveBeenCalledWith(6, { nombre: "Nueva" }, requester);
+    });
+
+    it("actualizarConfiguracionRuta delega en RutasService.actualizarConfiguracion", async () => {
+      rutas.actualizarConfiguracion.mockResolvedValue({ id: 6 });
+
+      await service.actualizarConfiguracionRuta(6, { tipoInteres: 10 }, requester);
+
+      expect(rutas.actualizarConfiguracion).toHaveBeenCalledWith(6, { tipoInteres: 10 }, requester);
     });
   });
 });

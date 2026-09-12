@@ -10,6 +10,7 @@ import { PagosService } from "../cartera/pagos.service";
 import { CreatePrestamoInput, PrestamoService, PrestamoPublic } from "../cartera/prestamo.service";
 import { CuotaService } from "../cartera/cuota.service";
 import { RutasAperturaService } from "../rutas/rutas-apertura.service";
+import { RutasService, RutaPublic } from "../rutas/rutas.service";
 import { RegistrarVisitaInput, VisitasService, VisitaPublic } from "../cartera/visitas.service";
 import { CobradoresPermisosService, PermisoCobradorEstado } from "../cobradores/cobradores-permisos.service";
 import { COBRADOR_PERMISOS, CobradorPermisoNombre } from "../cobradores/cobrador-permiso.entity";
@@ -94,7 +95,32 @@ export class CobradorService {
     private readonly detalleCuotaService: DetalleCuotaService,
     private readonly permisosSocioService: PermisosSocioService,
     private readonly notasService: RutasNotasService,
+    private readonly rutasService: RutasService,
   ) {}
+
+  /**
+   * HU-09: edición de la metadata de la ruta (nombre/descripción) desde la APK,
+   * gated por el permiso `actualizar_ruta` y con ownership del cobrador.
+   */
+  async actualizarRuta(
+    rutaId: number,
+    input: { nombre: string; descripcion?: string | null },
+    requester: RequesterOwned,
+  ): Promise<RutaPublic> {
+    return this.rutasService.actualizarInformacion(rutaId, input, requester);
+  }
+
+  /**
+   * HU-09a: edición de la configuración de la ruta (tipoInteres/numCuotas) desde
+   * la APK, gated por `actualizar_ruta` y con ownership del cobrador.
+   */
+  async actualizarConfiguracionRuta(
+    rutaId: number,
+    input: { tipoInteres?: number; numCuotas?: number },
+    requester: RequesterOwned,
+  ): Promise<RutaPublic> {
+    return this.rutasService.actualizarConfiguracion(rutaId, input, requester);
+  }
 
   /**
    * HU-35/51: rutas del usuario de la APK. Para rol cobrador filtra por
