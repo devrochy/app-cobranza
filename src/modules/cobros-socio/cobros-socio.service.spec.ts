@@ -280,6 +280,17 @@ describe("CobrosSocioService", () => {
         }),
       );
     });
+
+    it("carga la relación linkPago para exponer el link de pago", async () => {
+      (cobroRepo.find as jest.Mock).mockResolvedValue([{ ...cobro(), linkPago: link() }]);
+
+      const res = await service.listar({ socioId: 1 });
+
+      expect(cobroRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ relations: { linkPago: true } }),
+      );
+      expect(res[0].linkPago?.url).toBe("https://pago.mock/cobros-socio/1");
+    });
   });
 
   describe("obtener", () => {
