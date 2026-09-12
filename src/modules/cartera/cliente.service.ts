@@ -80,6 +80,15 @@ export interface ListarClientesGlobalFiltros {
   busqueda?: string;
   estatus?: ClienteEstatus;
   colorRiesgo?: ColorRiesgo;
+  page?: number;
+  limit?: number;
+}
+
+export interface ListarClientesGlobalResult {
+  items: ClienteGlobalPublic[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export interface ActualizarClienteInput {
@@ -518,11 +527,16 @@ export class ClienteService {
   async listarGlobal(
     requester: RequesterCarteraContext,
     filtros: ListarClientesGlobalFiltros = {},
-  ): Promise<ClienteGlobalPublic[]> {
+  ): Promise<ListarClientesGlobalResult> {
+    const page = filtros.page && filtros.page > 0 ? filtros.page : 1;
+    const limit = filtros.limit && filtros.limit > 0 ? filtros.limit : 20;
+
     const qb = this.repo
       .createQueryBuilder("cliente")
       .innerJoinAndSelect("cliente.ruta", "ruta")
-      .orderBy("cliente.id", "ASC");
+      .orderBy("cliente.id", "ASC")
+      .skip((page - 1) * limit)
+      .take(limit);
     if (requester.rol === "socio") {
       qb.andWhere("ruta.socio_id = :socioId", { socioId: requester.sub });
     }
@@ -540,11 +554,16 @@ export class ClienteService {
         { termino: `%${busqueda}%` },
       );
     }
-    const clientes = await qb.getMany();
-    return clientes.map((cliente) => ({
-      ...this.toPublic(cliente, cliente.rutaId),
-      rutaNombre: cliente.ruta.nombre,
-    }));
+    const [clientes, total] = await qb.getManyAndCount();
+    return {
+      items: clientes.map((cliente) => ({
+        ...this.toPublic(cliente, cliente.rutaId),
+        rutaNombre: cliente.ruta.nombre,
+      })),
+      total,
+      page,
+      limit,
+    };
   }
 
   async listarCambios(

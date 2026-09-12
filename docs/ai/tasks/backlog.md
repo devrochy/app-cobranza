@@ -251,8 +251,7 @@ Formato de cada entrada:
 
 ## E2E `reglas-negociacion-ia` flaky por estado compartido
 - Detectado en: docs/ai/tasks/color-riesgo-recalculo.md (2026-09-12)
-- Descripción: `test/e2e/reglas-negociacion-ia.e2e-spec.ts` ("GET devuelve la configuración persistida tras guardar") devuelve 404 de forma intermitente al correr toda la suite e2e en paralelo (pasa aislado). El singleton de reglas IA se comparte/resetea entre suites. Aislar el estado (limpiar la tabla en `beforeAll` de la suite dueña o usar transacción por suite) o marcar la suite como serial.
-- Prioridad sugerida: baja
+- **Resuelto en `p1-cierre-qa` (2026-09-12):** el test de lectura ahora es autocontenido (hace su propio `PUT` antes del `GET`), por lo que no depende del orden ni de otra suite que borre el singleton. No se pudo reproducir el 404 tras el diagnóstico (5 corridas completas + 15 aisladas verdes); probablemente fue ambiental (se accedió a la misma BD con SQL manual durante esas corridas).
 
 ---
 

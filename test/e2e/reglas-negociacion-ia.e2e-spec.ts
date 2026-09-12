@@ -98,6 +98,13 @@ describe("Configuración de reglas de negociación de la IA (e2e)", () => {
   });
 
   it("GET devuelve la configuración persistida tras guardar", async () => {
+    // Autocontenido: no depende de que otro test haya guardado antes.
+    await request(app.getHttpServer())
+      .put("/reglas-negociacion-ia")
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send(VALORES)
+      .expect(200);
+
     const res = await request(app.getHttpServer())
       .get("/reglas-negociacion-ia")
       .set("Authorization", `Bearer ${accessTokenAdmin}`);

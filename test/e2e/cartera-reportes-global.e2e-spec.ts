@@ -221,10 +221,10 @@ describe("Cartera y reportes globales (e2e)", () => {
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
-    const nombres = (res.body as { nombre: string; rutaNombre: string }[]).map((c) => c.nombre);
+    const nombres = (res.body.items as { nombre: string; rutaNombre: string }[]).map((c) => c.nombre);
     expect(nombres).toContain("ClienteGlobal1");
     expect(nombres).toContain("ClienteGlobal2");
-    expect(res.body.some((c: { rutaNombre: string }) => c.rutaNombre === "Ruta Global 1")).toBe(true);
+    expect(res.body.items.some((c: { rutaNombre: string }) => c.rutaNombre === "Ruta Global 1")).toBe(true);
   });
 
   it("GET /cartera/clientes como socio solo ve clientes de sus rutas", async () => {
@@ -233,7 +233,7 @@ describe("Cartera y reportes globales (e2e)", () => {
       .set("Authorization", `Bearer ${tokenSocio1}`);
 
     expect(res.status).toBe(200);
-    const nombres = (res.body as { nombre: string }[]).map((c) => c.nombre);
+    const nombres = (res.body.items as { nombre: string }[]).map((c) => c.nombre);
     expect(nombres).toEqual(["ClienteGlobal1"]);
   });
 
