@@ -1,7 +1,7 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { Ruta } from "./ruta.entity";
 import { RutaOptimizadaLog } from "./ruta-optimizada-log.entity";
 import { ReporteDiario } from "./reporte-diario.entity";
@@ -19,6 +19,17 @@ describe("TrayectoriasService", () => {
   const mockRutaRepo = { findOne: jest.fn() };
   const mockLogRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn() };
   const mockReporteRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn() };
+  const mockDataSource = {
+    transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
+      fn({
+        getRepository: jest.fn((entity: unknown) => {
+          if (entity === RutaOptimizadaLog) return mockLogRepo;
+          if (entity === ReporteDiario) return mockReporteRepo;
+          return mockRutaRepo;
+        }),
+      }),
+    ),
+  };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
     return {
@@ -44,6 +55,7 @@ describe("TrayectoriasService", () => {
         { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
         { provide: getRepositoryToken(RutaOptimizadaLog), useValue: mockLogRepo },
         { provide: getRepositoryToken(ReporteDiario), useValue: mockReporteRepo },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -155,5 +167,35 @@ describe("TrayectoriasService", () => {
     const origenes = fc.features.map((f) => f.properties.origen);
     expect(origenes).toContain("planificada");
     expect(origenes).toContain("real");
+  });
+
+  it("registrarReal persiste el log y el reporte dentro de una transacción", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (logRepo.create as jest.Mock).mockImplementation((e: Partial<RutaOptimizadaLog>) => e as RutaOptimizadaLog);
+    (logRepo.save as jest.Mock).mockImplementation(async (l: RutaOptimizadaLog) => ({ ...l, id: 20 }));
+    (logRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (reporteRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (reporteRepo.create as jest.Mock).mockImplementation((e: Partial<ReporteDiario>) => e as ReporteDiario);
+    (reporteRepo.save as jest.Mock).mockImplementation(async (r: ReporteDiario) => ({ ...r, id: 5 }));
+
+    await service.registrarReal(1, [{ latitud: -17.78, longitud: -63.18 }], adminContext);
+
+    expect(mockDataSource.transaction).toHaveBeenCalled();
+  });
+
+  it("generarReporteDiario consulta los logs de la fecha del reporte", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (logRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (reporteRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (reporteRepo.create as jest.Mock).mockImplementation((e: Partial<ReporteDiario>) => e as ReporteDiario);
+    (reporteRepo.save as jest.Mock).mockImplementation(async (r: ReporteDiario) => ({ ...r, id: 5 }));
+
+    await service.generarReporteDiario(1, adminContext);
+
+    expect(logRepo.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ fecha: expect.any(String) }),
+      }),
+    );
   });
 });

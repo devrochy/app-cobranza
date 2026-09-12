@@ -329,10 +329,25 @@ export class ClienteService {
       const cambioRepo = manager.getRepository(CambioClientePendiente);
       const clienteRepo = manager.getRepository(Cliente);
 
-      cambio.revisadoPor = requester.sub;
-      cambio.revisadoEn = new Date();
+      const estadoFinal = decision === "aprobar" ? "aprobado" : "rechazado";
+      const revisadoEn = new Date();
+
+      // UPDATE condicional atómico: evita que dos decisiones concurrentes sobre
+      // la misma propuesta se apliquen dos veces (race TOCTOU, HU-47).
+      const { affected } = await cambioRepo.update(
+        { id: cambio.id, estado: "pendiente" },
+        {
+          estado: estadoFinal,
+          revisadoPor: requester.sub,
+          revisadoEn,
+          motivoRechazo: decision === "rechazar" ? (motivoRechazo ?? null) : null,
+        },
+      );
+      if (affected === 0) {
+        throw new BadRequestException("La propuesta ya fue decidida");
+      }
+
       if (decision === "aprobar") {
-        cambio.estado = "aprobado";
         const clienteActualizado = cambio.cliente;
         this.aplicarCamposPropuestos(clienteActualizado, cambio.camposPropuestos);
         this.validarDocumento(
@@ -340,11 +355,13 @@ export class ClienteService {
           clienteActualizado.numeroDocumento,
         );
         await clienteRepo.save(clienteActualizado);
-      } else {
-        cambio.estado = "rechazado";
-        cambio.motivoRechazo = motivoRechazo ?? null;
       }
-      return cambioRepo.save(cambio);
+
+      cambio.estado = estadoFinal;
+      cambio.revisadoPor = requester.sub;
+      cambio.revisadoEn = revisadoEn;
+      cambio.motivoRechazo = decision === "rechazar" ? (motivoRechazo ?? null) : null;
+      return cambio;
     });
 
     return this.toCambioPublic(resuelto);

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, EntityManager, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
 import { GeoJSONFeatureCollection, GeoJSONLineString, ParadaGeoJSON, TrayectoGeo, trayectoriasAGeoJSON } from "../../domain/trayectorias";
@@ -29,6 +29,7 @@ export class TrayectoriasService {
     private readonly logRepo: Repository<RutaOptimizadaLog>,
     @InjectRepository(ReporteDiario)
     private readonly reporteRepo: Repository<ReporteDiario>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async registrarReal(
@@ -43,28 +44,37 @@ export class TrayectoriasService {
     assertOwned(ruta, requester);
 
     const geojson = trayectoriasAGeoJSON([puntos]);
-    const log = this.logRepo.create({
-      ruta: { id: rutaId } as Ruta,
-      rutaId,
-      reporteDiarioId: null,
-      fecha: this.fechaLocal(new Date()),
-      ordenClientesJson: puntos,
-      waypointsGeojson: geojson,
-      distanciaEstimadaKm: 0,
-      tiempoEstimadoMin: 0,
-      recalculado: false,
-      motivoRecalculo: null,
-      tipo: "real",
-    });
-    const saved = await this.logRepo.save(log);
 
-    await this.generarReporteDiario(rutaId, requester);
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const logRepo = manager.getRepository(RutaOptimizadaLog);
+      const log = logRepo.create({
+        ruta: { id: rutaId } as Ruta,
+        rutaId,
+        reporteDiarioId: null,
+        fecha: this.fechaLocal(new Date()),
+        ordenClientesJson: puntos,
+        waypointsGeojson: geojson,
+        distanciaEstimadaKm: 0,
+        tiempoEstimadoMin: 0,
+        recalculado: false,
+        motivoRecalculo: null,
+        tipo: "real",
+      });
+      const guardado = await logRepo.save(log);
+
+      // Consolida el reporte del día en la misma transacción (HU-49): si falla,
+      // se revierte el log para no dejar un registro huérfano sin reporte.
+      await this.generarReporteDiario(rutaId, requester, manager);
+      return guardado;
+    });
+
     return { id: saved.id, tipo: "real" };
   }
 
   async generarReporteDiario(
     rutaId: number,
     requester: RequesterTrayectoriasContext,
+    manager?: EntityManager,
   ): Promise<ReporteDiarioPublic> {
     const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
     if (!ruta) {
@@ -72,15 +82,18 @@ export class TrayectoriasService {
     }
     assertOwned(ruta, requester);
 
+    const logRepo = manager ? manager.getRepository(RutaOptimizadaLog) : this.logRepo;
+    const reporteRepo = manager ? manager.getRepository(ReporteDiario) : this.reporteRepo;
+
     const fecha = this.fechaLocal(new Date());
 
-    const planificada = await this.logRepo.findOne({
-      where: { ruta: { id: rutaId }, tipo: "planificada" },
-      order: { fecha: "DESC", id: "DESC" },
+    const planificada = await logRepo.findOne({
+      where: { ruta: { id: rutaId }, tipo: "planificada", fecha },
+      order: { id: "DESC" },
     });
-    const real = await this.logRepo.findOne({
-      where: { ruta: { id: rutaId }, tipo: "real" },
-      order: { fecha: "DESC", id: "DESC" },
+    const real = await logRepo.findOne({
+      where: { ruta: { id: rutaId }, tipo: "real", fecha },
+      order: { id: "DESC" },
     });
 
     const features: GeoJSONLineString[] = [];
@@ -100,9 +113,9 @@ export class TrayectoriasService {
       features,
     };
 
-    let existente = await this.reporteRepo.findOne({ where: { ruta: { id: rutaId }, fecha } });
+    let existente = await reporteRepo.findOne({ where: { ruta: { id: rutaId }, fecha } });
     if (!existente) {
-      existente = this.reporteRepo.create({
+      existente = reporteRepo.create({
         ruta: { id: rutaId } as Ruta,
         rutaId,
         fecha,
@@ -117,7 +130,7 @@ export class TrayectoriasService {
     } else {
       existente.trayectoriasJson = trayectoriasJson;
     }
-    const saved = await this.reporteRepo.save(existente);
+    const saved = await reporteRepo.save(existente);
     return { id: saved.id, rutaId, fecha: saved.fecha, trayectoriasJson: saved.trayectoriasJson };
   }
 
