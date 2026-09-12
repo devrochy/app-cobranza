@@ -38,4 +38,5 @@ El usuario autenticado (admin, socio o cobrador) puede cambiar su propia contras
   - `src/modules/perfil/dto/cambiar-password.dto.ts` — DTO con min 8.
   - `src/modules/perfil/perfil.module.ts` — importa `SecurityModule` (para `PasswordService`).
   - `test/e2e/cambio-password.e2e-spec.ts` — 4 tests.
+- PR: https://github.com/devrochy/app-cobranza/pull/117
 - Pendientes/seguimiento: sin forzar re-login (los tokens existentes siguen válidos hasta expirar).
