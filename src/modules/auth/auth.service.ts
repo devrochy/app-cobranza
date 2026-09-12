@@ -222,9 +222,9 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string): Promise<AuthTokenPair> {
-    let payload: AuthTokenPayload;
+    let payload: AuthTokenPayload & { exp?: number };
     try {
-      payload = await this.jwt.verifyAsync<AuthTokenPayload>(refreshToken, {
+      payload = await this.jwt.verifyAsync<AuthTokenPayload & { exp?: number }>(refreshToken, {
         secret: this.config.get<string>("JWT_REFRESH_SECRET"),
       });
     } catch {
@@ -252,7 +252,7 @@ export class AuthService {
       if (!socio || socio.estatus !== "activo") {
         throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
       }
-      return this.issueTokens("socio", socio);
+      return this.rotarYemitir(payload, "socio", socio);
     }
 
     if (payload.rol === "cobrador") {
@@ -263,7 +263,7 @@ export class AuthService {
       if (!cobrador || cobrador.estatus !== "activo") {
         throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
       }
-      return this.issueTokens("cobrador", cobrador);
+      return this.rotarYemitir(payload, "cobrador", cobrador);
     }
 
     const admin = await this.repo.findOne({
@@ -275,7 +275,29 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
     }
 
-    return this.issueTokens("admin", admin);
+    return this.rotarYemitir(payload, "admin", admin);
+  }
+
+  /**
+   * Rota el refresh token: revoca el `jti` usado (single-use) y emite un par
+   * nuevo. El reuso se detecta con la verificación previa de la blacklist.
+   */
+  private async rotarYemitir(
+    payload: AuthTokenPayload & { exp?: number },
+    rol: RolUsuario,
+    sub: TokenSubject,
+  ): Promise<AuthTokenPair> {
+    if (payload.jti) {
+      await this.revocadoRepo.upsert(
+        {
+          jti: payload.jti,
+          revocadoEn: new Date(),
+          expiraEn: payload.exp ? new Date(payload.exp * 1000) : null,
+        },
+        ["jti"],
+      );
+    }
+    return this.issueTokens(rol, sub);
   }
 
   /**
