@@ -22,3 +22,8 @@ Documentar la matriz completa de endpoints del backend NestJS con su consumidor 
 ## Verificación
 - Documentación pura; `scripts/check.sh` no afectado.
 - Comando de re-generación documentado en el propio archivo.
+
+## Resultado final
+- Entregable: `docs/endpoints-inventario.md` (matriz de ~90 endpoints por controller con consumidor/estado, conservados ~15, duplicados funcionales `/rutas/*` vs `/cobrador/*`).
+- Mergeado a `develop` vía PR #90.
+- Pendientes/seguimiento: ninguno.

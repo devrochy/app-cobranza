@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Refactor de helpers compartidos (assertOwned y numericTransformer)
 
 - **Origen:** backlog "assertOwned duplicado" y "numericTransformer duplicado" + Fase 0 del roadmap (ítem 3)
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-17
 
 ## Objetivo

@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # backend-eliminar-pago
 
 - **Rama:** `feature/backend-eliminar-pago` (desde `develop`)
-- **Estado:** en progreso
+- **Estado:** completada
 - **Dependencias:** `backend-pago-liquidado` (campo `liquidado`)
 - **Alcance (TDD):** endpoint para borrar un pago desde la APK; solo se permite
   si el pago NO está liquidado.
@@ -38,4 +38,7 @@ patrón que `eliminarAbono`).
 - Commit convencional + PR a `develop` (CI verde).
 
 ## Resultado real (llenar al completar)
-- (pendiente)
+- Comandos ejecutados para verificar: `bash scripts/check.sh` verde.
+- Archivos modificados: `src/modules/cartera/pagos.service.ts` (+ `.spec.ts`), `src/modules/cobrador/cobrador.service.ts` (+ `.spec.ts`), `src/modules/cobrador/cobrador.controller.ts`.
+- Mergeado a `develop` vía PR #93.
+- Pendientes/seguimiento: ninguno.

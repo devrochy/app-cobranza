@@ -72,18 +72,6 @@ Formato de cada entrada:
 - Prioridad sugerida: media
 - Estado: **programada como Fase 0 del roadmap** (ítem 3, junto con assertOwned).
 
-## Blacklist/revocación de refresh tokens
-- Detectado en: docs/ai/tasks/login-administrador.md
-- Fecha: 2026-08-11
-- Descripción: el refresh token es stateless (sin tabla de blacklist). Para logout y rotación segura con revocación real hará falta una tabla de tokens emitidos/revocados o lista negra.
-- Prioridad sugerida: media
-
-## Rate limiting del endpoint /auth/login
-- Detectado en: docs/ai/tasks/login-administrador.md
-- Fecha: 2026-08-11
-- Descripción: el login no tiene límite de intentos por IP/usuario; riesgo de fuerza bruta. Agregar throttling (ej. @nestjs/throttler) cuando se exponga fuera de local.
-- Prioridad sugerida: alta
-
 ## RutasService.aplicarCascada queda como código muerto
 - Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
 - Fecha: 2026-08-17
@@ -164,18 +152,6 @@ Formato de cada entrada:
 - Descripción: `clientes` y `prestamos` usan `latitud`/`longitud` planos; para la Épica 7 (segmentación de trayectos, distancias) y la futura georreferenciación del cobrador se recomienda migrar a `geography(Point)` de PostGIS. Requiere ADR y afecta DTOs/servicios existentes. Programada como Fase 0 del roadmap (ítem 4).
 - Prioridad sugerida: media
 
-## Wiring de inyección+caja sin transacción
-- Detectado en: docs/ai/tasks/caja-ruta.md (revisión code-reviewer)
-- Fecha: 2026-08-17
-- Descripción: `InyeccionesService.crear`/`eliminar` persisten la inyección y luego aplican el movimiento de caja en operaciones separadas; si `aplicarMovimiento` falla, la inyección queda persistida sin reflejar el saldo. Alinear con el patrón transaccional usado en la creación de ruta+caja (mismo ítem).
-- Prioridad sugerida: media
-
-## Concurrencia en pagos/abonos y saldo de caja sin lock
-- Detectado en: docs/ai/tasks/registrar-pago-abono.md (revisión code-reviewer)
-- Fecha: 2026-08-17
-- Descripción: el abono calcula la deuda fuera de transacción y el pago chequea `estatus` fuera de transacción; doble POST simultáneo puede duplicar pago/abono y doble crédito de caja. `caja.saldoActual` se actualiza sin `@Version` ni lock (lost update ante pagos concurrentes en la misma ruta; patrón ya existente en inyecciones). Evaluar `@Version` en `Caja` o lock pesimista para el MVP o Fase 2.
-- Prioridad sugerida: media
-
 ## Abono que iguala la deuda deja el préstamo vigente con cuotas pendientes
 - Detectado en: docs/ai/tasks/registrar-pago-abono.md (revisión code-reviewer)
 - Fecha: 2026-08-17
@@ -224,18 +200,6 @@ Formato de cada entrada:
 - Descripción: `PermisoGuard` rechaza rol ≠ admin/socio; el Cobrador (nombrado en HU-17) no puede registrar/eliminar gastos por API. Consistente con el MVP (no hay login de cobrador), pero debe documentarse como limitación hasta el login del cobrador.
 - Prioridad sugerida: baja
 
-## Concurrencia sin lock en inyecciones y caja (patrón de gastos aplicado)
-- Detectado en: docs/ai/tasks/registrar-gasto.md (revisión code-reviewer)
-- Fecha: 2026-08-17
-- Descripción: `inyecciones.service` (crear/eliminar) mantiene el patrón de lectura+escritura sin UPDATE condicional ni transacción para caja (mismo riesgo de doble descuento que tenían los gastos, ya corregido con UPDATE condicional). Aplicar el mismo patrón condicional a inyecciones.
-- Prioridad sugerida: media
-
-## Endpoint de descarga de evidencia de gasto pendiente
-- Detectado en: docs/ai/tasks/registrar-gasto.md
-- Fecha: 2026-08-17
-- Descripción: las evidencias se persisten (disco + metadata) pero no hay endpoint GET para servir/descargar el archivo. Al implementarlo, controlar mimetype para evitar ejecución arbitraria (stored-XSS) dado el upload sin whitelist de contenido.
-- Prioridad sugerida: media
-
 ## Semántica del tope de deuda (mezcla de interés)
 - Detectado en: docs/ai/tasks/ampliar-registro-cliente.md (revisión code-reviewer)
 - Fecha: 2026-08-18
@@ -247,12 +211,6 @@ Formato de cada entrada:
 - Fecha: 2026-08-18
 - Descripción: `cliente-foto-upload.ts` duplica la estructura de `evidencia-upload.ts` (diskStorage + fileFilter + limits). Extraer una fábrica compartida (mimetypes/dir como parámetros) en un ítem de limpieza.
 - Prioridad sugerida: baja
-
-## Endpoint de descarga de foto/evidencia de cliente pendiente
-- Detectado en: docs/ai/tasks/ampliar-registro-cliente.md
-- Fecha: 2026-08-18
-- Descripción: las fotos del cliente se persisten (disco + metadata) pero no hay endpoint GET para servirlas. Controlar mimetype al servir (mismo riesgo que gastos).
-- Prioridad sugerida: media
 
 ## Cobertura e2e faltante de autorización/flags en ampliación de cliente
 - Detectado en: docs/ai/tasks/ampliar-registro-cliente.md (revisión code-reviewer)
@@ -359,3 +317,11 @@ Formato de cada entrada:
   3. `c.ubicacion IS NOT NULL` no garantiza geometría casteable: `ST_Y/ST_X(c.ubicacion::geometry)` puede fallar con geometry malformado y coordenadas (0,0) entran como paradas válidas. Validar con `ST_IsValid`/rango de coords o manejar el fallo de cast. La misma precondición existe en `ListaClientesDelDiaService.coordenadasDeClientes`.
   4. `fechaLocal` está duplicado en ruta-optimizacion.service.ts y lista-clientes-dia.service.ts; extraer a util compartido.
 - Prioridad sugerida: media (1,2,4), baja (3)
+
+---
+
+## Resueltos (historial)
+
+- **Rate limiting de login** y **blacklist/revocación de refresh tokens** → `seguridad-auth` (PR #116): throttle 5/min por IP en los 3 login + `RefreshTokenRevocado` + `POST /auth/logout`.
+- **Wiring de inyección+caja sin transacción**, **concurrencia en pagos/abonos y saldo de caja sin lock** y **concurrencia sin lock en inyecciones y caja** → `robustez-financiera` (PR #118): locks pesimistas, transacciones y UPDATEs condicionales + `affected` en eliminaciones.
+- **Endpoint de descarga de evidencia de gasto** y **de foto/evidencia de cliente** → `descarga-evidencias` (PR #115): `GET /rutas/:id/gastos/:gastoId/evidencias/:evidenciaId` y `GET /rutas/:rutaId/clientes/:clienteId/evidencias/:tipo` (mimetype controlado).

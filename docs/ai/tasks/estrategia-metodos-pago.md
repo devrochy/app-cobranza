@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Estrategia y diseño de métodos de pago para socios con ADR global vs local (PRD 6.4)
 
 - **Origen:** Roadmap Fase 5 ítem 38 (docs/plan-feature-roadmap.md:70) — sección 6.4 del PRD (docs/APP_REQUIREMENTS.md:416-429). No es una HU; es tarea de diseño/estrategia.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-26
 
 ## Objetivo

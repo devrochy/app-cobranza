@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: aplicar-offline-dominio (procesar eventos offline al dominio)
 
 - **Origen:** Fase B del plan de la APK (offline-first) aprobado por el usuario 2026-09-01. Mecanismo A (Sync API + processor). El módulo `sincronizacion-offline` ya ingiere con dedup pero NO aplica al dominio.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-01
 
 ## Objetivo

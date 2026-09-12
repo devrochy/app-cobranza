@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Cambio de contraseña del usuario logueado
 
 - **Origen:** Petición directa del usuario (2026-09-11) — pendiente #3 del backlog (el perfil solo edita nombre/apellido; el cambio de contraseña quedó fuera en `perfil-panel`).
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-11
 
 ## Objetivo

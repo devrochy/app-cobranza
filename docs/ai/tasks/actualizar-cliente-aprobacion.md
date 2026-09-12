@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Actualización de cliente con flujo de aprobación (HU-47)
 
 - **Origen:** Roadmap Fase 1 ítem 11 (docs/plan-feature-roadmap.md:29) — HU-47 (docs/APP_REQUIREMENTS.md:64). Tabla PRD 4.2:326 (cambios_cliente_pendientes).
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-18
 
 ## Objetivo

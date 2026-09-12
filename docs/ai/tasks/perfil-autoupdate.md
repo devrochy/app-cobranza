@@ -6,7 +6,7 @@ tags: [tarea]
 # Tarea: perfil-autoupdate — auto-actualización del perfil (nombre/apellido)
 
 - **Origen:** Petición del usuario (editar perfil en la APK; cobrador y socio). HU-25-adyacente.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-10
 
 ## Objetivo

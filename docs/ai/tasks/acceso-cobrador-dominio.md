@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: acceso-cobrador-dominio (infraestructura de autorización del cobrador)
 
 - **Origen:** Plan del APK del cobrador (Paso 1) aprobado por el usuario 2026-08-31; enfoque A (controller de operación del cobrador) elegido en brainstorming. Esta tarea es la infraestructura; la API de endpoints es `cobrador-apk-api`.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-31
 
 ## Objetivo

@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: fix-socio-ve-recursos (acceso del socio a sus recursos en el panel)
 
 - **Origen:** Bug reportado por el usuario: al ingresar al panel con el socio del seed no veía datos.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-31
 
 ## Objetivo

@@ -1,8 +1,13 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: epica8-dispositivos (backend)
 
 - **Origen:** Petición directa del usuario (2026-09-10) + Épica 8
   (`docs/APP_REQUIREMENTS.md:115-121`, HU-39..HU-43) y HU-64.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-10
 
 ## Objetivo

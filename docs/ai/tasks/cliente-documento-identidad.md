@@ -1,8 +1,13 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: cliente-documento-identidad
 
 - **Origen:** Petición directa del usuario (2026-09-10). Validada contra
   `docs/APP_REQUIREMENTS.md` (HU-14) y el estado actual del backend.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-10
 
 ## Objetivo

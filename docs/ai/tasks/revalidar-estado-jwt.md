@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Revalidar el estado del usuario en cada request (JwtAuthGuard)
 
 - **Origen:** HU-05/HU-61 (docs/APP_REQUIREMENTS.md:34 y 44) + backlog "JwtAuthGuard no revalida el estado del admin por request"
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-17
 
 ## Objetivo
