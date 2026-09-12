@@ -1,9 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
-import { LessThan, Repository } from "typeorm";
+import { DataSource, LessThan, Repository } from "typeorm";
 import { formatDate } from "../../common/date";
 import { Cuota } from "./cuota.entity";
+import { ColorRiesgoService } from "./color-riesgo.service";
 
 /**
  * Job diario de mora (HU-13/HU-15/HU-16).
@@ -19,6 +20,8 @@ export class MoraJobService {
   constructor(
     @InjectRepository(Cuota)
     private readonly cuotaRepo: Repository<Cuota>,
+    private readonly dataSource: DataSource,
+    private readonly colorRiesgo: ColorRiesgoService,
   ) {}
 
   @Cron("0 0 2 * * *")
@@ -35,6 +38,7 @@ export class MoraJobService {
         estatus: "pendiente",
         fechaVencimiento: LessThan(fechaHoy),
       },
+      relations: { prestamo: { cliente: true, ruta: true } },
     });
 
     if (vencidas.length === 0) {
@@ -45,7 +49,26 @@ export class MoraJobService {
       ...cuota,
       estatus: "atrasada" as const,
     }));
-    await this.cuotaRepo.save(marcadas);
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.getRepository(Cuota).save(marcadas);
+
+      // HU-13: recalcula el color de los clientes afectados (una vez por cliente/ruta).
+      const procesados = new Set<string>();
+      for (const cuota of marcadas) {
+        const clienteId = cuota.prestamo?.cliente?.id;
+        const rutaId = cuota.prestamo?.ruta?.id;
+        if (!clienteId || !rutaId) {
+          continue;
+        }
+        const clave = `${clienteId}:${rutaId}`;
+        if (procesados.has(clave)) {
+          continue;
+        }
+        procesados.add(clave);
+        await this.colorRiesgo.recalcularSeguro(clienteId, rutaId, manager);
+      }
+    });
 
     return marcadas.length;
   }

@@ -249,6 +249,11 @@ Formato de cada entrada:
   4. `fechaLocal` está duplicado en ruta-optimizacion.service.ts y lista-clientes-dia.service.ts; extraer a util compartido.
 - Prioridad sugerida: media (1,2,4), baja (3)
 
+## E2E `reglas-negociacion-ia` flaky por estado compartido
+- Detectado en: docs/ai/tasks/color-riesgo-recalculo.md (2026-09-12)
+- Descripción: `test/e2e/reglas-negociacion-ia.e2e-spec.ts` ("GET devuelve la configuración persistida tras guardar") devuelve 404 de forma intermitente al correr toda la suite e2e en paralelo (pasa aislado). El singleton de reglas IA se comparte/resetea entre suites. Aislar el estado (limpiar la tabla en `beforeAll` de la suite dueña o usar transacción por suite) o marcar la suite como serial.
+- Prioridad sugerida: baja
+
 ---
 
 ## Resueltos (historial)

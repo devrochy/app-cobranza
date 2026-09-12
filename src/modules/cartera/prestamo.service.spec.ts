@@ -14,6 +14,7 @@ import { Cliente } from "./cliente.entity";
 import { Cuota } from "./cuota.entity";
 import { Prestamo } from "./prestamo.entity";
 import { CreatePrestamoInput, PrestamoService } from "./prestamo.service";
+import { ColorRiesgoService } from "./color-riesgo.service";
 
 describe("PrestamoService", () => {
   let service: PrestamoService;
@@ -22,6 +23,7 @@ describe("PrestamoService", () => {
   let configRepo: { findOne: jest.Mock };
   let prestamoRepo: { create: jest.Mock; find: jest.Mock };
   let cuotaRepo: { find: jest.Mock; count: jest.Mock };
+  let mockColorRiesgo: { recalcularSeguro: jest.Mock };
   let manager: { save: jest.Mock };
   let queryRunner: {
     connect: jest.Mock;
@@ -89,6 +91,7 @@ describe("PrestamoService", () => {
     configRepo = { findOne: jest.fn() };
     prestamoRepo = { create: jest.fn(), find: jest.fn() };
     cuotaRepo = { find: jest.fn(), count: jest.fn() };
+    mockColorRiesgo = { recalcularSeguro: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -99,6 +102,7 @@ describe("PrestamoService", () => {
         { provide: getRepositoryToken(Prestamo), useValue: prestamoRepo },
         { provide: getRepositoryToken(Cuota), useValue: cuotaRepo },
         { provide: DataSource, useValue: { createQueryRunner: jest.fn(() => queryRunner) } },
+        { provide: ColorRiesgoService, useValue: mockColorRiesgo },
       ],
     }).compile();
 
@@ -417,26 +421,13 @@ describe("PrestamoService", () => {
   });
 
   describe("color de riesgo", () => {
-    it("actualiza el color del cliente a azul cuando no hay atraso", async () => {
+    it("recalcula el color del cliente vía ColorRiesgoService", async () => {
       setupFeliz();
-      const cliente = clienteFixture();
-      (clienteRepo.findOne as jest.Mock).mockResolvedValue(cliente);
+      (clienteRepo.findOne as jest.Mock).mockResolvedValue(clienteFixture());
 
       await service.crear(1, baseInput, adminContext, fechaOtorgado);
 
-      expect(cliente.colorRiesgo).toBe("azul");
-    });
-
-    it("actualiza el color a rojo si hay cuotas atrasadas sobre el umbral", async () => {
-      setupFeliz();
-      const cliente = clienteFixture({ colorRiesgo: "azul" });
-      (clienteRepo.findOne as jest.Mock).mockResolvedValue(cliente);
-      (configRepo.findOne as jest.Mock).mockResolvedValue(configFixture({ cuotasAtrasoUmbral: 2, permitirCambioFechaPrestamo: true }));
-      (cuotaRepo.count as jest.Mock).mockResolvedValue(3);
-
-      await service.crear(1, baseInput, adminContext, fechaOtorgado);
-
-      expect(cliente.colorRiesgo).toBe("rojo");
+      expect(mockColorRiesgo.recalcularSeguro).toHaveBeenCalledWith(1, 1);
     });
   });
 

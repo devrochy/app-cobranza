@@ -9,13 +9,13 @@ import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { RolUsuario } from "../auth/auth.service";
-import { calcularColorRiesgo } from "../../domain/color-riesgo";
 import { Ruta } from "../rutas/ruta.entity";
 import { RutaConfig } from "../rutas/ruta-config.entity";
 import { RutaConfigDefaults } from "../rutas/ruta-config.service";
 import { Cliente } from "./cliente.entity";
 import { Cuota, CuotaEstatus } from "./cuota.entity";
 import { Prestamo, PrestamoEstatus } from "./prestamo.entity";
+import { ColorRiesgoService } from "./color-riesgo.service";
 import { ajustarDiaHabil } from "../../domain/dias-no-laborables";
 import { DiasNoLaborables } from "../rutas/ruta-config.entity";
 import { formatDate } from "../../common/date";
@@ -88,6 +88,7 @@ export class PrestamoService {
     private readonly cuotaRepo: Repository<Cuota>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly colorRiesgo: ColorRiesgoService,
   ) {}
 
   async crear(
@@ -212,15 +213,7 @@ export class PrestamoService {
 
     // Wiring del color de riesgo (HU-13): el cliente ya tiene crédito.
     // No fatal: si falla, el préstamo ya está persistido (dato derivado).
-    try {
-      const atraso = await this.cuotaRepo.count({
-        where: { prestamo: { cliente: { id: cliente.id } }, estatus: "atrasada" },
-      });
-      cliente.colorRiesgo = calcularColorRiesgo(atraso, config.cuotasAtrasoUmbral, false);
-      await this.clienteRepo.save(cliente);
-    } catch (err) {
-      this.logger.warn(`No se pudo actualizar el color de riesgo del cliente ${cliente.id}`);
-    }
+    await this.colorRiesgo.recalcularSeguro(cliente.id, rutaId);
 
     return this.toPublic(prestamo, cuotasPublic, rutaId, cliente.id, tipoInteres);
   }

@@ -8,6 +8,7 @@ import { Pago } from "./pago.entity";
 import { AuditoriaCartera } from "./auditoria-cartera.entity";
 import { CuotaService } from "./cuota.service";
 import { CajaService, TipoMovimientoCaja } from "../rutas/caja.service";
+import { ColorRiesgoService } from "./color-riesgo.service";
 import { ReautenticacionService } from "../security/reautenticacion.service";
 
 describe("CuotaService", () => {
@@ -26,6 +27,7 @@ describe("CuotaService", () => {
   const mockReautenticacion = { validar: jest.fn() };
   const mockAuditoriaRepo = { create: jest.fn(), save: jest.fn() };
   const mockCajaService = { aplicarMovimiento: jest.fn() };
+  const mockColorRiesgo = { recalcularSeguro: jest.fn() };
   const mockDataSource = {
     transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
       fn({
@@ -74,6 +76,7 @@ describe("CuotaService", () => {
       valorEsperado: 120,
       fechaVencimiento: "2026-08-12",
       estatus: "pendiente",
+      prestamo: { id: 20, cliente: { id: 5 } },
       ...overrides,
     } as Cuota;
   }
@@ -89,6 +92,7 @@ describe("CuotaService", () => {
         { provide: ReautenticacionService, useValue: mockReautenticacion },
         { provide: getRepositoryToken(AuditoriaCartera), useValue: mockAuditoriaRepo },
         { provide: CajaService, useValue: mockCajaService },
+        { provide: ColorRiesgoService, useValue: mockColorRiesgo },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
@@ -221,6 +225,7 @@ describe("CuotaService", () => {
     expect(auditoriaRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ entidad: "cuota", entidadId: 10, operacion: "eliminar" }),
     );
+    expect(mockColorRiesgo.recalcularSeguro).toHaveBeenCalledWith(5, 1, expect.anything());
     expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
   });
 
