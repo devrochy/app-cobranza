@@ -31,4 +31,5 @@ tags: [tarea]
 - Comandos ejecutados para verificar: `bash scripts/check.sh` (107 suites, 968 tests) + `npm run test:e2e` (58 suites, 411 tests) → verde.
 - Archivos modificados:
   - `src/modules/cobros-socio/cobros-socio.service.ts` (+ `.spec.ts`) — `listar` carga `relations: { linkPago: true }`.
+- PR: https://github.com/devrochy/app-cobranza/pull/119
 - Pendientes/seguimiento: ninguno.
