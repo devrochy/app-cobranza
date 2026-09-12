@@ -792,7 +792,9 @@ describe("ClienteService", () => {
         innerJoinAndSelect: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue(rows),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([rows, rows.length]),
       };
     }
 
@@ -808,8 +810,25 @@ describe("ClienteService", () => {
 
       expect(mockClienteRepo.createQueryBuilder).toHaveBeenCalledWith("cliente");
       expect(qb.andWhere).not.toHaveBeenCalled();
-      expect(res).toHaveLength(1);
-      expect(res[0].rutaNombre).toBe("Ruta Centro");
+      expect(qb.skip).toHaveBeenCalledWith(0);
+      expect(qb.take).toHaveBeenCalledWith(20);
+      expect(res.items).toHaveLength(1);
+      expect(res.items[0].rutaNombre).toBe("Ruta Centro");
+      expect(res.total).toBe(1);
+      expect(res.page).toBe(1);
+      expect(res.limit).toBe(20);
+    });
+
+    it("pagina según page/limit", async () => {
+      const qb = mockQueryBuilder([clienteGlobal]);
+      (mockClienteRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const res = await service.listarGlobal({ rol: "admin", sub: 0 }, { page: 3, limit: 10 });
+
+      expect(qb.skip).toHaveBeenCalledWith(20);
+      expect(qb.take).toHaveBeenCalledWith(10);
+      expect(res.page).toBe(3);
+      expect(res.limit).toBe(10);
     });
 
     it("un socio solo ve clientes de sus rutas", async () => {

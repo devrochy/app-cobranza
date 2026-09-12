@@ -49,6 +49,7 @@ describe("API del cobrador para la APK (e2e)", () => {
   let accessTokenAdmin: string;
   let tokenCobrador1: string;
   let tokenCobrador2: string;
+  let tokenCobrador3: string;
   let ruta1Id: number;
   let ruta2Id: number;
   let cliente1Id: number;
@@ -142,6 +143,7 @@ describe("API del cobrador para la APK (e2e)", () => {
     await limpiarDatos();
     await cobradorRepo.delete({ codigo: "CB-APK-1" });
     await cobradorRepo.delete({ codigo: "CB-APK-2" });
+    await cobradorRepo.delete({ codigo: "CB-APK-3" });
     await socioRepo.delete({ codigo: "SC-APK-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -196,6 +198,18 @@ describe("API del cobrador para la APK (e2e)", () => {
       estatus: "activo",
     });
     cobrador2Id = cobrador2.id;
+
+    await cobradorRepo.save({
+      socio: { id: socio.id },
+      usuario: "cobrador-apk-3",
+      passwordHash: await bcrypt.hash(PASSWORD, 4),
+      nombre: "C",
+      apellido: "Tres",
+      correo: "cobrador-apk-3@correo.com",
+      telefono: "+59174440003",
+      codigo: "CB-APK-3",
+      estatus: "activo",
+    });
 
     await request(app.getHttpServer())
       .put(`/cobradores/${cobrador1Id}/permisos`)
@@ -265,12 +279,14 @@ describe("API del cobrador para la APK (e2e)", () => {
 
     tokenCobrador1 = await loginCobrador("cobrador-apk-1");
     tokenCobrador2 = await loginCobrador("cobrador-apk-2");
+    tokenCobrador3 = await loginCobrador("cobrador-apk-3");
   });
 
   afterAll(async () => {
     await limpiarDatos();
     await cobradorRepo.delete({ codigo: "CB-APK-1" });
     await cobradorRepo.delete({ codigo: "CB-APK-2" });
+    await cobradorRepo.delete({ codigo: "CB-APK-3" });
     await socioRepo.delete({ codigo: "SC-APK-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
@@ -643,5 +659,60 @@ describe("API del cobrador para la APK (e2e)", () => {
       .send({ password: PASSWORD, motivo: "x" });
 
     expect(res.status).toBe(403);
+  });
+
+  it("POST /cobrador/rutas/:id/gastos con mimetype inválido -> 400", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta1Id}/gastos`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .field("descripcion", "Texto")
+      .field("valor", "10")
+      .attach("evidencias", Buffer.from("no es imagen"), {
+        filename: "nota.txt",
+        contentType: "text/plain",
+      });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /cobrador/rutas/:id/gastos sin archivos -> 201", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta1Id}/gastos`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .field("descripcion", "Sin evidencia")
+      .field("valor", "10");
+
+    expect(res.status).toBe(201);
+  });
+
+  it("POST /cobrador/rutas/:id/trayectoria-real con menos de 2 puntos -> 400", async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/cobrador/rutas/${ruta1Id}/trayectoria-real`)
+      .set("Authorization", `Bearer ${tokenCobrador1}`)
+      .send({ puntos: [{ latitud: -17.78, longitud: -63.18 }] });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("GET /cobrador/rutas/:id/clientes/:clienteId/tarjeta de un cliente de otra ruta -> 404", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${ruta2Id}/clientes/${cliente1Id}/tarjeta`)
+      .set("Authorization", `Bearer ${tokenCobrador2}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /cobrador/mis-rutas sin permiso ver_cartera -> 403", async () => {
+    const res = await request(app.getHttpServer())
+      .get("/cobrador/mis-rutas")
+      .set("Authorization", `Bearer ${tokenCobrador3}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("GET /cobrador/mis-rutas sin token -> 401", async () => {
+    const res = await request(app.getHttpServer()).get("/cobrador/mis-rutas");
+
+    expect(res.status).toBe(401);
   });
 });

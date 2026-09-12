@@ -6,6 +6,7 @@ import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
 import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
+import { Ruta } from "../../src/modules/rutas/ruta.entity";
 import { Socio } from "../../src/modules/socios/socio.entity";
 import { AppModule } from "../../src/app.module";
 
@@ -14,9 +15,11 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
   let adminRepo: Repository<AdminUser>;
   let socioRepo: Repository<Socio>;
   let cobradorRepo: Repository<Cobrador>;
+  let rutaRepo: Repository<Ruta>;
   let accessToken: string;
   let socioId: number;
   let cobradorId: number;
+  let rutaId: number;
 
   const ADMIN_USERNAME = "estatus-e2e-admin";
   const ADMIN_PASSWORD = "estatus-e2e-password";
@@ -40,6 +43,7 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
     socioRepo = moduleFixture.get(getRepositoryToken(Socio));
     cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
+    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -84,9 +88,25 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
         codigo: "CB-ES-001",
       });
     cobradorId = cobrador.body.id as number;
+
+    const ruta = await request(app.getHttpServer())
+      .post("/rutas")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        nombre: "Ruta ESTATUS",
+        socioId,
+        cobradorId,
+        tipoInteres: 20,
+        numCuotas: 4,
+        moneda: "BOB",
+        saldoInicial: 0,
+        costoCobro: 100,
+      });
+    rutaId = ruta.body.id as number;
   });
 
   afterAll(async () => {
+    await rutaRepo.delete({ id: rutaId });
     await cobradorRepo.delete({ id: cobradorId });
     await socioRepo.delete({ id: socioId });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
@@ -120,6 +140,26 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.estatus).toBe("activo");
+  });
+
+  it("bloquear el socio aplica la cascada a cobradores y rutas; reactivar la revierte", async () => {
+    await request(app.getHttpServer())
+      .patch(`/socios/${socioId}/estatus`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ estatus: "bloqueado" })
+      .expect(200);
+
+    expect((await cobradorRepo.findOne({ where: { id: cobradorId } }))?.estatus).toBe("bloqueado");
+    expect((await rutaRepo.findOne({ where: { id: rutaId } }))?.estatus).toBe("bloqueado");
+
+    await request(app.getHttpServer())
+      .patch(`/socios/${socioId}/estatus`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ estatus: "activo" })
+      .expect(200);
+
+    expect((await cobradorRepo.findOne({ where: { id: cobradorId } }))?.estatus).toBe("activo");
+    expect((await rutaRepo.findOne({ where: { id: rutaId } }))?.estatus).toBe("activo");
   });
 
   it("PATCH /socios/:id/estatus es idempotente (dos PATCH con el mismo estatus)", async () => {
