@@ -8,7 +8,7 @@ import { PerfilService } from "./perfil.service";
 
 describe("PerfilController", () => {
   let controller: PerfilController;
-  const mockService = { actualizar: jest.fn(), obtener: jest.fn() };
+  const mockService = { actualizar: jest.fn(), obtener: jest.fn(), cambiarPassword: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -57,5 +57,19 @@ describe("PerfilController", () => {
     } as never);
 
     expect(mockService.obtener).toHaveBeenCalledWith("cobrador", 7);
+  });
+
+  it("cambiarPassword delega en el servicio con el rol y sub del usuario autenticado", async () => {
+    mockService.cambiarPassword.mockResolvedValue(undefined);
+
+    await controller.cambiarPassword(
+      { passwordActual: "vieja", passwordNueva: "nueva123" },
+      { user: { rol: "admin", sub: 1 } } as never,
+    );
+
+    expect(mockService.cambiarPassword).toHaveBeenCalledWith("admin", 1, {
+      passwordActual: "vieja",
+      passwordNueva: "nueva123",
+    });
   });
 });

@@ -1,17 +1,19 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
+import { PasswordService } from "../security/password.service";
 import { PerfilService } from "./perfil.service";
 
 describe("PerfilService", () => {
   let service: PerfilService;
 
-  const adminRepo = { findOne: jest.fn(), save: jest.fn() };
-  const cobradorRepo = { findOne: jest.fn(), save: jest.fn() };
-  const socioRepo = { findOne: jest.fn(), save: jest.fn() };
+  const adminRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
+  const cobradorRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
+  const socioRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
+  const passwordService = { compare: jest.fn(), hash: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -21,6 +23,7 @@ describe("PerfilService", () => {
         { provide: getRepositoryToken(AdminUser), useValue: adminRepo },
         { provide: getRepositoryToken(Cobrador), useValue: cobradorRepo },
         { provide: getRepositoryToken(Socio), useValue: socioRepo },
+        { provide: PasswordService, useValue: passwordService },
       ],
     }).compile();
 
@@ -155,6 +158,82 @@ describe("PerfilService", () => {
       await expect(service.obtener("cobrador", 99)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe("cambiarPassword", () => {
+    it("valida la contraseña actual y guarda la nueva hasheada (admin)", async () => {
+      adminRepo.findOne.mockResolvedValue({ id: 1, passwordHash: "hash-actual" });
+      passwordService.compare.mockResolvedValue(true);
+      passwordService.hash.mockResolvedValue("hash-nueva");
+
+      await service.cambiarPassword("admin", 1, {
+        passwordActual: "clave-vieja",
+        passwordNueva: "clave-nueva",
+      });
+
+      expect(passwordService.compare).toHaveBeenCalledWith("clave-vieja", "hash-actual");
+      expect(passwordService.hash).toHaveBeenCalledWith("clave-nueva");
+      expect(adminRepo.update).toHaveBeenCalledWith(
+        { id: 1 },
+        { passwordHash: "hash-nueva" },
+      );
+    });
+
+    it("valida la contraseña actual y guarda la nueva (socio)", async () => {
+      socioRepo.findOne.mockResolvedValue({ id: 3, passwordHash: "hash-socio" });
+      passwordService.compare.mockResolvedValue(true);
+      passwordService.hash.mockResolvedValue("hash-nueva-socio");
+
+      await service.cambiarPassword("socio", 3, {
+        passwordActual: "clave-vieja",
+        passwordNueva: "clave-nueva",
+      });
+
+      expect(socioRepo.update).toHaveBeenCalledWith(
+        { id: 3 },
+        { passwordHash: "hash-nueva-socio" },
+      );
+    });
+
+    it("valida la contraseña actual y guarda la nueva (cobrador)", async () => {
+      cobradorRepo.findOne.mockResolvedValue({ id: 7, passwordHash: "hash-cob" });
+      passwordService.compare.mockResolvedValue(true);
+      passwordService.hash.mockResolvedValue("hash-nueva-cob");
+
+      await service.cambiarPassword("cobrador", 7, {
+        passwordActual: "clave-vieja",
+        passwordNueva: "clave-nueva",
+      });
+
+      expect(cobradorRepo.update).toHaveBeenCalledWith(
+        { id: 7 },
+        { passwordHash: "hash-nueva-cob" },
+      );
+    });
+
+    it("lanza BadRequest si la contraseña actual es incorrecta", async () => {
+      adminRepo.findOne.mockResolvedValue({ id: 1, passwordHash: "hash-actual" });
+      passwordService.compare.mockResolvedValue(false);
+
+      await expect(
+        service.cambiarPassword("admin", 1, {
+          passwordActual: "incorrecta",
+          passwordNueva: "clave-nueva",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(adminRepo.update).not.toHaveBeenCalled();
+    });
+
+    it("lanza NotFound si el usuario no existe", async () => {
+      adminRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.cambiarPassword("admin", 99, {
+          passwordActual: "x",
+          passwordNueva: "clave-nueva",
+        }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

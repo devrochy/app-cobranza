@@ -1,8 +1,18 @@
-import { Body, Controller, Get, Patch, Req, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import type { Request } from "express";
 import { AuthTokenPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ActualizarPerfilDto } from "./dto/actualizar-perfil.dto";
+import { CambiarPasswordDto } from "./dto/cambiar-password.dto";
 import { PerfilService } from "./perfil.service";
 
 /**
@@ -28,6 +38,18 @@ export class PerfilController {
     return this.service.actualizar(req.user.rol, req.user.sub, {
       nombre: dto.nombre,
       apellido: dto.apellido,
+    });
+  }
+
+  @Patch("password")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  cambiarPassword(
+    @Body() dto: CambiarPasswordDto,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.service.cambiarPassword(req.user.rol, req.user.sub, {
+      passwordActual: dto.passwordActual,
+      passwordNueva: dto.passwordNueva,
     });
   }
 }

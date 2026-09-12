@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
+import { SecurityModule } from "../security/security.module";
 import { PerfilController } from "./perfil.controller";
 import { PerfilService } from "./perfil.service";
 
@@ -11,6 +12,7 @@ import { PerfilService } from "./perfil.service";
   imports: [
     TypeOrmModule.forFeature([AdminUser, Cobrador, Socio]),
     JwtModule.register({}),
+    SecurityModule,
   ],
   controllers: [PerfilController],
   providers: [PerfilService],

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -9,6 +10,7 @@ import { RolUsuario } from "../auth/auth.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
 import { Cobrador } from "../cobradores/cobrador.entity";
 import { Socio } from "../socios/socio.entity";
+import { PasswordService } from "../security/password.service";
 
 export interface PerfilPublic {
   id: number;
@@ -20,6 +22,11 @@ export interface PerfilPublic {
 export interface ActualizarPerfilInput {
   nombre: string;
   apellido: string;
+}
+
+export interface CambiarPasswordInput {
+  passwordActual: string;
+  passwordNueva: string;
 }
 
 /**
@@ -36,6 +43,7 @@ export class PerfilService {
     private readonly cobradorRepo: Repository<Cobrador>,
     @InjectRepository(Socio)
     private readonly socioRepo: Repository<Socio>,
+    private readonly password: PasswordService,
   ) {}
 
   async obtener(rol: RolUsuario, sub: number): Promise<PerfilPublic> {
@@ -102,6 +110,72 @@ export class PerfilService {
     }
 
     throw new ForbiddenException("Acceso denegado");
+  }
+
+  async cambiarPassword(
+    rol: RolUsuario,
+    sub: number,
+    input: CambiarPasswordInput,
+  ): Promise<void> {
+    if (rol === "admin") {
+      const admin = await this.adminRepo.findOne({
+        where: { id: sub },
+        select: { id: true, passwordHash: true },
+      });
+      if (!admin) {
+        throw new NotFoundException("Perfil no encontrado");
+      }
+      await this.assertPasswordActual(admin.passwordHash, input.passwordActual);
+      await this.adminRepo.update(
+        { id: sub },
+        { passwordHash: await this.password.hash(input.passwordNueva) },
+      );
+      return;
+    }
+
+    if (rol === "cobrador") {
+      const cobrador = await this.cobradorRepo.findOne({
+        where: { id: sub },
+        select: { id: true, passwordHash: true },
+      });
+      if (!cobrador) {
+        throw new NotFoundException("Perfil no encontrado");
+      }
+      await this.assertPasswordActual(cobrador.passwordHash, input.passwordActual);
+      await this.cobradorRepo.update(
+        { id: sub },
+        { passwordHash: await this.password.hash(input.passwordNueva) },
+      );
+      return;
+    }
+
+    if (rol === "socio") {
+      const socio = await this.socioRepo.findOne({
+        where: { id: sub },
+        select: { id: true, passwordHash: true },
+      });
+      if (!socio) {
+        throw new NotFoundException("Perfil no encontrado");
+      }
+      await this.assertPasswordActual(socio.passwordHash, input.passwordActual);
+      await this.socioRepo.update(
+        { id: sub },
+        { passwordHash: await this.password.hash(input.passwordNueva) },
+      );
+      return;
+    }
+
+    throw new ForbiddenException("Acceso denegado");
+  }
+
+  private async assertPasswordActual(
+    hashActual: string,
+    passwordActual: string,
+  ): Promise<void> {
+    const coincide = await this.password.compare(passwordActual, hashActual);
+    if (!coincide) {
+      throw new BadRequestException("La contraseña actual es incorrecta");
+    }
   }
 
   private toPublic(entidad: AdminUser | Cobrador | Socio): PerfilPublic {
