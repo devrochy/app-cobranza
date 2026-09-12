@@ -6,6 +6,7 @@ import { Ruta } from "../rutas/ruta.entity";
 import { Prestamo } from "./prestamo.entity";
 import { Cuota } from "./cuota.entity";
 import { Abono } from "./abono.entity";
+import { Pago } from "./pago.entity";
 import { Cliente } from "./cliente.entity";
 import { WHATSAPP_GATEWAY } from "./whatsapp-gateway.interface";
 import { NotificacionesService } from "./notificaciones.service";
@@ -25,6 +26,7 @@ describe("EstadoCuentaService", () => {
   const mockPrestamoRepo = { findOne: jest.fn() };
   const mockCuotaRepo = { find: jest.fn() };
   const mockAbonoRepo = { find: jest.fn() };
+  const mockPagoRepo = { find: jest.fn() };
   const mockGateway = { enviarMensaje: jest.fn(), recibirMensaje: jest.fn() };
   const mockNotificacionesService = { obtenerConversacion: jest.fn() };
 
@@ -67,6 +69,7 @@ describe("EstadoCuentaService", () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPagoRepo.find.mockResolvedValue([]);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EstadoCuentaService,
@@ -74,6 +77,7 @@ describe("EstadoCuentaService", () => {
         { provide: getRepositoryToken(Prestamo), useValue: mockPrestamoRepo },
         { provide: getRepositoryToken(Cuota), useValue: mockCuotaRepo },
         { provide: getRepositoryToken(Abono), useValue: mockAbonoRepo },
+        { provide: getRepositoryToken(Pago), useValue: mockPagoRepo },
         { provide: WHATSAPP_GATEWAY, useValue: mockGateway },
         { provide: NotificacionesService, useValue: mockNotificacionesService },
       ],
@@ -126,6 +130,24 @@ describe("EstadoCuentaService", () => {
     expect(result.cuotas).toHaveLength(3);
     expect(result.cuotas.map((c) => c.cuotaId)).toEqual([11, 12, 13]);
     expect(result.moneda).toBe("BOB");
+  });
+
+  it("expone el pago por cuota (para eliminar desde el panel)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue(prestamoFixture());
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([
+      { id: 11, numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2026-09-01", estatus: "pagada" },
+      { id: 12, numeroCuota: 2, valorEsperado: 100, fechaVencimiento: "2026-09-08", estatus: "pendiente" },
+    ]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([]);
+    (mockPagoRepo.find as jest.Mock).mockResolvedValue([
+      { id: 77, cuotaId: 11, valor: 100, fechaHora: new Date("2026-08-30T10:00:00Z"), liquidado: false },
+    ]);
+
+    const result = await service.obtener(1, 5, adminContext);
+
+    expect(result.cuotas[0].pago).toMatchObject({ id: 77, valor: 100, liquidado: false });
+    expect(result.cuotas[1].pago).toBeNull();
   });
 
   it("enviarReporte construye el texto y lo envía via gateway con emisor ia e intención reporte_estado_cuenta", async () => {

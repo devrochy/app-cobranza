@@ -51,6 +51,7 @@ describe("CarteraController", () => {
 
   const mockPagosService = {
     registrarPagoDeCuota: jest.fn(),
+    eliminarPago: jest.fn(),
   };
 
   const mockAbonosService = {
@@ -350,6 +351,23 @@ describe("CarteraController", () => {
     expect(abonosService.eliminarAbono).toHaveBeenCalledWith(
       1,
       30,
+      { password: "s3creta", motivo: "error de captura" },
+      { rol: "admin", sub: 1 },
+    );
+  });
+
+  it("delega al eliminar un pago con re-autenticación", async () => {
+    (pagosService.eliminarPago as jest.Mock).mockResolvedValue({ id: 40 });
+    const req = { user: { sub: 1, rol: "admin", tipo: "access" } } as unknown as Request & {
+      user: AuthTokenPayload;
+    };
+    const dto = { password: "s3creta", motivo: "error de captura" };
+
+    await controller.eliminarPago(1, 40, dto, req);
+
+    expect(pagosService.eliminarPago).toHaveBeenCalledWith(
+      1,
+      40,
       { password: "s3creta", motivo: "error de captura" },
       { rol: "admin", sub: 1 },
     );

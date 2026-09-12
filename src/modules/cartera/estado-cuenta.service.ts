@@ -13,6 +13,7 @@ import { Ruta } from "../rutas/ruta.entity";
 import { Prestamo } from "./prestamo.entity";
 import { Cuota } from "./cuota.entity";
 import { Abono } from "./abono.entity";
+import { Pago } from "./pago.entity";
 import { NotificacionesService } from "./notificaciones.service";
 import { WHATSAPP_GATEWAY, WhatsappGateway } from "./whatsapp-gateway.interface";
 
@@ -53,6 +54,8 @@ export class EstadoCuentaService {
     private readonly cuotaRepo: Repository<Cuota>,
     @InjectRepository(Abono)
     private readonly abonoRepo: Repository<Abono>,
+    @InjectRepository(Pago)
+    private readonly pagoRepo: Repository<Pago>,
     @Inject(WHATSAPP_GATEWAY)
     private readonly gateway: WhatsappGateway,
     private readonly notificacionesService: NotificacionesService,
@@ -110,6 +113,9 @@ export class EstadoCuentaService {
       order: { numeroCuota: "ASC" },
     });
     const abonos = await this.abonoRepo.find({ where: { prestamo: { id: prestamo.id } } });
+    const pagos = await this.pagoRepo.find({
+      where: { cuota: { prestamo: { id: prestamo.id } } },
+    });
 
     return construirEstadoCuentaPrestamo(
       {
@@ -125,6 +131,13 @@ export class EstadoCuentaService {
         estatus: c.estatus,
       })),
       abonos.map((a) => ({ valor: a.valor })),
+      pagos.map((p) => ({
+        id: p.id,
+        cuotaId: p.cuotaId as number,
+        valor: p.valor,
+        fechaHora: p.fechaHora,
+        liquidado: p.liquidado,
+      })),
     );
   }
 
