@@ -147,6 +147,14 @@ export class CuotaService {
           pago.cuota = null;
           await pagoRepo.save(pago);
         }
+      }
+
+      const resultado = await cuotaRepo.delete({ id: cuota.id });
+      if (resultado.affected === 0) {
+        return; // eliminada concurrentemente; no revertir caja
+      }
+
+      if (esPagada) {
         await this.cajaService.aplicarMovimiento(
           rutaId,
           -cuota.valorEsperado,
@@ -157,7 +165,6 @@ export class CuotaService {
         );
       }
 
-      await cuotaRepo.delete({ id: cuota.id });
       await this.registrarAuditoria(
         auditoriaRepo,
         "cuota",

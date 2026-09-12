@@ -53,8 +53,6 @@ export class AbonosService {
     private readonly rutaRepo: Repository<Ruta>,
     @InjectRepository(Prestamo)
     private readonly prestamoRepo: Repository<Prestamo>,
-    @InjectRepository(Cuota)
-    private readonly cuotaRepo: Repository<Cuota>,
     @InjectRepository(Abono)
     private readonly abonoRepo: Repository<Abono>,
     @InjectRepository(AuditoriaCartera)
@@ -84,21 +82,34 @@ export class AbonosService {
       throw new NotFoundException("El préstamo no existe o no está vigente en esta ruta");
     }
 
-    const deudaPendiente = await this.deudaPendiente(prestamo.id);
-    const abonosPrevios = await this.sumaAbonos(prestamo.id);
-    const deudaActual = deudaPendiente - abonosPrevios;
-
-    if (input.valor > deudaActual) {
-      throw new BadRequestException(
-        `El abono excede la deuda pendiente del préstamo (${deudaActual})`,
-      );
-    }
-
     const clienteId = prestamo.cliente.id;
     const visitaId = options.visitaId ?? null;
 
     const ejecutar = async (manager: EntityManager): Promise<Abono> => {
+      const prestamoRepo = manager.getRepository(Prestamo);
+      const cuotaRepo = manager.getRepository(Cuota);
       const abonoRepo = manager.getRepository(Abono);
+
+      // Lock pesimista sobre el préstamo: serializa abonos concurrentes y evita
+      // que dos abonos simultáneos excedan la deuda pendiente.
+      const prestamoLock = await prestamoRepo.findOne({
+        where: { id: prestamo.id },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!prestamoLock || prestamoLock.estatus !== "vigente") {
+        throw new NotFoundException("El préstamo no existe o no está vigente en esta ruta");
+      }
+
+      const deudaPendiente = await this.deudaPendienteDe(cuotaRepo, prestamo.id);
+      const abonosPrevios = await this.sumaAbonosDe(abonoRepo, prestamo.id);
+      const deudaActual = deudaPendiente - abonosPrevios;
+
+      if (input.valor > deudaActual) {
+        throw new BadRequestException(
+          `El abono excede la deuda pendiente del préstamo (${deudaActual})`,
+        );
+      }
+
       const abonoNuevo = abonoRepo.create({
         prestamo: { id: prestamo.id } as Abono["prestamo"],
         prestamoId: prestamo.id,
@@ -155,7 +166,10 @@ export class AbonosService {
       const abonoRepo = manager.getRepository(Abono);
       const auditoriaRepo = manager.getRepository(AuditoriaCartera);
 
-      await abonoRepo.delete({ id: abono.id });
+      const resultado = await abonoRepo.delete({ id: abono.id });
+      if (resultado.affected === 0) {
+        return; // otro request lo eliminó concurrentemente; no revertir caja
+      }
       await this.cajaService.aplicarMovimiento(
         rutaId,
         -abono.valor,
@@ -180,15 +194,15 @@ export class AbonosService {
     return { id: abonoId };
   }
 
-  private async deudaPendiente(prestamoId: number): Promise<number> {
-    const cuotas = await this.cuotaRepo.find({
+  private async deudaPendienteDe(cuotaRepo: Repository<Cuota>, prestamoId: number): Promise<number> {
+    const cuotas = await cuotaRepo.find({
       where: { prestamo: { id: prestamoId }, estatus: In(["pendiente", "atrasada"]) },
     });
     return cuotas.reduce((suma, cuota) => suma + cuota.valorEsperado, 0);
   }
 
-  private async sumaAbonos(prestamoId: number): Promise<number> {
-    const abonos = await this.abonoRepo.find({ where: { prestamo: { id: prestamoId } } });
+  private async sumaAbonosDe(abonoRepo: Repository<Abono>, prestamoId: number): Promise<number> {
+    const abonos = await abonoRepo.find({ where: { prestamo: { id: prestamoId } } });
     return abonos.reduce((suma, abono) => suma + abono.valor, 0);
   }
 

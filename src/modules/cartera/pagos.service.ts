@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, EntityManager, Repository } from "typeorm";
+import { DataSource, EntityManager, Not, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
 import { MetodoPago } from "../../domain/metodo-pago";
 import { ReautenticacionService } from "../security/reautenticacion.service";
@@ -97,8 +97,14 @@ export class PagosService {
       const cuotaRepo = manager.getRepository(Cuota);
       const pagoRepo = manager.getRepository(Pago);
 
-      cuota.estatus = "pagada";
-      await cuotaRepo.save(cuota);
+      // UPDATE condicional: evita el doble pago ante POST concurrentes.
+      const resultado = await cuotaRepo.update(
+        { id: cuota.id, estatus: Not("pagada") },
+        { estatus: "pagada" },
+      );
+      if (resultado.affected === 0) {
+        throw new BadRequestException("La cuota ya está pagada");
+      }
 
       const pagoNuevo = pagoRepo.create({
         cuota: { id: cuota.id } as Pago["cuota"],
@@ -180,7 +186,10 @@ export class PagosService {
       const pagoRepo = manager.getRepository(Pago);
       const auditoriaRepo = manager.getRepository(AuditoriaCartera);
 
-      await pagoRepo.delete({ id: pago.id });
+      const resultado = await pagoRepo.delete({ id: pago.id });
+      if (resultado.affected === 0) {
+        return; // otro request lo eliminó concurrentemente; no revertir caja
+      }
       await this.cajaService.aplicarMovimiento(
         rutaId,
         -pago.valor,

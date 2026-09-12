@@ -21,7 +21,7 @@ describe("CuotaService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockCuotaRepo = { findOne: jest.fn(), save: jest.fn(), delete: jest.fn() };
+  const mockCuotaRepo = { findOne: jest.fn(), save: jest.fn(), delete: jest.fn(async () => ({ affected: 1 })) };
   const mockPagoRepo = { findOne: jest.fn(), save: jest.fn() };
   const mockReautenticacion = { validar: jest.fn() };
   const mockAuditoriaRepo = { create: jest.fn(), save: jest.fn() };
@@ -250,6 +250,19 @@ describe("CuotaService", () => {
     expect(mockPagoRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ id: 30, cuotaId: null }),
     );
+  });
+
+  it("no revierte la caja si la cuota ya fue eliminada concurrentemente", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    const cuota = cuotaFixture({ estatus: "pagada" });
+    (cuotaRepo.findOne as jest.Mock).mockResolvedValue(cuota);
+    (pagoRepo.findOne as jest.Mock).mockResolvedValue({ id: 30, cuotaId: 10 } as Pago);
+    (mockReautenticacion.validar as jest.Mock).mockResolvedValue(undefined);
+    (cuotaRepo.delete as jest.Mock).mockResolvedValue({ affected: 0 });
+
+    await service.eliminarCuota(1, 10, { password: "ok", motivo: "error" }, adminContext);
+
+    expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
   });
 
   it("un socio no puede editar una cuota en una ruta ajena -> 403", async () => {
