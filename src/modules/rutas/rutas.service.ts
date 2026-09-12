@@ -113,11 +113,6 @@ export class RutasService {
     return this.toPublic(saved);
   }
 
-  async aplicarCascada(cobradorId: number, bloqueado: boolean): Promise<void> {
-    const estatus: RutaEstatus = bloqueado ? "bloqueado" : "activo";
-    await this.repo.update({ cobrador: { id: cobradorId } }, { estatus });
-  }
-
   async actualizarInformacion(
     id: number,
     input: { nombre: string; descripcion?: string | null },

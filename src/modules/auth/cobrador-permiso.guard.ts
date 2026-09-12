@@ -12,8 +12,7 @@ import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { SocioPermisoNombre } from "../socios/socio-permiso.entity";
 import { AuthTokenPayload } from "./auth.service";
 import { COBRADOR_PERMISO_REQUERIDO_KEY } from "./cobrador-permiso-requerido.decorator";
-
-export const ACCESO_DENEGADO = "Acceso denegado";
+import { ACCESO_DENEGADO } from "../../common/ownership";
 
 /**
  * Permiso de socio equivalente al permiso de cobrador solicitado. Si el permiso
