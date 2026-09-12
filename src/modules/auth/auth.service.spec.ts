@@ -352,6 +352,20 @@ describe("AuthService", () => {
       expect(newRefreshPayload.jti).not.toBe(oldJti);
     });
 
+    it("revoca el refresh token usado al rotarlo (single-use)", async () => {
+      (repo.findOne as jest.Mock).mockResolvedValue(adminFixture());
+
+      const loginResult = await service.login("admin", PLAIN_PASSWORD);
+      const oldJti = (await decodeToken(loginResult.refreshToken)).jti;
+
+      await service.refresh(loginResult.refreshToken);
+
+      expect(mockRevocadoRepo.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ jti: oldJti }),
+        ["jti"],
+      );
+    });
+
     it("rechaza un token inválido o expirado", async () => {
       const jwt = new JwtService();
       const expired = jwt.sign(

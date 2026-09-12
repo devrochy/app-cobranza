@@ -13,6 +13,7 @@ import { SociosModule } from "../socios/socios.module";
 import { Device } from "../sincronizacion-offline/device.entity";
 import { SincronizacionOfflineModule } from "../sincronizacion-offline/sincronizacion-offline.module";
 import { RefreshTokenRevocado } from "./refresh-token-revocado.entity";
+import { RefreshTokenPurgeService } from "./refresh-token-purge.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { CobradorPermisoGuard } from "./cobrador-permiso.guard";
@@ -43,7 +44,7 @@ import { PermisoGuard } from "./permiso.guard";
     SincronizacionOfflineModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, PermisoGuard, CobradorPermisoGuard],
+  providers: [AuthService, RefreshTokenPurgeService, JwtAuthGuard, PermisoGuard, CobradorPermisoGuard],
   exports: [AuthService, JwtModule, TypeOrmModule, PermisoGuard, CobradorPermisoGuard],
 })
 export class AuthModule {}
