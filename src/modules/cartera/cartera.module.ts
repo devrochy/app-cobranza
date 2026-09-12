@@ -28,6 +28,7 @@ import { AuditoriaCartera } from "./auditoria-cartera.entity";
 import { CuotaService } from "./cuota.service";
 import { ClienteTarjetaService } from "./cliente-tarjeta.service";
 import { NavegacionClienteService } from "./navegacion-cliente.service";
+import { ColorRiesgoService } from "./color-riesgo.service";
 import { ConversacionIa } from "./conversacion-ia.entity";
 import { MensajeIa } from "./mensaje-ia.entity";
 import { WhatsappSimuladoGateway } from "./whatsapp-simulado.gateway";
@@ -53,6 +54,7 @@ import { AsistenteIaService } from "./asistente-ia.service";
   controllers: [CarteraController, CarteraGlobalController, WhatsappSimuladoController],
   providers: [
     ClienteService, PrestamoService, MoraJobService, PagosService, AbonosService, VisitasService, CuotaService, ClienteTarjetaService, NavegacionClienteService,
+    ColorRiesgoService,
     WhatsappSimuladoGateway, NotificacionesService, NotificacionesJob, ConversacionChatService, EstadoCuentaService, PromesasPagoService, AsistenteIaService, DetalleCuotaService,
     { provide: WHATSAPP_GATEWAY, useExisting: WhatsappSimuladoGateway },
   ],

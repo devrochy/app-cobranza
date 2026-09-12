@@ -15,6 +15,7 @@ import { Cuota } from "./cuota.entity";
 import { Pago } from "./pago.entity";
 import { AuditoriaCartera } from "./auditoria-cartera.entity";
 import { NotificacionesService } from "./notificaciones.service";
+import { ColorRiesgoService } from "./color-riesgo.service";
 import { RolUsuario } from "../auth/auth.service";
 
 export interface RegistrarPagoCuotaInput {
@@ -59,6 +60,7 @@ export class PagosService {
     private readonly cajaService: CajaService,
     private readonly notificacionesService: NotificacionesService,
     private readonly reautenticacion: ReautenticacionService,
+    private readonly colorRiesgo: ColorRiesgoService,
   ) {}
 
   async registrarPagoDeCuota(
@@ -126,6 +128,9 @@ export class PagosService {
         `cuota ${cuota.numeroCuota} (prestamo ${prestamoId})`,
         manager,
       );
+
+      // HU-13: el pago reduce el atraso → recalcula el color del cliente.
+      await this.colorRiesgo.recalcularSeguro(clienteId, rutaId, manager);
       return saved;
     };
 
@@ -218,6 +223,9 @@ export class PagosService {
         motivo: ctx.motivo,
       });
       await auditoriaRepo.save(fila);
+
+      // HU-13: al reabrir la cuota, el atraso del cliente puede cambiar.
+      await this.colorRiesgo.recalcularSeguro(pago.clienteId, rutaId, manager);
     });
 
     return { id: pagoId };

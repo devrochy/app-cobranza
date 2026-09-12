@@ -13,6 +13,7 @@ import { CajaService, TipoMovimientoCaja } from "../rutas/caja.service";
 import { Cuota } from "./cuota.entity";
 import { Pago } from "./pago.entity";
 import { AuditoriaCartera } from "./auditoria-cartera.entity";
+import { ColorRiesgoService } from "./color-riesgo.service";
 
 export interface EditarCuotaInput {
   valorEsperado?: number;
@@ -52,6 +53,7 @@ export class CuotaService {
     private readonly dataSource: DataSource,
     private readonly reautenticacion: ReautenticacionService,
     private readonly cajaService: CajaService,
+    private readonly colorRiesgo: ColorRiesgoService,
   ) {}
 
   async editarCuota(
@@ -158,6 +160,9 @@ export class CuotaService {
         requester,
         ctx.motivo,
       );
+
+      // HU-13: al eliminar una cuota, el atraso del cliente puede cambiar.
+      await this.colorRiesgo.recalcularSeguro(cuota.prestamo.cliente.id, rutaId, manager);
     });
 
     return { id: cuotaId };
@@ -179,7 +184,7 @@ export class CuotaService {
   private async buscarCuota(rutaId: number, cuotaId: number): Promise<Cuota> {
     const cuota = await this.cuotaRepo.findOne({
       where: { id: cuotaId, prestamo: { ruta: { id: rutaId } } },
-      relations: { prestamo: true },
+      relations: { prestamo: { cliente: true } },
     });
     if (!cuota) {
       throw new NotFoundException("La cuota no existe en esta ruta");

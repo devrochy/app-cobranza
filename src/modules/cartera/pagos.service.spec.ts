@@ -12,6 +12,7 @@ import { Prestamo } from "./prestamo.entity";
 import { Pago } from "./pago.entity";
 import { AuditoriaCartera } from "./auditoria-cartera.entity";
 import { PagosService } from "./pagos.service";
+import { ColorRiesgoService } from "./color-riesgo.service";
 
 describe("PagosService", () => {
   let service: PagosService;
@@ -29,6 +30,7 @@ describe("PagosService", () => {
   const mockCajaService = { aplicarMovimiento: jest.fn() };
   const mockNotificacionesService = { enviarConfirmacionPago: jest.fn() };
   const mockReautenticacion = { validar: jest.fn() };
+  const mockColorRiesgo = { recalcularSeguro: jest.fn() };
   let repoAuditoriaTx: { create: jest.Mock; save: jest.Mock };
   let repoPagoTx: { create: jest.Mock; save: jest.Mock; delete: jest.Mock };
   let repoCuotaTx: { update: jest.Mock };
@@ -105,6 +107,7 @@ describe("PagosService", () => {
         { provide: DataSource, useValue: mockDataSource },
         { provide: NotificacionesService, useValue: mockNotificacionesService },
         { provide: ReautenticacionService, useValue: mockReautenticacion },
+        { provide: ColorRiesgoService, useValue: mockColorRiesgo },
       ],
     }).compile();
 
@@ -313,6 +316,7 @@ describe("PagosService", () => {
         expect.stringContaining("eliminación de pago 30"),
         expect.anything(),
       );
+      expect(mockColorRiesgo.recalcularSeguro).toHaveBeenCalledWith(5, 1, expect.anything());
       expect(repoPagoTx.delete).toHaveBeenCalledWith({ id: 30 });
       expect(repoAuditoriaTx.create).toHaveBeenCalledWith(
         expect.objectContaining({ entidad: "pago", entidadId: 30, operacion: "eliminar" }),

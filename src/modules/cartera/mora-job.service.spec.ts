@@ -1,8 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { LessThan, Repository } from "typeorm";
+import { DataSource, LessThan, Repository } from "typeorm";
 import { Cuota } from "./cuota.entity";
 import { MoraJobService } from "./mora-job.service";
+import { ColorRiesgoService } from "./color-riesgo.service";
 
 describe("MoraJobService", () => {
   let service: MoraJobService;
@@ -12,6 +13,12 @@ describe("MoraJobService", () => {
     find: jest.fn(),
     save: jest.fn(),
   };
+  const mockColorRiesgo = { recalcularSeguro: jest.fn() };
+  const mockDataSource = {
+    transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
+      fn({ getRepository: jest.fn(() => mockCuotaRepo) }),
+    ),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -19,6 +26,8 @@ describe("MoraJobService", () => {
       providers: [
         MoraJobService,
         { provide: getRepositoryToken(Cuota), useValue: mockCuotaRepo },
+        { provide: DataSource, useValue: mockDataSource },
+        { provide: ColorRiesgoService, useValue: mockColorRiesgo },
       ],
     }).compile();
 
@@ -39,9 +48,11 @@ describe("MoraJobService", () => {
 
     await service.ejecutar(hoy);
 
-    expect(cuotaRepo.find).toHaveBeenCalledWith({
-      where: { estatus: "pendiente", fechaVencimiento: LessThan("2026-08-17") },
-    });
+    expect(cuotaRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { estatus: "pendiente", fechaVencimiento: LessThan("2026-08-17") },
+      }),
+    );
     expect(cuotaRepo.save).toHaveBeenCalledWith([expect.objectContaining({ id: 1, estatus: "atrasada" })]);
   });
 
@@ -61,9 +72,11 @@ describe("MoraJobService", () => {
 
     const marcadas = await service.ejecutar(hoy);
 
-    expect(cuotaRepo.find).toHaveBeenCalledWith({
-      where: { estatus: "pendiente", fechaVencimiento: LessThan("2026-08-17") },
-    });
+    expect(cuotaRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { estatus: "pendiente", fechaVencimiento: LessThan("2026-08-17") },
+      }),
+    );
     expect(marcadas).toBe(0);
     expect(cuotaRepo.save).not.toHaveBeenCalled();
   });
@@ -72,5 +85,20 @@ describe("MoraJobService", () => {
     (cuotaRepo.find as jest.Mock).mockResolvedValue([{ id: 1, estatus: "pendiente", fechaVencimiento: "2026-08-10" }]);
     const resultado = await service.ejecutar(new Date("2026-08-17T00:00:00Z"));
     expect(resultado).toBe(1);
+  });
+
+  it("recalcula el color de riesgo de los clientes afectados", async () => {
+    const vencida = {
+      id: 1,
+      numeroCuota: 1,
+      estatus: "pendiente" as const,
+      fechaVencimiento: "2026-08-10",
+      prestamo: { cliente: { id: 7 }, ruta: { id: 3 } },
+    };
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([vencida]);
+
+    await service.ejecutar(new Date("2026-08-17T00:00:00Z"));
+
+    expect(mockColorRiesgo.recalcularSeguro).toHaveBeenCalledWith(7, 3, expect.anything());
   });
 });
