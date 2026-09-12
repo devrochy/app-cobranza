@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { fromPoint } from "../../common/geo";
 import { urlArchivoServible } from "../../common/url-archivo";
 import { RolUsuario } from "../auth/auth.service";
 import { ColorRiesgo } from "../../domain/color-riesgo";
@@ -29,6 +30,10 @@ export interface ClienteTarjetaPublic {
   documentoReversoUrl: string | null;
   tipoDocumento: TipoDocumento | null;
   numeroDocumento: string | null;
+  latitud: number;
+  longitud: number;
+  latitudDomicilio: number | null;
+  longitudDomicilio: number | null;
   tipoPago: TipoPagoTarjeta | null;
   saldoPendiente: number;
   diasMora: number;
@@ -77,6 +82,7 @@ export class ClienteTarjetaService {
     const tipoPago = tipoPagoDesdeDiasEntreCuotas(diasEntreCuotas);
 
     const { saldoPendiente, fechaVencidaMasAntigua } = await this.obtenerSaldoYMorosidad(clienteId);
+    const { latitud, longitud } = fromPoint(cliente.ubicacion);
 
     return {
       clienteId: cliente.id,
@@ -90,6 +96,14 @@ export class ClienteTarjetaService {
       documentoReversoUrl: urlDe("documento_reverso"),
       tipoDocumento: cliente.tipoDocumento,
       numeroDocumento: cliente.numeroDocumento,
+      latitud,
+      longitud,
+      latitudDomicilio: cliente.ubicacionDomicilio
+        ? fromPoint(cliente.ubicacionDomicilio).latitud
+        : null,
+      longitudDomicilio: cliente.ubicacionDomicilio
+        ? fromPoint(cliente.ubicacionDomicilio).longitud
+        : null,
       tipoPago,
       saldoPendiente,
       diasMora: diasDeMora(fechaVencidaMasAntigua),

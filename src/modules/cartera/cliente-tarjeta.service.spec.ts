@@ -116,6 +116,9 @@ describe("ClienteTarjetaService", () => {
     expect(result.documentoReversoUrl).toBeNull();
     expect(result.tipoDocumento).toBe("ci");
     expect(result.numeroDocumento).toBe("1234567");
+    expect(result.latitud).toBe(-17.7);
+    expect(result.longitud).toBe(-63.1);
+    expect(result.latitudDomicilio).toBeNull();
     expect(result.tipoPago).toBe("semanal");
     expect(result.saldoPendiente).toBe(1000);
     expect(result.diasMora).toBeGreaterThan(0);
