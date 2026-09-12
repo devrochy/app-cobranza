@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Seguridad de auth — rate limiting de login + revocación de refresh tokens
 
 - **Origen:** Petición directa del usuario (2026-09-11) — pendiente #2 del backlog (`docs/ai/tasks/backlog.md`: "Rate limiting del endpoint /auth/login" y "Blacklist/revocación de refresh tokens").
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-11
 
 ## Objetivo

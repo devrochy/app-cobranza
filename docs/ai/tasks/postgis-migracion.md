@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Migración de coordenadas a PostGIS (geography(Point))
 
 - **Origen:** Roadmap Fase 0 ítem 4 (docs/plan-feature-roadmap.md:17) + ADR-0002 (docs/ai/decisions/0002-postgis-geografia.md)
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-17
 
 ## Objetivo

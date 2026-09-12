@@ -1,7 +1,12 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # chore-obsidian-frontmatter
 
 - **Rama:** `chore/obsidian-frontmatter` (desde `develop`)
-- **Estado:** en progreso
+- **Estado:** completada
 - **Origen:** nota de higiene pendiente — cambios sin commitear de la sesión de setup (frontmatter Obsidian en task-docs + config opencode).
 
 ## Alcance

@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: login-cobrador (login y rol cobrador en auth)
 
 - **Origen:** Plan del APK del cobrador (Paso 1) aprobado por el usuario 2026-08-31. La APK (Expo, modo en línea) necesita autenticarse como cobrador con JWT.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-31
 
 ## Objetivo

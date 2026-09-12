@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Conversaciones Admin↔Socio: historial unificado, chat por simulador y enlace wa.me (HU-63)
 
 - **Origen:** Roadmap Fase 5 ítem 37 (docs/plan-feature-roadmap.md:69) — HU-63 (docs/APP_REQUIREMENTS.md:126), espejo de HU-53 (historial-chat-cliente.md:3). Entidades `conversaciones_socio`/`mensajes_socio` PRD 4.2:349-353; historial unificado PRD 4.3:368.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-08-26
 
 ## Objetivo

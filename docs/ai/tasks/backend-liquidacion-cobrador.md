@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # backend-liquidacion-cobrador
 
 - **Rama:** `feature/backend-liquidacion-cobrador` (desde `develop`)
-- **Estado:** en progreso
+- **Estado:** completada
 - **Dependencias:** `backend-pago-liquidado`
 - **Alcance (TDD):** exponer la liquidación del día a la APK (cobrador),
   exportar el resumen en PDF y exponer `visitaRegistrada` en la lista del día.
@@ -41,4 +41,7 @@ liquidación del día y (3) descargar el resumen en PDF.
 - Commit convencional + PR a `develop` (CI verde).
 
 ## Resultado real (llenar al completar)
-- (pendiente)
+- Comandos ejecutados para verificar: `bash scripts/check.sh` verde.
+- Archivos modificados: `src/modules/rutas/liquidaciones.service.ts` (+ `.spec.ts`), `src/modules/cobrador/cobrador.service.ts` (+ `.spec.ts`), `src/modules/cobrador/cobrador.controller.ts`, `src/modules/rutas/lista-clientes-dia.service.ts` (+ `.spec.ts`).
+- Mergeado a `develop` vía PR #94.
+- Pendientes/seguimiento: ninguno.

@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # backend-pago-liquidado
 
 - **Rama:** `feature/backend-pago-liquidado` (desde `develop`)
-- **Estado:** en progreso
+- **Estado:** completada
 - **Dependencias:** ninguna (base del bloque de liquidación)
 - **Alcance (TDD):** marcar los pagos/abonos como liquidados al generar la liquidación del día y exponer el detalle.
 

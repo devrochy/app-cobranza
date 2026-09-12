@@ -1,7 +1,12 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # observabilidad-structured-logs
 
 - **Rama:** `feature/observabilidad-structured-logs` (desde `develop`)
-- **Estado:** en progreso
+- **Estado:** completada
 - **Alcance (TDD):** logging estructurado del interceptor HTTP para observabilidad SRE.
 
 ## Objetivo

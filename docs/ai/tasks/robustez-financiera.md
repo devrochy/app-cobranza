@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Robustez financiera — locks/transacciones en pagos, abonos, inyecciones y caja
 
 - **Origen:** Petición directa del usuario (2026-09-11) — pendiente #4 del backlog (`docs/ai/tasks/backlog.md`: "Concurrencia en pagos/abonos y saldo de caja sin lock", "Wiring de inyección+caja sin transacción", "Concurrencia sin lock en inyecciones y caja").
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-11
 
 ## Objetivo

@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Backend — endpoints cobrador para rediseño APK (A1-A5)
 
 - **Origen:** Rediseño APK aprobado 2026-09-03 (detalle de cliente + sesión dual + rutas).
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-03
 
 ## Objetivo

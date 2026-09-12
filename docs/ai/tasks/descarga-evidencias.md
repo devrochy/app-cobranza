@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Descarga autenticada de evidencias (gastos y clientes)
 
 - **Origen:** Petición directa del usuario (2026-09-11) — pendiente #1 del backlog (hueco cross-repo: las evidencias solo se sirven por `/uploads/*` estático sin auth).
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-11
 
 ## Objetivo

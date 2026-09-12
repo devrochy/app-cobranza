@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: listado-gastos-inyecciones (GET de listado para el panel)
 
 - **Origen:** Ítem de backlog del panel admin (`docs/ai/tasks/backlog.md` de `app-cobranza-admin`): acciones sin UI (`aprobarGastoRutaAction`, `eliminarGastoRutaAction`, `eliminarInyeccionRutaAction`) bloqueadas por falta de `GET /rutas/:id/gastos` e `inyecciones`.
-- **Estado:** en progreso (pendiente commit + PR)
+- **Estado:** completada (pendiente commit + PR)
 - **Fecha inicio:** 2026-08-28
 
 ## Objetivo

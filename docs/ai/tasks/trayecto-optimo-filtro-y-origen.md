@@ -1,3 +1,8 @@
+---
+estado: completada
+tags: [tarea]
+---
+
 # Tarea: Trayecto óptimo del día — filtro de fecha + origen desde ubicación del cobrador
 
 - **Origen:** Petición directa del usuario (bug reportado en Manizales: el trayecto del día incluyó al cliente 1238 sin cobro hoy y la ruta generada no era óptima)
