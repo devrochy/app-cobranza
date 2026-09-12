@@ -39,7 +39,7 @@ describe("ClienteService", () => {
   const mockClienteRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), createQueryBuilder: jest.fn() };
   const mockConfigRepo = { findOne: jest.fn() };
   const mockEvidenciaRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), find: jest.fn() };
-  const mockCambioRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockCambioRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn(async () => ({ affected: 1 })) };
   const mockPermisosSocio = { tienePermiso: jest.fn() };
   const mockDataSource = {
     transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
@@ -597,6 +597,28 @@ describe("ClienteService", () => {
       motivoRechazo: null,
       cliente: { id: 1 },
     } as unknown as CambioClientePendiente);
+
+    await expect(service.decidirPropuesta(1, 1, "aprobar", adminContext)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it("lanza 400 si otra decisión ganó la carrera (UPDATE condicional affected 0)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (mockPermisosSocio.tienePermiso as jest.Mock).mockResolvedValue(true);
+    (cambioRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      clienteId: 1,
+      camposPropuestos: { nombre: "X" },
+      estado: "pendiente",
+      solicitadoPorRol: "socio",
+      solicitadoPorId: 1,
+      revisadoPor: null,
+      revisadoEn: null,
+      motivoRechazo: null,
+      cliente: { id: 1 },
+    } as unknown as CambioClientePendiente);
+    (cambioRepo.update as jest.Mock).mockResolvedValueOnce({ affected: 0 });
 
     await expect(service.decidirPropuesta(1, 1, "aprobar", adminContext)).rejects.toThrow(
       BadRequestException,
