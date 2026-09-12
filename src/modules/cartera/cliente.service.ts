@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { eliminarArchivosSubidos } from "../../common/archivos";
 import { urlArchivoServible } from "../../common/url-archivo";
 import { RolUsuario } from "../auth/auth.service";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
@@ -130,68 +131,74 @@ export class ClienteService {
     evidencias: ClienteEvidenciaInput[] = [],
     requester: RequesterCarteraContext,
   ): Promise<ClientePublic> {
-    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
-    if (!ruta) {
-      throw new NotFoundException("La ruta no existe");
-    }
-    assertOwned(ruta, requester);
+    try {
+      const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+      if (!ruta) {
+        throw new NotFoundException("La ruta no existe");
+      }
+      assertOwned(ruta, requester);
 
-    const config =
-      (await this.configRepo.findOne({ where: { ruta: { id: rutaId } } })) ??
-      (RutaConfigDefaults as RutaConfig);
+      const config =
+        (await this.configRepo.findOne({ where: { ruta: { id: rutaId } } })) ??
+        (RutaConfigDefaults as RutaConfig);
 
-    const tiposPresentes = new Set(evidencias.map((e) => e.tipo));
-    if (config.reconocimientoFacialActivo && !tiposPresentes.has("foto_facial")) {
-      throw new BadRequestException("La foto facial es obligatoria");
-    }
-    if (config.registroDocumentoCliente && !tiposPresentes.has("documento_frente")) {
-      throw new BadRequestException("La foto de documento es obligatoria");
-    }
-
-    this.validarDocumento(input.tipoDocumento, input.numeroDocumento);
-
-    const cliente = this.repo.create({
-      ruta: { id: rutaId } as Ruta,
-      rutaId,
-      nombre: input.nombre,
-      apellido: input.apellido,
-      negocio: input.negocio ?? null,
-      telefonoWhatsapp: input.telefonoWhatsapp,
-      ubicacion: toPoint(input.latitud, input.longitud),
-      ubicacionDomicilio:
-        input.latitudDomicilio !== undefined && input.longitudDomicilio !== undefined
-          ? toPoint(input.latitudDomicilio, input.longitudDomicilio)
-          : null,
-      topeMaximoDeuda: input.topeMaximoDeuda ?? null,
-      tipoDocumento: input.tipoDocumento,
-      numeroDocumento: normalizarNumeroDocumento(input.numeroDocumento),
-      estatus: "activo",
-      colorRiesgo: "blanco",
-    });
-    const saved = await this.dataSource.transaction(async (manager) => {
-      const clienteRepo = manager.getRepository(Cliente);
-      const evidenciaRepo = manager.getRepository(ClienteEvidencia);
-      const clienteGuardado = await clienteRepo.save(cliente);
-
-      for (const evidencia of evidencias) {
-        const nueva = evidenciaRepo.create({
-          cliente: { id: clienteGuardado.id } as ClienteEvidencia["cliente"],
-          clienteId: clienteGuardado.id,
-          tipo: evidencia.tipo,
-          rutaArchivo: evidencia.archivo.path,
-          nombreOriginal: evidencia.archivo.originalname,
-          mimetype: evidencia.archivo.mimetype,
-          tamaño: evidencia.archivo.size,
-          creadoPorRol: requester.rol,
-          creadoPorId: requester.sub,
-        });
-        await evidenciaRepo.save(nueva);
+      const tiposPresentes = new Set(evidencias.map((e) => e.tipo));
+      if (config.reconocimientoFacialActivo && !tiposPresentes.has("foto_facial")) {
+        throw new BadRequestException("La foto facial es obligatoria");
+      }
+      if (config.registroDocumentoCliente && !tiposPresentes.has("documento_frente")) {
+        throw new BadRequestException("La foto de documento es obligatoria");
       }
 
-      return clienteGuardado;
-    });
+      this.validarDocumento(input.tipoDocumento, input.numeroDocumento);
 
-    return this.toPublic(saved, rutaId);
+      const cliente = this.repo.create({
+        ruta: { id: rutaId } as Ruta,
+        rutaId,
+        nombre: input.nombre,
+        apellido: input.apellido,
+        negocio: input.negocio ?? null,
+        telefonoWhatsapp: input.telefonoWhatsapp,
+        ubicacion: toPoint(input.latitud, input.longitud),
+        ubicacionDomicilio:
+          input.latitudDomicilio !== undefined && input.longitudDomicilio !== undefined
+            ? toPoint(input.latitudDomicilio, input.longitudDomicilio)
+            : null,
+        topeMaximoDeuda: input.topeMaximoDeuda ?? null,
+        tipoDocumento: input.tipoDocumento,
+        numeroDocumento: normalizarNumeroDocumento(input.numeroDocumento),
+        estatus: "activo",
+        colorRiesgo: "blanco",
+      });
+      const saved = await this.dataSource.transaction(async (manager) => {
+        const clienteRepo = manager.getRepository(Cliente);
+        const evidenciaRepo = manager.getRepository(ClienteEvidencia);
+        const clienteGuardado = await clienteRepo.save(cliente);
+
+        for (const evidencia of evidencias) {
+          const nueva = evidenciaRepo.create({
+            cliente: { id: clienteGuardado.id } as ClienteEvidencia["cliente"],
+            clienteId: clienteGuardado.id,
+            tipo: evidencia.tipo,
+            rutaArchivo: evidencia.archivo.path,
+            nombreOriginal: evidencia.archivo.originalname,
+            mimetype: evidencia.archivo.mimetype,
+            tamaño: evidencia.archivo.size,
+            creadoPorRol: requester.rol,
+            creadoPorId: requester.sub,
+          });
+          await evidenciaRepo.save(nueva);
+        }
+
+        return clienteGuardado;
+      });
+
+      return this.toPublic(saved, rutaId);
+    } catch (err) {
+      // Limpia las fotos ya escritas en disco si la creación falla.
+      await eliminarArchivosSubidos(evidencias.map((e) => e.archivo.path));
+      throw err;
+    }
   }
 
   async agregarEvidencias(
@@ -200,52 +207,58 @@ export class ClienteService {
     evidencias: ClienteEvidenciaInput[],
     requester: RequesterCarteraContext,
   ): Promise<{ clienteId: number }> {
-    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
-    if (!ruta) {
-      throw new NotFoundException("La ruta no existe");
-    }
-    assertOwned(ruta, requester);
-
-    const cliente = await this.repo.findOne({
-      where: { id: clienteId, ruta: { id: rutaId } },
-    });
-    if (!cliente) {
-      throw new NotFoundException("El cliente no existe");
-    }
-
-    // Nota: no se exige aquí la config (foto/documento obligatorios). Esa
-    // validación aplica al CREAR un cliente; al agregar/actualizar evidencias
-    // de un cliente ya existente se permite subir de a una (solo foto, solo
-    // frente, solo reverso), aunque el cliente aún no tenga la otra.
-
-    for (const evidencia of evidencias) {
-      let existente = await this.evidenciaRepo.findOne({
-        where: { cliente: { id: clienteId }, tipo: evidencia.tipo },
-      });
-      if (!existente) {
-        existente = this.evidenciaRepo.create({
-          cliente: { id: clienteId } as ClienteEvidencia["cliente"],
-          clienteId,
-          tipo: evidencia.tipo,
-          rutaArchivo: evidencia.archivo.path,
-          nombreOriginal: evidencia.archivo.originalname,
-          mimetype: evidencia.archivo.mimetype,
-          tamaño: evidencia.archivo.size,
-          creadoPorRol: requester.rol,
-          creadoPorId: requester.sub,
-        });
-      } else {
-        existente.rutaArchivo = evidencia.archivo.path;
-        existente.nombreOriginal = evidencia.archivo.originalname;
-        existente.mimetype = evidencia.archivo.mimetype;
-        existente.tamaño = evidencia.archivo.size;
-        existente.creadoPorRol = requester.rol;
-        existente.creadoPorId = requester.sub;
+    try {
+      const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
+      if (!ruta) {
+        throw new NotFoundException("La ruta no existe");
       }
-      await this.evidenciaRepo.save(existente);
-    }
+      assertOwned(ruta, requester);
 
-    return { clienteId };
+      const cliente = await this.repo.findOne({
+        where: { id: clienteId, ruta: { id: rutaId } },
+      });
+      if (!cliente) {
+        throw new NotFoundException("El cliente no existe");
+      }
+
+      // Nota: no se exige aquí la config (foto/documento obligatorios). Esa
+      // validación aplica al CREAR un cliente; al agregar/actualizar evidencias
+      // de un cliente ya existente se permite subir de a una (solo foto, solo
+      // frente, solo reverso), aunque el cliente aún no tenga la otra.
+
+      for (const evidencia of evidencias) {
+        let existente = await this.evidenciaRepo.findOne({
+          where: { cliente: { id: clienteId }, tipo: evidencia.tipo },
+        });
+        if (!existente) {
+          existente = this.evidenciaRepo.create({
+            cliente: { id: clienteId } as ClienteEvidencia["cliente"],
+            clienteId,
+            tipo: evidencia.tipo,
+            rutaArchivo: evidencia.archivo.path,
+            nombreOriginal: evidencia.archivo.originalname,
+            mimetype: evidencia.archivo.mimetype,
+            tamaño: evidencia.archivo.size,
+            creadoPorRol: requester.rol,
+            creadoPorId: requester.sub,
+          });
+        } else {
+          existente.rutaArchivo = evidencia.archivo.path;
+          existente.nombreOriginal = evidencia.archivo.originalname;
+          existente.mimetype = evidencia.archivo.mimetype;
+          existente.tamaño = evidencia.archivo.size;
+          existente.creadoPorRol = requester.rol;
+          existente.creadoPorId = requester.sub;
+        }
+        await this.evidenciaRepo.save(existente);
+      }
+
+      return { clienteId };
+    } catch (err) {
+      // Limpia las fotos ya escritas en disco si la actualización falla.
+      await eliminarArchivosSubidos(evidencias.map((e) => e.archivo.path));
+      throw err;
+    }
   }
 
   async actualizar(

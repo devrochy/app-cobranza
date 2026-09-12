@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
+import { eliminarArchivosSubidos } from "../../common/archivos";
 import { urlArchivoServible } from "../../common/url-archivo";
 import type { EvidenciaArchivo } from "../../common/descarga-archivo";
 import { RolUsuario } from "../auth/auth.service";
@@ -80,38 +81,44 @@ export class GastosService {
     }
     assertOwned(ruta, requester);
 
-    const gasto = await this.dataSource.transaction(async (manager) => {
-      const gastoRepo = manager.getRepository(Gasto);
-      const evidenciaRepo = manager.getRepository(GastoEvidencia);
+    const gasto = await this.dataSource
+      .transaction(async (manager) => {
+        const gastoRepo = manager.getRepository(Gasto);
+        const evidenciaRepo = manager.getRepository(GastoEvidencia);
 
-      const nuevo = gastoRepo.create({
-        ruta: { id: rutaId } as Gasto["ruta"],
-        rutaId,
-        descripcion: input.descripcion,
-        valor: input.valor,
-        creadoPor: requester.sub,
-        aprobado: false,
-        aprobadoPor: null,
-        estado: "activo",
-      });
-      const saved = await gastoRepo.save(nuevo);
-
-      for (const archivo of archivos) {
-        const evidencia = evidenciaRepo.create({
-          gasto: { id: saved.id } as GastoEvidencia["gasto"],
-          gastoId: saved.id,
-          rutaArchivo: archivo.path,
-          nombreOriginal: archivo.originalname,
-          mimetype: archivo.mimetype,
-          tamaño: archivo.size,
-          creadoPorRol: requester.rol,
-          creadoPorId: requester.sub,
+        const nuevo = gastoRepo.create({
+          ruta: { id: rutaId } as Gasto["ruta"],
+          rutaId,
+          descripcion: input.descripcion,
+          valor: input.valor,
+          creadoPor: requester.sub,
+          aprobado: false,
+          aprobadoPor: null,
+          estado: "activo",
         });
-        await evidenciaRepo.save(evidencia);
-      }
+        const saved = await gastoRepo.save(nuevo);
 
-      return saved;
-    });
+        for (const archivo of archivos) {
+          const evidencia = evidenciaRepo.create({
+            gasto: { id: saved.id } as GastoEvidencia["gasto"],
+            gastoId: saved.id,
+            rutaArchivo: archivo.path,
+            nombreOriginal: archivo.originalname,
+            mimetype: archivo.mimetype,
+            tamaño: archivo.size,
+            creadoPorRol: requester.rol,
+            creadoPorId: requester.sub,
+          });
+          await evidenciaRepo.save(evidencia);
+        }
+
+        return saved;
+      })
+      .catch(async (err) => {
+        // Limpia las evidencias ya escritas en disco si la transacción falla.
+        await eliminarArchivosSubidos(archivos.map((a) => a.path));
+        throw err;
+      });
 
     return this.toPublic(gasto);
   }

@@ -9,6 +9,11 @@ import { ClienteEvidencia } from "./cliente-evidencia.entity";
 import { CambioClientePendiente } from "./cambio-cliente-pendiente.entity";
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { CreateClienteInput, ClienteService } from "./cliente.service";
+import { eliminarArchivosSubidos } from "../../common/archivos";
+
+jest.mock("../../common/archivos", () => ({
+  eliminarArchivosSubidos: jest.fn(),
+}));
 
 describe("ClienteService", () => {
   let service: ClienteService;
@@ -244,6 +249,26 @@ describe("ClienteService", () => {
     await expect(service.crear(1, baseInput, [], adminContext)).rejects.toThrow(
       "La foto facial es obligatoria",
     );
+  });
+
+  it("limpia las fotos en disco si la creación falla", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: false,
+      registroDocumentoCliente: false,
+    } as RutaConfig);
+    mockDataSource.transaction.mockRejectedValueOnce(new Error("boom"));
+
+    await expect(
+      service.crear(
+        1,
+        baseInput,
+        [{ tipo: "foto_facial", archivo: archivoFixture({ path: "/tmp/f.jpg" }) }],
+        adminContext,
+      ),
+    ).rejects.toThrow("boom");
+
+    expect(eliminarArchivosSubidos).toHaveBeenCalledWith(["/tmp/f.jpg"]);
   });
 
   it("exige foto de documento si registroDocumentoCliente está activo", async () => {
