@@ -67,7 +67,12 @@ export class CajaService {
   ): Promise<CajaPublic> {
     const cajaRepo = manager ? manager.getRepository(Caja) : this.cajaRepo;
     const logRepo = manager ? manager.getRepository(CajaAjusteLog) : this.logRepo;
-    const caja = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    // Lock pesimista: serializa movimientos concurrentes sobre la misma caja
+    // (read-modify-write del saldo) para evitar lost updates.
+    const caja = await cajaRepo.findOne({
+      where: { ruta: { id: rutaId } },
+      lock: { mode: "pessimistic_write" },
+    });
     if (!caja) {
       throw new NotFoundException("La caja de la ruta no existe");
     }

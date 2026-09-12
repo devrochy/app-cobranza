@@ -1,7 +1,7 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { Ruta } from "./ruta.entity";
 import { Inyeccion } from "./inyeccion.entity";
 import { CreateInyeccionInput, InyeccionesService } from "./inyecciones.service";
@@ -21,13 +21,20 @@ describe("InyeccionesService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockInyRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const mockInyRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn() };
   const mockCajaService = {
     aplicarMovimiento: jest.fn(async () => ({
       rutaId: 1,
       saldoInicial: 1000,
       saldoActual: 2500,
     })),
+  };
+  const mockDataSource = {
+    transaction: jest.fn(async (fn: (m: { getRepository: (e: unknown) => unknown }) => Promise<unknown>) =>
+      fn({
+        getRepository: (entity: unknown) => (entity === Inyeccion ? mockInyRepo : mockInyRepo),
+      }),
+    ),
   };
 
   function rutaFixture(overrides: Partial<Ruta> = {}): Ruta {
@@ -48,12 +55,14 @@ describe("InyeccionesService", () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockInyRepo.update.mockResolvedValue({ affected: 1 });
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InyeccionesService,
         { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
         { provide: getRepositoryToken(Inyeccion), useValue: mockInyRepo },
         { provide: CajaService, useValue: mockCajaService },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -135,6 +144,7 @@ describe("InyeccionesService", () => {
       "inyeccion",
       { rol: "admin", sub: 0 },
       "Aporte semanal",
+      expect.anything(),
     );
   });
 
@@ -151,18 +161,17 @@ describe("InyeccionesService", () => {
       } as Inyeccion;
     }
 
-    it("cambia el estado a eliminada conservando la fechaHora", async () => {
+    it("cambia el estado a eliminada con un UPDATE condicional", async () => {
       (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
       const actual = inyeccionActual();
       (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
-      (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
-        ...actual,
-        ...e,
-      }) as Inyeccion);
 
       const result = await service.eliminar(1, 10, adminContext);
 
-      expect(inyRepo.save).toHaveBeenCalled();
+      expect(inyRepo.update).toHaveBeenCalledWith(
+        { id: 10, ruta: { id: 1 }, estado: "activa" },
+        { estado: "eliminada" },
+      );
       expect(result.estado).toBe("eliminada");
       expect(result.fechaHora).toEqual(actual.fechaHora);
     });
@@ -171,24 +180,17 @@ describe("InyeccionesService", () => {
       (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
       const actual = inyeccionActual({ estado: "eliminada" });
       (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
-      (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
-        ...actual,
-        ...e,
-      }) as Inyeccion);
 
       const result = await service.eliminar(1, 10, adminContext);
 
       expect(result.estado).toBe("eliminada");
+      expect(inyRepo.update).not.toHaveBeenCalled();
     });
 
     it("al eliminar una inyección activa disminuye la caja (wiring HU-12)", async () => {
       (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
       const actual = inyeccionActual({ estado: "activa" });
       (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
-      (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
-        ...actual,
-        ...e,
-      }) as Inyeccion);
 
       await service.eliminar(1, 10, adminContext);
 
@@ -198,6 +200,7 @@ describe("InyeccionesService", () => {
         "inyeccion_eliminada",
         { rol: "admin", sub: 0 },
         "Aporte",
+        expect.anything(),
       );
     });
 

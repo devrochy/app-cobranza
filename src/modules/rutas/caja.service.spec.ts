@@ -123,6 +123,20 @@ describe("CajaService", () => {
         service.aplicarMovimiento(99, 100, TipoMovimientoCaja.INYECCION, actor, "x"),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it("bloquea la fila de caja con pessimistic_write para evitar lost updates", async () => {
+      const caja = cajaFixture({ saldoActual: 1000 });
+      (cajaRepo.findOne as jest.Mock).mockResolvedValue(caja);
+      (cajaRepo.save as jest.Mock).mockImplementation(async (c: Caja) => c);
+      (logRepo.create as jest.Mock).mockImplementation((e: Partial<CajaAjusteLog>) => e as CajaAjusteLog);
+
+      await service.aplicarMovimiento(1, 100, TipoMovimientoCaja.PAGO, actor, "x");
+
+      expect(cajaRepo.findOne).toHaveBeenCalledWith({
+        where: { ruta: { id: 1 } },
+        lock: { mode: "pessimistic_write" },
+      });
+    });
   });
 
   describe("consultar", () => {

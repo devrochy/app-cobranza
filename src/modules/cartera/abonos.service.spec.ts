@@ -42,6 +42,12 @@ describe("AbonosService", () => {
           if (entity === AuditoriaCartera) {
             return mockAuditoriaRepo;
           }
+          if (entity === Prestamo) {
+            return mockPrestamoRepo;
+          }
+          if (entity === Cuota) {
+            return mockCuotaRepo;
+          }
           return {
             create: jest.fn((e: unknown) => e),
             save: jest.fn(async (e: unknown) => e),
@@ -162,17 +168,50 @@ describe("AbonosService", () => {
     );
   });
 
-  it("registra el abono con visitaId y manager externo cuando se componen (no abre transacción propia)", async () => {
+  it("bloquea el préstamo (pessimistic_write) para serializar abonos concurrentes", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     (prestamoRepo.findOne as jest.Mock).mockResolvedValue({ id: 20, estatus: "vigente", cliente: { id: 5 } } as Prestamo);
     (cuotaRepo.find as jest.Mock).mockResolvedValue([{ valorEsperado: 100 }]);
-    (abonoRepo.find as jest.Mock).mockResolvedValue([{ valor: 40 }]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([]);
+
+    await service.registrarAbono(
+      1,
+      { prestamoId: 20, valor: 30, metodoPago: "efectivo" },
+      adminContext,
+    );
+
+    expect(prestamoRepo.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 20 },
+        lock: { mode: "pessimistic_write" },
+      }),
+    );
+  });
+
+  it("registra el abono con visitaId y manager externo cuando se componen (no abre transacción propia)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue({ id: 20, estatus: "vigente", cliente: { id: 5 } } as Prestamo);
 
     const managerExterno = {
-      getRepository: jest.fn(() => ({
-        create: jest.fn((e: unknown) => e),
-        save: jest.fn(async (e: unknown) => e),
-      })),
+      getRepository: jest.fn((entity: unknown) => {
+        if (entity === Prestamo) {
+          return { findOne: jest.fn(async () => ({ id: 20, estatus: "vigente" })) };
+        }
+        if (entity === Cuota) {
+          return { find: jest.fn(async () => [{ valorEsperado: 100 }]) };
+        }
+        if (entity === Abono) {
+          return {
+            find: jest.fn(async () => []),
+            create: jest.fn((e: unknown) => e),
+            save: jest.fn(async (e: unknown) => e),
+          };
+        }
+        return {
+          create: jest.fn((e: unknown) => e),
+          save: jest.fn(async (e: unknown) => e),
+        };
+      }),
     };
 
     const result = await service.registrarAbono(

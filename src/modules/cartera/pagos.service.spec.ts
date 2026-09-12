@@ -22,7 +22,7 @@ describe("PagosService", () => {
   const socioContext = { rol: "socio" as const, sub: 1 };
 
   const mockRutaRepo = { findOne: jest.fn() };
-  const mockCuotaRepo = { findOne: jest.fn(), save: jest.fn() };
+  const mockCuotaRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
   const mockClienteRepo = { findOne: jest.fn() };
   const mockPagoRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn(), delete: jest.fn() };
   const mockAuditoriaRepo = { create: jest.fn(), save: jest.fn() };
@@ -31,6 +31,8 @@ describe("PagosService", () => {
   const mockReautenticacion = { validar: jest.fn() };
   let repoAuditoriaTx: { create: jest.Mock; save: jest.Mock };
   let repoPagoTx: { create: jest.Mock; save: jest.Mock; delete: jest.Mock };
+  let repoCuotaTx: { update: jest.Mock };
+  let cuotaUpdateResult: { affected: number };
   const mockDataSource = {
     transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) => {
       repoPagoTx = {
@@ -39,10 +41,12 @@ describe("PagosService", () => {
         delete: jest.fn(),
       };
       repoAuditoriaTx = { create: jest.fn((e: unknown) => e), save: jest.fn(async (e: unknown) => e) };
+      repoCuotaTx = { update: jest.fn(async () => cuotaUpdateResult) };
       const m = {
         save: jest.fn(async (e: unknown) => e),
         getRepository: jest.fn((entity: unknown) => {
           if (entity === Pago) return repoPagoTx;
+          if (entity === Cuota) return repoCuotaTx;
           return repoAuditoriaTx;
         }),
       };
@@ -85,6 +89,7 @@ describe("PagosService", () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    cuotaUpdateResult = { affected: 1 };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PagosService,
@@ -149,11 +154,10 @@ describe("PagosService", () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it("marca la cuota pagada, persiste el pago y aplica la caja en la misma transacción", async () => {
+  it("marca la cuota pagada (UPDATE condicional), persiste el pago y aplica la caja en la misma transacción", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     const cuota = cuotaFixture();
     (cuotaRepo.findOne as jest.Mock).mockResolvedValue(cuota);
-    (cuotaRepo.save as jest.Mock).mockImplementation(async (c: Cuota) => c);
 
     const result = await service.registrarPagoDeCuota(
       1,
@@ -161,7 +165,10 @@ describe("PagosService", () => {
       adminContext,
     );
 
-    expect(cuota.estatus).toBe("pagada");
+    expect(repoCuotaTx.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 10 }),
+      { estatus: "pagada" },
+    );
     expect(result).toMatchObject({ cuotaId: 10, valor: 120, metodoPago: "efectivo" });
     expect(mockCajaService.aplicarMovimiento).toHaveBeenCalledWith(
       1,
@@ -174,11 +181,26 @@ describe("PagosService", () => {
     expect(mockNotificacionesService.enviarConfirmacionPago).toHaveBeenCalled();
   });
 
+  it("rechaza con 400 si la cuota fue pagada concurrentemente (affected=0)", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    const cuota = cuotaFixture();
+    (cuotaRepo.findOne as jest.Mock).mockResolvedValue(cuota);
+    cuotaUpdateResult = { affected: 0 };
+
+    await expect(
+      service.registrarPagoDeCuota(
+        1,
+        { cuotaId: 10, valor: 120, metodoPago: "efectivo" },
+        adminContext,
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
+  });
+
   it("no rompe el registro del pago si falla la confirmación", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     const cuota = cuotaFixture();
     (cuotaRepo.findOne as jest.Mock).mockResolvedValue(cuota);
-    (cuotaRepo.save as jest.Mock).mockImplementation(async (c: Cuota) => c);
     (mockNotificacionesService.enviarConfirmacionPago as jest.Mock).mockRejectedValue(new Error("gateway"));
 
     const result = await service.registrarPagoDeCuota(
@@ -187,7 +209,6 @@ describe("PagosService", () => {
       adminContext,
     );
 
-    expect(cuota.estatus).toBe("pagada");
     expect(result.cuotaId).toBe(10);
   });
 
@@ -200,6 +221,7 @@ describe("PagosService", () => {
       getRepository: jest.fn(() => ({
         create: jest.fn((e: unknown) => e),
         save: jest.fn(async (e: unknown) => e),
+        update: jest.fn(async () => ({ affected: 1 })),
       })),
     };
 
