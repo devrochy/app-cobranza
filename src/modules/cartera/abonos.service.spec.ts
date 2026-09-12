@@ -273,6 +273,23 @@ describe("AbonosService", () => {
     expect(result.id).toBe(10);
   });
 
+  it("no revierte la caja si el abono ya fue eliminado concurrentemente", async () => {
+    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+    (mockReautenticacion.validar as jest.Mock).mockResolvedValue(undefined);
+    (abonoRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 10,
+      prestamoId: 20,
+      clienteId: 5,
+      valor: 30,
+      metodoPago: "qr",
+    } as Abono);
+    (abonoRepo.delete as jest.Mock).mockResolvedValue({ affected: 0 });
+
+    await service.eliminarAbono(1, 10, { password: "ok", motivo: "m" }, adminContext);
+
+    expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
+  });
+
   it("lanza 400 al eliminar abono sin motivo", async () => {
     (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
     (abonoRepo.findOne as jest.Mock).mockResolvedValue({ id: 10 } as Abono);

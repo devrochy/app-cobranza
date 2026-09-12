@@ -204,6 +204,17 @@ describe("InyeccionesService", () => {
       );
     });
 
+    it("no revierte la caja si la inyección se eliminó concurrentemente (affected=0)", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      const actual = inyeccionActual({ estado: "activa" });
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+      (inyRepo.update as jest.Mock).mockResolvedValue({ affected: 0 });
+
+      await service.eliminar(1, 10, adminContext);
+
+      expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
+    });
+
     it("no revierte la caja si la inyección ya estaba eliminada", async () => {
       (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
       const actual = inyeccionActual({ estado: "eliminada" });

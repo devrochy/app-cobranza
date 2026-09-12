@@ -53,8 +53,6 @@ export class AbonosService {
     private readonly rutaRepo: Repository<Ruta>,
     @InjectRepository(Prestamo)
     private readonly prestamoRepo: Repository<Prestamo>,
-    @InjectRepository(Cuota)
-    private readonly cuotaRepo: Repository<Cuota>,
     @InjectRepository(Abono)
     private readonly abonoRepo: Repository<Abono>,
     @InjectRepository(AuditoriaCartera)
@@ -168,7 +166,10 @@ export class AbonosService {
       const abonoRepo = manager.getRepository(Abono);
       const auditoriaRepo = manager.getRepository(AuditoriaCartera);
 
-      await abonoRepo.delete({ id: abono.id });
+      const resultado = await abonoRepo.delete({ id: abono.id });
+      if (resultado.affected === 0) {
+        return; // otro request lo eliminó concurrentemente; no revertir caja
+      }
       await this.cajaService.aplicarMovimiento(
         rutaId,
         -abono.valor,

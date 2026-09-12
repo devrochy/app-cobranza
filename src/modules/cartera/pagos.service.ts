@@ -186,7 +186,10 @@ export class PagosService {
       const pagoRepo = manager.getRepository(Pago);
       const auditoriaRepo = manager.getRepository(AuditoriaCartera);
 
-      await pagoRepo.delete({ id: pago.id });
+      const resultado = await pagoRepo.delete({ id: pago.id });
+      if (resultado.affected === 0) {
+        return; // otro request lo eliminó concurrentemente; no revertir caja
+      }
       await this.cajaService.aplicarMovimiento(
         rutaId,
         -pago.valor,

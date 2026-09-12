@@ -33,12 +33,13 @@ describe("PagosService", () => {
   let repoPagoTx: { create: jest.Mock; save: jest.Mock; delete: jest.Mock };
   let repoCuotaTx: { update: jest.Mock };
   let cuotaUpdateResult: { affected: number };
+  let pagoDeleteResult: { affected: number };
   const mockDataSource = {
     transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) => {
       repoPagoTx = {
         create: jest.fn((e: unknown) => e),
         save: jest.fn(async (e: unknown) => e),
-        delete: jest.fn(),
+        delete: jest.fn(async () => pagoDeleteResult),
       };
       repoAuditoriaTx = { create: jest.fn((e: unknown) => e), save: jest.fn(async (e: unknown) => e) };
       repoCuotaTx = { update: jest.fn(async () => cuotaUpdateResult) };
@@ -90,6 +91,7 @@ describe("PagosService", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     cuotaUpdateResult = { affected: 1 };
+    pagoDeleteResult = { affected: 1 };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PagosService,
@@ -316,6 +318,22 @@ describe("PagosService", () => {
         expect.objectContaining({ entidad: "pago", entidadId: 30, operacion: "eliminar" }),
       );
       expect(repoAuditoriaTx.save).toHaveBeenCalled();
+    });
+
+    it("no revierte la caja si el pago ya fue eliminado concurrentemente", async () => {
+      (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaFixture());
+      (mockPagoRepo.findOne as jest.Mock).mockResolvedValue(pagoFixture());
+      pagoDeleteResult = { affected: 0 };
+
+      const result = await service.eliminarPago(
+        1,
+        30,
+        { password: "secreto", motivo: "registro erróneo" },
+        adminContext,
+      );
+
+      expect(result).toEqual({ id: 30 });
+      expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
     });
   });
 });
