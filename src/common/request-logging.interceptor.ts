@@ -6,6 +6,7 @@ import {
   NestInterceptor,
 } from "@nestjs/common";
 import { Observable, tap } from "rxjs";
+import { redactarSensibles } from "./redact";
 
 const MAX_CUERPO_ERROR = 500;
 
@@ -23,7 +24,7 @@ function extraerMensaje(cuerpo: unknown): string {
   }
   if (cuerpo && typeof cuerpo === "object") {
     try {
-      const json = JSON.stringify(cuerpo);
+      const json = JSON.stringify(redactarSensibles(cuerpo));
       if (json !== "{}") {
         return json.length > MAX_CUERPO_ERROR
           ? `${json.slice(0, MAX_CUERPO_ERROR)}…`
