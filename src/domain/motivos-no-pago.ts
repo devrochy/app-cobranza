@@ -13,7 +13,3 @@ export const MOTIVOS_NO_PAGO = [
 export type MotivoNoPago = (typeof MOTIVOS_NO_PAGO)[number];
 
 export const ES_COMPROMISO_PAGO: MotivoNoPago = "compromiso_de_pago";
-
-export function esMotivoNoPagoValido(valor: unknown): valor is MotivoNoPago {
-  return typeof valor === "string" && (MOTIVOS_NO_PAGO as readonly string[]).includes(valor);
-}

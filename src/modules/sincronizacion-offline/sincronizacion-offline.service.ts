@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { isUniqueViolation } from "../../common/db-errors";
 import { Device } from "./device.entity";
 import { SincronizacionOffline } from "./sincronizacion-offline.entity";
 
@@ -79,7 +80,7 @@ export class SincronizacionOfflineService {
         resultados.push({ eventoIdCliente: evento.eventoIdCliente, estado: "sincronizado" });
       } catch (err) {
         // Carrera contra la constraint única: otro lote ya lo registró.
-        if (this.isUniqueViolation(err)) {
+        if (isUniqueViolation(err)) {
           resultados.push({ eventoIdCliente: evento.eventoIdCliente, estado: "duplicado" });
         } else {
           resultados.push({
@@ -101,9 +102,5 @@ export class SincronizacionOfflineService {
       return "tipoEvento no está en el catálogo";
     }
     return null;
-  }
-
-  private isUniqueViolation(err: unknown): boolean {
-    return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
   }
 }

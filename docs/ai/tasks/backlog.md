@@ -38,19 +38,6 @@ Formato de cada entrada:
 - Descripción: la unicidad de `correo` (socios/cobradores) es case-sensitive por default en Postgres: `Correo@x.com` y `correo@x.com` pueden coexistir. Considerar normalizar a minúsculas al crear/editar (afecta create y update de ambos módulos).
 - Prioridad sugerida: media
 
-## Extraer helper compartido de unicidad/conflicto (23505) tras el 3er uso
-- Detectado en: docs/ai/tasks/registrar-cobrador.md
-- Fecha: 2026-08-11
-- Descripción: `isUniqueViolation` + `assertNoConflicts` + `toPublic` (y ahora `setEstatus`) están duplicados entre `socios.service.ts` y `cobradores.service.ts`. Si HU-08 (rutas) u otra HU vuelve a necesitar la misma validación/operación, extraer un servicio/helper común; si no, revisar este ítem cuando se toque socios/cobradores. También se podría mover `UpdateEstatusDto` a una ubicación común (`src/common/`) al hacerlo. **Actualización (2026-08-26): 4ª copia de `isUniqueViolation` en `sincronizacion-offline.service.ts` — refuerza la necesidad del helper compartido.**
-- Prioridad sugerida: media
-- Estado: pendiente (assertOwned/numericTransformer se extrajeron en `refactor-helpers` #21; `isUniqueViolation` sigue duplicado en 4 servicios).
-
-## RutasService.aplicarCascada queda como código muerto
-- Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
-- Fecha: 2026-08-17
-- Descripción: al mover la cascada de rutas inline dentro de la transacción en `CobradoresService.setEstatus`, `RutasService.aplicarCascada` (y su spec) quedan sin consumidores. Removerlos o limpiarlos.
-- Prioridad sugerida: baja
-
 ## Reactivar un socio reactiva cobradores bloqueados manualmente
 - Detectado en: docs/ai/tasks/cascada-bloqueo.md (revisión code-reviewer PR #20)
 - Fecha: 2026-08-17
@@ -88,23 +75,11 @@ Formato de cada entrada:
 - Prioridad sugerida: baja
 - Estado: pendiente.
 
-## ACCESO_DENEGADO duplicado con permiso.guard
-- Detectado en: docs/ai/tasks/refactor-helpers.md (revisión code-reviewer PR #21)
-- Fecha: 2026-08-17
-- Descripción: al centralizar `ACCESO_DENEGADO` en `src/common/ownership.ts` queda una constante equivalente preexistente en `permiso.guard.ts`. Unificar en un futuro ítem de limpieza.
-- Prioridad sugerida: baja
-
 ## Abono que iguala la deuda deja el préstamo vigente con cuotas pendientes
 - Detectado en: docs/ai/tasks/registrar-pago-abono.md (revisión code-reviewer)
 - Fecha: 2026-08-17
 - Descripción: un abono que iguala exactamente la deuda deja el préstamo `vigente` con todas sus cuotas `pendiente` (deudaActual = 0, siguiente abono → 400) y no hay mecanismo que lo pase a `liquidado`. Consecuencia de la decisión "abono acumulado sin tocar estatus de cuotas". Evaluar transición a `liquidado` y el wiring de color de riesgo (HU-13) en HU-46 (ítem 8) o liquidación HU-20.
 - Prioridad sugerida: media
-
-## `esMetodoPagoValido` sin uso en producción
-- Detectado en: docs/ai/tasks/registrar-pago-abono.md (revisión code-reviewer)
-- Fecha: 2026-08-17
-- Descripción: `esMetodoPagoValido` (metodo-pago.ts) está testeado pero sin uso en producción (los DTOs usan `IsIn`). Útil cuando exista validación en service; si no se usa, candidato a limpieza.
-- Prioridad sugerida: baja
 
 ## `promesas_pago.conversacion_id` no modelado
 - Detectado en: docs/ai/tasks/registrar-visita.md (revisión code-reviewer)
@@ -123,12 +98,6 @@ Formato de cada entrada:
 - Fecha: 2026-08-17
 - Descripción: una promesa con `fechaPrometida` en el pasado se registra como "pendiente" sin control. Decisión de negocio: rechazarla o permitir promesas ya vencidas.
 - Prioridad sugerida: media
-
-## `esMotivoNoPagoValido` sin uso en producción
-- Detectado en: docs/ai/tasks/registrar-visita.md (revisión code-reviewer)
-- Fecha: 2026-08-17
-- Descripción: `esMotivoNoPagoValido` solo se usa en su spec; la validación real pasa por `@IsIn` del DTO. Útil para Fase 4 (IA); si no se usa, candidato a limpieza.
-- Prioridad sugerida: baja
 
 ## Archivos huérfanos de evidencias ante fallo posterior al upload
 - Detectado en: docs/ai/tasks/registrar-gasto.md (revisión code-reviewer)
@@ -268,3 +237,7 @@ Formato de cada entrada:
 - **`whatsapp-simulado` sin `PermisoGuard`** → el controller es admin-only (`@UseGuards(JwtAuthGuard, PermisoGuard)`).
 - **ADR-0002 con HUs de la PR #19** → PR #19 (PRD consolidado v1.1) mergeada; referencias válidas.
 - **Pago conserva valor histórico** → resuelto en la implementación (`CuotaService.editarCuota` actualiza `pago.valor` con el ajuste de caja).
+- **Helper `isUniqueViolation`** → `p4-deuda-tecnica`: extraído a `src/common/db-errors.ts` (4 copias eliminadas).
+- **`RutasService.aplicarCascada` código muerto** → `p4-deuda-tecnica`: eliminado (más su spec).
+- **`esMetodoPagoValido` / `esMotivoNoPagoValido` sin uso** → `p4-deuda-tecnica`: eliminados (más sus tests).
+- **`ACCESO_DENEGADO` duplicado** → `p4-deuda-tecnica`: única fuente en `src/common/ownership.ts`; guards y controller lo importan de allí.

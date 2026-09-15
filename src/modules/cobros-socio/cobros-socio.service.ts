@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { LessThan, Repository } from "typeorm";
 import { formatDate } from "../../common/date";
+import { isUniqueViolation } from "../../common/db-errors";
 import { MetodoPago } from "../../domain/metodo-pago";
 import { Ruta } from "../rutas/ruta.entity";
 import { Socio } from "../socios/socio.entity";
@@ -189,7 +190,7 @@ export class CobrosSocioService {
     } catch (err) {
       // Idempotencia ante concurrencia: la constraint única (socio_id, periodo)
       // gana la carrera; se trata como "ya existe".
-      if (this.isUniqueViolation(err)) {
+      if (isUniqueViolation(err)) {
         return null;
       }
       throw err;
@@ -205,10 +206,6 @@ export class CobrosSocioService {
     await this.linkRepo.save(link);
 
     return saved;
-  }
-
-  private isUniqueViolation(err: unknown): boolean {
-    return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
   }
 
   private toPublic(cobro: CobroSocio): CobroSocioPublic {

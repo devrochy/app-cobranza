@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
+import { isUniqueViolation } from "../../common/db-errors";
 import { PasswordService } from "../security/password.service";
 import { Ruta, RutaEstatus } from "../rutas/ruta.entity";
 import { Socio } from "../socios/socio.entity";
@@ -90,16 +91,12 @@ export class CobradoresService {
     try {
       saved = await this.repo.save(cobrador);
     } catch (err) {
-      if (this.isUniqueViolation(err)) {
+      if (isUniqueViolation(err)) {
         throw new ConflictException("Algún campo único ya está registrado");
       }
       throw err;
     }
     return this.toPublic(saved, input.socioId);
-  }
-
-  private isUniqueViolation(err: unknown): boolean {
-    return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
   }
 
   async listar(socioId?: number): Promise<CobradorPublic[]> {
@@ -149,7 +146,7 @@ export class CobradoresService {
     try {
       saved = await this.repo.save(cobrador);
     } catch (err) {
-      if (this.isUniqueViolation(err)) {
+      if (isUniqueViolation(err)) {
         throw new ConflictException("Algún campo único ya está registrado");
       }
       throw err;

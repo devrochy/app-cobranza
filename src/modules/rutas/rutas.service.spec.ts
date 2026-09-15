@@ -173,26 +173,6 @@ describe("RutasService", () => {
     });
   });
 
-  describe("aplicarCascada", () => {
-    it("bloquea las rutas del cobrador cuando se bloquea", async () => {
-      await service.aplicarCascada(5, true);
-
-      expect(mockRutaRepo.update).toHaveBeenCalledWith(
-        { cobrador: { id: 5 } },
-        { estatus: "bloqueado" },
-      );
-    });
-
-    it("reactiva las rutas del cobrador cuando se reactiva", async () => {
-      await service.aplicarCascada(5, false);
-
-      expect(mockRutaRepo.update).toHaveBeenCalledWith(
-        { cobrador: { id: 5 } },
-        { estatus: "activo" },
-      );
-    });
-  });
-
   describe("setEstatus", () => {
     function rutaActual(overrides: Partial<Ruta> = {}): Ruta {
       return {

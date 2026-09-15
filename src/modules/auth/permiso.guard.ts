@@ -10,8 +10,7 @@ import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { SocioPermisoNombre } from "../socios/socio-permiso.entity";
 import { AuthTokenPayload } from "./auth.service";
 import { PERMISO_REQUERIDO_KEY } from "./permiso-requerido.decorator";
-
-export const ACCESO_DENEGADO = "Acceso denegado";
+import { ACCESO_DENEGADO } from "../../common/ownership";
 
 /**
  * Autorización por rol/permiso. Debe ejecutarse después de JwtAuthGuard
