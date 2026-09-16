@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: P1 — Cierre MVP/QA (backend)
 
 - **Origen:** Petición directa del usuario (2026-09-12) — workstream **P1 Cierre MVP/QA**.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-12
 
 ## Objetivo

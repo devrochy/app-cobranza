@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Limpieza de backlog stale (backend)
 
 - **Origen:** Petición directa del usuario (2026-09-12) — Parte A del plan de priorización: varios ítems del `backlog.md` ya estaban resueltos por tareas mergeadas (Fase 0 del roadmap y otros), lo que distorsiona la priorización.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-12
 
 ## Objetivo

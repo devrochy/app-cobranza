@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Limpieza de task docs (backend)
 
 - **Origen:** Petición directa del usuario (2026-09-11) — pendiente #6, transversal a panel/backend/APK. Normaliza el campo `estado` de `docs/ai/tasks/` al vocabulario canónico del skill `task-decomposition` (`pendiente | en progreso | completada | bloqueada`) y reconcilia cada doc con el estado real en `develop`.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-11
 
 ## Objetivo

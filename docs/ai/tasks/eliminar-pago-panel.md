@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Eliminar pago de cuota desde el panel (backend)
 
 - **Origen:** Petición directa del usuario (2026-09-12) — hoy solo la APK del cobrador puede borrar pagos (`DELETE /cobrador/...`); el panel (admin/socio) no. Decisión del usuario: permiso socio nuevo `eliminar_pago`.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-12
 
 ## Objetivo

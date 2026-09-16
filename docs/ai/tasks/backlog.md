@@ -75,12 +75,6 @@ Formato de cada entrada:
 - Prioridad sugerida: baja
 - Estado: pendiente.
 
-## Abono que iguala la deuda deja el préstamo vigente con cuotas pendientes
-- Detectado en: docs/ai/tasks/registrar-pago-abono.md (revisión code-reviewer)
-- Fecha: 2026-08-17
-- Descripción: un abono que iguala exactamente la deuda deja el préstamo `vigente` con todas sus cuotas `pendiente` (deudaActual = 0, siguiente abono → 400) y no hay mecanismo que lo pase a `liquidado`. Consecuencia de la decisión "abono acumulado sin tocar estatus de cuotas". Evaluar transición a `liquidado` y el wiring de color de riesgo (HU-13) en HU-46 (ítem 8) o liquidación HU-20.
-- Prioridad sugerida: media
-
 ## `promesas_pago.conversacion_id` no modelado
 - Detectado en: docs/ai/tasks/registrar-visita.md (revisión code-reviewer)
 - Fecha: 2026-08-17
@@ -99,18 +93,6 @@ Formato de cada entrada:
 - Descripción: una promesa con `fechaPrometida` en el pasado se registra como "pendiente" sin control. Decisión de negocio: rechazarla o permitir promesas ya vencidas.
 - Prioridad sugerida: media
 
-## Archivos huérfanos de evidencias ante fallo posterior al upload
-- Detectado en: docs/ai/tasks/registrar-gasto.md (revisión code-reviewer)
-- Fecha: 2026-08-17
-- Descripción: multer escribe los archivos antes de la validación de pipes y la transacción; si el DTO es inválido, la ruta no existe (404) o la transacción falla, los archivos quedan en `uploads/gastos` sin referencia ni limpieza. Evaluar `unlink` en catch o validación en el interceptor.
-- Prioridad sugerida: media
-
-## Semántica del tope de deuda (mezcla de interés)
-- Detectado en: docs/ai/tasks/ampliar-registro-cliente.md (revisión code-reviewer)
-- Fecha: 2026-08-18
-- Descripción: `saldoVigente` suma `valorEsperado` (con interés) de cuotas pendientes/atrasadas pero se compara contra `input.valor` (principal sin interés). ¿El tope de deuda/cupo debe compararse contra saldo total con interés + valor total con interés, o ser consistente? Decisión de negocio pendiente.
-- Prioridad sugerida: media
-
 ## Duplicación del patrón de upload (evidencias/fotos)
 - Detectado en: docs/ai/tasks/ampliar-registro-cliente.md (revisión code-reviewer)
 - Fecha: 2026-08-18
@@ -123,22 +105,12 @@ Formato de cada entrada:
 - Descripción: sin e2e para 403 socio sin configurar_ruta en clientes/préstamos, flag fecha false → 400, foto documento obligatoria → 400, mimetype inválido → 400. Cubiertos en unitarios; agregar e2e si se refuerza.
 - Prioridad sugerida: baja
 
-## Race condition TOCTOU en decidirPropuesta (HU-47)
-- Detectado en: docs/ai/tasks/actualizar-cliente-aprobacion.md (revisión code-reviewer)
-- Fecha: 2026-08-18
-- Descripción: `decidirPropuesta` valida `cambio.estado !== "pendiente"` fuera de la transacción y sin bloqueo; dos decisiones concurrentes sobre la misma propuesta podrían aprobar/rechazar dos veces. Mitigar con UPDATE condicional `WHERE estado='pendiente'` o versión.
-- Prioridad sugerida: media
 ## Visita queda como "pago" tras eliminar el abono (HU-48)
 - Detectado en: docs/ai/tasks/gestion-cuotas-abonos.md (revisión code-reviewer)
 - Fecha: 2026-08-18
 - Descripción: `AbonosService.eliminarAbono` elimina el abono físicamente (con auditoría y reversión de caja) pero no toca la `visita` asociada (via `abonos.visita_id`), que conserva `resultado: "pago"` y `valorPagado`. Un reporte de visitas mostraría un pago que ya no existe. Decidir si la visita debe reflejar la reversión o documentar que conserva el dato histórico.
 - Prioridad sugerida: baja
 
-## Liquidación: pagos huérfanos (cuota_id NULL) no se atribuyen a la ruta (HU-20)
-- Detectado en: docs/ai/tasks/liquidacion-ruta.md (implementación HU-20)
-- Fecha: 2026-08-19
-- Descripción: `sumaPagos` de la liquidación suma solo pagos con `cuota_id` (vía cuota→préstamo→ruta). Los pagos con `cuota_id` NULL (huérfanos tras HU-48 al eliminar una cuota pagada) no son atribuibles a la ruta y quedan fuera de `total_cobrado_periodo`/`total_cobrado_dia`. Evaluar cómo atribuirlos (p. ej. persistir `prestamo_id` en `pagos` al crear).
-- Prioridad sugerida: media
 ## ver_cartera en catálogo del cobrador vs. ver_reportes en resumen de ruta (HU-51)
 - Detectado en: docs/ai/tasks/detalle-ruta.md (implementación HU-51)
 - Fecha: 2026-08-19
@@ -155,18 +127,6 @@ Formato de cada entrada:
 - Descripción: `fechaLocal` se repite en `trayectorias.service.ts`, `ruta-optimizacion.service.ts`, `liquidaciones.service.ts`, etc. Extraer un helper común.
 - Prioridad sugerida: baja
 
-## registrarReal de trayectoria no transaccional (HU-49)
-- Detectado en: docs/ai/tasks/trayectorias-reporte.md (revisión code-reviewer HU-49)
-- Fecha: 2026-08-19
-- Descripción: `TrayectoriasService.registrarReal` persiste el log `real` y luego llama a `generarReporteDiario`; si este falla queda un registro huérfano sin reporte. Envolver en transacción.
-- Prioridad sugerida: media
-
-## Consolidación de trayectorias toma último log por tipo sin filtrar por día (HU-49)
-- Detectado en: docs/ai/tasks/trayectorias-reporte.md (revisión code-reviewer HU-49)
-- Fecha: 2026-08-19
-- Descripción: `generarReporteDiario` toma el último log de cada tipo por `fecha DESC` sin filtrar por la fecha del reporte; si la planificada es de otro día se cuela. Filtrar por `fecha = hoy`.
-- Prioridad sugerida: media
-
 ## ver_reportes en POST de trayectoria-real (HU-49)
 - Detectado en: docs/ai/tasks/trayectorias-reporte.md (revisión code-reviewer HU-49)
 - Fecha: 2026-08-19
@@ -179,35 +139,11 @@ Formato de cada entrada:
 - Descripción: la fila de `auditoria_cartera` (entidad, operacion, valoresAntes/Despues, actor, motivo) se construye a mano en tres servicios (cuota.service, abonos.service, promesas-pago.service). Extraer un helper compartido para evitar el tercer lugar duplicado.
 - Prioridad sugerida: baja
 
-## eliminarAbono no valida liquidado (backend)
-- Detectado en: code-review apk-modal-cuota-rediseno (2026-09-04)
-- Descripción: `AbonosService.eliminarAbono` no rechaza abonos con `liquidado=true`
-  (a diferencia de `PagosService.eliminarPago`, que lanza 400). La APK oculta el
-  botón si está liquidado, pero hay una ventana de race si se liquida entre la
-  carga y el borrado. Fix sugerido: en `eliminarAbono`, si `abono.liquidado` →
-  BadRequest.
-- Prioridad sugerida: media
-
 ## Test de fechas de cuotas dependiente de zona horaria (prestamo.service.spec)
 - Detectado en: docs/ai/tasks/socio-dashboard.md (check.sh previo a merge)
 - Fecha: 2026-09-06
 - Descripción: `prestamo.service.spec.ts:292` compara `fechaVencimiento.getTime() - fechaOtorgado.getTime()` con `7*86400000` exacto; falla en máquinas con zona horaria distinta a UTC (DST). Flaky/pre-existente, ajeno al cambio de dashboard. Normalizar las fechas a UTC o usar diferencia en días.
 - Prioridad sugerida: baja
-
-## Observabilidad avanzada: OpenTelemetry (traces) + métricas Prometheus + redacción de sensibles
-- Detectado en: docs/setup-opencode.md (Fase 3 — observabilidad, 2026-09-07)
-- Descripción: ampliar la observabilidad del backend más allá del structured
-  logging del interceptor (PR #101):
-  1. **OpenTelemetry**: traces de requests y de acceso a BD (OTEL SDK de NestJS).
-  2. **Métricas**: exportar métricas básicas (latencia por endpoint, tasa de
-     error, count) en formato Prometheus.
-  3. **Redacción de sensibles**: redactar datos de clientes (teléfonos, nombres,
-     montos) y evitar trazas de BD en el campo `error` del log (hoy se loguea el
-     body de error truncado a 500 chars).
-- Nota: diferido a propósito — se hará cuando se ajusten temas funcionales en el
-  panel (`app-cobranza-admin`) y la APK (`app-cobranza-apk`), para no mezclarlo
-  con trabajo funcional en curso.
-- Prioridad sugerida: media
 
 ## Traducir la regla de "cobro HOY" a SQL compartido y validar geometrías en el trayecto
 - Detectado en: docs/ai/tasks/trayecto-optimo-filtro-y-origen.md (review code-reviewer, 2026-09-08)
@@ -218,9 +154,12 @@ Formato de cada entrada:
   4. `fechaLocal` está duplicado en ruta-optimizacion.service.ts y lista-clientes-dia.service.ts; extraer a util compartido.
 - Prioridad sugerida: media (1,2,4), baja (3)
 
-## E2E `reglas-negociacion-ia` flaky por estado compartido
-- Detectado en: docs/ai/tasks/color-riesgo-recalculo.md (2026-09-12)
-- **Resuelto en `p1-cierre-qa` (2026-09-12):** el test de lectura ahora es autocontenido (hace su propio `PUT` antes del `GET`), por lo que no depende del orden ni de otra suite que borre el singleton. No se pudo reproducir el 404 tras el diagnóstico (5 corridas completas + 15 aisladas verdes); probablemente fue ambiental (se accedió a la misma BD con SQL manual durante esas corridas).
+## Vinculación autoservicio de dispositivo (HU-39/43) — PREREQUISITO DE PRODUCCIÓN
+- Detectado en: docs/ai/tasks/apk-autovinculacion-dispositivo.md (decisión de diseño Épica 8, 2026-09-11)
+- Fecha: 2026-09-15
+- Descripción: en el MVP el login de cobrador no exige device vinculado, lo que en producción permitiría entrar desde cualquier equipo con las credenciales. Falta el flujo autoservicio: la APK se auto-registra (`POST /cobrador/dispositivo` con Android ID + WhatsApp + publicKey X25519, queda `pendiente_revalidacion`) y el admin aprueba (`PATCH /devices/:id/aprobar`). Requiere además exponer `telefono` en login/perfil y alertar al admin.
+- Decisiones abiertas: ¿vinculación bloqueante hasta aprobar?, origen de la clave X25519 (backend vs APK), WhatsApp prellenado o manual, y gate del primer release a producción.
+- Prioridad sugerida: **alta (bloqueante de producción)**.
 
 ---
 
@@ -241,3 +180,13 @@ Formato de cada entrada:
 - **`RutasService.aplicarCascada` código muerto** → `p4-deuda-tecnica`: eliminado (más su spec).
 - **`esMetodoPagoValido` / `esMotivoNoPagoValido` sin uso** → `p4-deuda-tecnica`: eliminados (más sus tests).
 - **`ACCESO_DENEGADO` duplicado** → `p4-deuda-tecnica`: única fuente en `src/common/ownership.ts`; guards y controller lo importan de allí.
+- **Observabilidad avanzada** (OpenTelemetry + métricas Prometheus + redacción de sensibles) → `p4-observabilidad` (PR #132): `/metrics`, tracing env-gated y `redactarSensibles`.
+- **Race condition TOCTOU en `decidirPropuesta` (HU-47)** → `p0-concurrencia`: UPDATE condicional `WHERE estado='pendiente'`.
+- **`registrarReal` de trayectoria no transaccional** y **consolidación de trayectorias sin filtrar por día (HU-49)** → `p0-concurrencia`: transacción + `manager` + filtro por fecha.
+- **`eliminarAbono` no valida `liquidado`**, **abono que iguala la deuda deja el préstamo vigente** y **semántica del tope de deuda** → `p0-reglas-financieras`: rechazo, liquidación al saldar y cupo con el total con interés.
+- **Archivos huérfanos de evidencias ante fallo posterior al upload** → `p0-evidencias-huerfanas`: `eliminarArchivosSubidos` (gastos y clientes).
+- **Liquidación: pagos huérfanos (cuota_id NULL) (HU-20)** → `p0-reglas-financieras`: se prohíbe eliminar una cuota pagada y `eliminarPago` reabre la cuota.
+- **E2E `reglas-negociacion-ia` flaky por estado compartido** → `p1-cierre-qa`: test autocontenido (hace su propio `PUT`).
+- **Color de riesgo desactualizado tras pagos/eliminaciones/mora** → `color-riesgo-recalculo` (PR #127): `ColorRiesgoService` + wiring y limpieza de datos.
+- **Borrado de pago de cuota desde el panel** (permiso `eliminar_pago` + `pago` por cuota en estado de cuenta) → `eliminar-pago-panel` (PR #126).
+- **`linkPago` en el listado de cobros-socio** → `link-pago-socio` (PR #119).

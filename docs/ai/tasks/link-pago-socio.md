@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Exponer el link de pago del cobro socio en el listado
 
 - **Origen:** Petición directa del usuario (2026-09-11) — pendiente #5 del panel: la tabla de cobros del socio no puede mostrar el link de pago porque `GET /cobros-socio` (listado) no carga la relación `linkPago` (solo `obtener` lo hacía). PRD 6.4:422: "el socio lo abre desde la APK o el panel".
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-11
 
 ## Objetivo

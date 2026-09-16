@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: P0.2 — Reglas financieras (cuotas, abonos, topes)
 
 - **Origen:** Petición directa del usuario (2026-09-12) — workstream **P0 Robustez+seguridad**; ítems del backlog: "`eliminarAbono` no valida liquidado", "Abono que iguala la deuda deja el préstamo vigente", "Liquidación: pagos huérfanos" y "Semántica del tope de deuda".
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-12
 
 ## Objetivo

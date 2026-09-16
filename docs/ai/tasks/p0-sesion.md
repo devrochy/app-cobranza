@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: P0.3 — Seguridad de sesión (rotación y purga de refresh tokens)
 
 - **Origen:** Petición directa del usuario (2026-09-12) — workstream **P0 Robustez+seguridad**; ítems diferidos de `seguridad-auth`: rotación de refresh tokens, purga de la blacklist y migración/DDL de `refresh_token_revocados` para producción.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-12
 
 ## Objetivo
