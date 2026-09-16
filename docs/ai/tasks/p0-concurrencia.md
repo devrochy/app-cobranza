@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: P0.1 — Concurrencia transaccional (decidirPropuesta + trayectorias)
 
 - **Origen:** Petición directa del usuario (2026-09-12) — workstream **P0 Robustez+seguridad**; ítems del backlog: "Race condition TOCTOU en decidirPropuesta (HU-47)", "registrarReal de trayectoria no transaccional (HU-49)" y "Consolidación de trayectorias toma último log por tipo sin filtrar por día (HU-49)".
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-12
 
 ## Objetivo

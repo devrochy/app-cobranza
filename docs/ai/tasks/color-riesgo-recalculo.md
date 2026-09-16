@@ -1,12 +1,12 @@
 ---
-estado: en progreso
+estado: completada
 tags: [tarea]
 ---
 
 # Tarea: Recálculo del color de riesgo + limpieza de datos
 
 - **Origen:** Petición directa del usuario (2026-09-12) al corregir la cuota de Juanita: el `colorRiesgo` solo se calculaba al crear un préstamo (`prestamo.service.ts:219`), por lo que quedaba desactualizado tras pagos/eliminaciones/mora.
-- **Estado:** en progreso
+- **Estado:** completada
 - **Fecha inicio:** 2026-09-12
 
 ## Objetivo
