@@ -484,8 +484,12 @@ export class LiquidacionesService {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
+  // Query builder "crudo" (sin alias de entidad): si se usara
+  // `liquidacionRepo.createQueryBuilder()` sin manager, TypeORM prefijaría el
+  // FROM con `liquidaciones` y los `SUM` de pagos/gastos/cuotas saldrían
+  // multiplicados por la cantidad de liquidaciones (o 0 si no hay ninguna).
   private qb(manager?: EntityManager) {
-    return manager ? manager.createQueryBuilder() : this.liquidacionRepo.createQueryBuilder();
+    return (manager ?? this.dataSource.manager).createQueryBuilder();
   }
 
   private async sumaCuotasPendientes(
