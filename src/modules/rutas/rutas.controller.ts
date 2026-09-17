@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -44,11 +45,26 @@ import { RutasNotasService } from "./rutas-notas.service";
 import { GenerarLiquidacionDto } from "./dto/generar-liquidacion.dto";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
+import { EstadisticasRutaService } from "./estadisticas-ruta.service";
+import { ReportesDiariosService } from "./reportes-diarios.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { TrayectoriasService } from "./trayectorias.service";
 import { RegistrarTrayectoriaRealDto } from "./dto/registrar-trayectoria-real.dto";
 import { PosicionCobradorService } from "./posicion-cobrador.service";
+
+const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Valida el formato YYYY-MM-DD de los query params de fecha (400 si no). */
+function validarFecha(valor: string | undefined, campo: string): string | null {
+  if (valor === undefined || valor === "") {
+    return null;
+  }
+  if (!FECHA_RE.test(valor)) {
+    throw new BadRequestException(`${campo} debe tener formato YYYY-MM-DD`);
+  }
+  return valor;
+}
 
 @Controller("rutas")
 export class RutasController {
@@ -61,6 +77,8 @@ export class RutasController {
     private readonly rutasNotasService: RutasNotasService,
     private readonly liquidacionesService: LiquidacionesService,
     private readonly rutasResumenService: RutasResumenService,
+    private readonly estadisticasRutaService: EstadisticasRutaService,
+    private readonly reportesDiariosService: ReportesDiariosService,
     private readonly rutaOptimizacionService: RutaOptimizacionService,
     private readonly listaClientesDelDiaService: ListaClientesDelDiaService,
     private readonly trayectoriasService: TrayectoriasService,
@@ -420,6 +438,60 @@ export class RutasController {
     res.send(buffer);
   }
 
+  @Get(":id/reporte-dia")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  reporteDia(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("fecha") fecha: string | undefined,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    const fechaValidada = validarFecha(fecha, "fecha");
+    return this.reportesDiariosService.reporteDia(
+      id,
+      fechaValidada ?? this.reportesDiariosService.fechaDeHoy(),
+      { rol: req.user.rol, sub: req.user.sub },
+    );
+  }
+
+  @Get(":id/reportes-diarios")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  historialReportesDiarios(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("desde") desde: string | undefined,
+    @Query("hasta") hasta: string | undefined,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.reportesDiariosService.historial(
+      id,
+      validarFecha(desde, "desde"),
+      validarFecha(hasta, "hasta"),
+      { rol: req.user.rol, sub: req.user.sub },
+    );
+  }
+
+  @Get(":id/reportes-diarios/export")
+  @PermisoRequerido("descargar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  async exportarReportesDiarios(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("desde") desde: string | undefined,
+    @Query("hasta") hasta: string | undefined,
+    @Req() req: Request & { user: AuthTokenPayload },
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.reportesDiariosService.exportarHistorial(
+      id,
+      validarFecha(desde, "desde"),
+      validarFecha(hasta, "hasta"),
+      { rol: req.user.rol, sub: req.user.sub },
+    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
   @Get(":id/resumen")
   @PermisoRequerido("ver_reportes")
   @UseGuards(JwtAuthGuard, PermisoGuard)
@@ -428,6 +500,19 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasResumenService.obtener(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/estadisticas")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  estadisticasRuta(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.estadisticasRutaService.obtener(id, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

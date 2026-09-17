@@ -17,6 +17,8 @@ import { GastosService } from "./gastos.service";
 import { RutasNotasService } from "./rutas-notas.service";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
+import { EstadisticasRutaService } from "./estadisticas-ruta.service";
+import { ReportesDiariosService } from "./reportes-diarios.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { TrayectoriasService } from "./trayectorias.service";
@@ -86,6 +88,17 @@ describe("RutasController", () => {
     obtener: jest.fn(),
   };
 
+  const mockEstadisticasRutaService = {
+    obtener: jest.fn(),
+  };
+
+  const mockReportesDiariosService = {
+    reporteDia: jest.fn(),
+    historial: jest.fn(),
+    exportarHistorial: jest.fn(),
+    fechaDeHoy: jest.fn(() => "2026-09-17"),
+  };
+
   const mockRutaOptimizacionService = {
     generar: jest.fn(),
     consultar: jest.fn(),
@@ -131,6 +144,8 @@ describe("RutasController", () => {
         { provide: RutasNotasService, useValue: mockRutasNotasService },
         { provide: LiquidacionesService, useValue: mockLiquidacionesService },
         { provide: RutasResumenService, useValue: mockRutasResumenService },
+        { provide: EstadisticasRutaService, useValue: mockEstadisticasRutaService },
+        { provide: ReportesDiariosService, useValue: mockReportesDiariosService },
         { provide: RutaOptimizacionService, useValue: mockRutaOptimizacionService },
         { provide: ListaClientesDelDiaService, useValue: mockListaClientesDelDiaService },
         { provide: TrayectoriasService, useValue: mockTrayectoriasService },
