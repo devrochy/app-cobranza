@@ -13,6 +13,8 @@ export interface VentanaFechas {
 export interface ClienteBreve {
   clienteId: number;
   nombre: string;
+  /** Hora local (HH:MM) del último mensaje, cuando aplica (notificaciones). */
+  hora?: string;
 }
 
 function parseFechaLocal(fecha: string): Date {

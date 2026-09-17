@@ -298,8 +298,9 @@ export class ReportesDiariosService {
   ): Promise<ClienteBreve[]> {
     const filas = await this.dataSource.manager
       .createQueryBuilder()
-      .select("DISTINCT c.id", "clienteId")
+      .select("c.id", "clienteId")
       .addSelect("c.nombre || ' ' || c.apellido", "nombre")
+      .addSelect("MAX(m.timestamp)", "ultimo")
       .from("mensajes_ia", "m")
       .innerJoin("conversaciones_ia", "conv", "conv.id = m.conversacion_id")
       .innerJoin("clientes", "c", "c.id = conv.cliente_id")
@@ -307,9 +308,14 @@ export class ReportesDiariosService {
       .andWhere("c.estatus = 'activo'")
       .andWhere("m.emisor = 'ia'")
       .andWhere("m.timestamp::date = :fecha", { fecha })
+      .groupBy("c.id")
       .orderBy("c.id", "ASC")
-      .getRawMany<{ clienteId: string; nombre: string }>();
-    return filas.map((f) => ({ clienteId: Number(f.clienteId), nombre: f.nombre }));
+      .getRawMany<{ clienteId: string; nombre: string; ultimo: Date }>();
+    return filas.map((f) => ({
+      clienteId: Number(f.clienteId),
+      nombre: f.nombre,
+      hora: this.horaLocal(new Date(f.ultimo)),
+    }));
   }
 
   private async contarSinDeudaViva(rutaId: number, clienteIds: number[]): Promise<number> {

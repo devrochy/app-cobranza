@@ -16,7 +16,7 @@ Poblar el reporte diario (`reportes_diarios`) y exponer los KPIs del reporte del
 - "Caja del día (sin gastos)" = cobrado del día; "con gastos aprobados" = cobrado − gastos aprobados del día.
 - "% cobrar semanal" = cobrado de la semana (lunes a domingo) ÷ estimado de la semana.
 - "Clientes sin cuentas" = clientes de la lista del día sin cuota pendiente/atrasada (sin deuda viva).
-- "Clientes con notificación" = clientes con un mensaje de la IA (`mensajes_ia.emisor='ia'`) en la fecha.
+- "Clientes con notificación" = clientes con un mensaje de la IA (`mensajes_ia.emisor='ia'`) en la fecha; se incluye la hora local del último mensaje (`hora`, HH:MM).
 
 ## Bloques (checklist TDD)
 - [x] Bloque 1: `domain/reporte-diario.ts` (ventana del día, ventana de la semana, % cobrar) + spec.
@@ -24,7 +24,8 @@ Poblar el reporte diario (`reportes_diarios`) y exponer los KPIs del reporte del
 - [x] Bloque 3: `TrayectoriasService.generarReporteDiario` persiste cobrado/prestado/visitados/sin pago/horas.
 - [x] Bloque 4: endpoints `GET /rutas/:id/reporte-dia`, `GET /rutas/:id/reportes-diarios` y `.../export`.
 - [x] Bloque 5: `clientesDelDia` pasa a ser público en `EstadisticasRutaService` (se reutiliza, sin duplicar la regla de la lista del día).
-- [x] Verificación: `scripts/check.sh` (119 suites / 1016 tests) y e2e completo (60 suites / 438 tests) verdes.
+- [x] Bloque 6: hora de notificación por cliente (`MAX(mensajes_ia.timestamp)` → `hora` HH:MM) + seed e2e de conversación/mensaje IA.
+- [x] Verificación: `scripts/check.sh` (119 suites / 1016 tests) y e2e del reporte (6 tests, incluida la hora de notificación).
 
 ## Bug preexistente corregido (bloqueante)
 `LiquidacionesService.qb()` usaba `liquidacionRepo.createQueryBuilder()` cuando no había `manager`, lo que generaba `FROM liquidaciones, pagos ...` (producto cartesiano): los `SUM` de pagos/gastos/cuotas quedaban multiplicados por la cantidad de liquidaciones de la ruta (o en 0 si no había ninguna). Efecto: los totales de `GET /rutas/:id/resumen` y de las liquidaciones eran incorrectos. Se cambió a `(manager ?? dataSource.manager).createQueryBuilder()` (sin alias de entidad) y se agregó un e2e de regresión en `test/e2e/reporte-diario.e2e-spec.ts`.

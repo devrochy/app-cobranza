@@ -8,6 +8,8 @@ import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
 import { Cliente } from "../../src/modules/cartera/cliente.entity";
 import { Cuota } from "../../src/modules/cartera/cuota.entity";
 import { Pago } from "../../src/modules/cartera/pago.entity";
+import { ConversacionIa } from "../../src/modules/cartera/conversacion-ia.entity";
+import { MensajeIa } from "../../src/modules/cartera/mensaje-ia.entity";
 import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
 import { Visita } from "../../src/modules/cartera/visita.entity";
 import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
@@ -38,6 +40,8 @@ describe("Reporte diario por ruta (e2e)", () => {
   let visitaRepo: Repository<Visita>;
   let gastoRepo: Repository<Gasto>;
   let reporteRepo: Repository<ReporteDiario>;
+  let conversacionRepo: Repository<ConversacionIa>;
+  let mensajeRepo: Repository<MensajeIa>;
 
   let accessTokenAdmin: string;
   let rutaId: number;
@@ -77,7 +81,11 @@ describe("Reporte diario por ruta (e2e)", () => {
     visitaRepo = moduleFixture.get(getRepositoryToken(Visita));
     gastoRepo = moduleFixture.get(getRepositoryToken(Gasto));
     reporteRepo = moduleFixture.get(getRepositoryToken(ReporteDiario));
+    conversacionRepo = moduleFixture.get(getRepositoryToken(ConversacionIa));
+    mensajeRepo = moduleFixture.get(getRepositoryToken(MensajeIa));
 
+    await mensajeRepo.createQueryBuilder().delete().execute();
+    await conversacionRepo.createQueryBuilder().delete().execute();
     await pagoRepo.createQueryBuilder().delete().execute();
     await visitaRepo.createQueryBuilder().delete().execute();
     await gastoRepo.createQueryBuilder().delete().execute();
@@ -190,6 +198,22 @@ describe("Reporte diario por ruta (e2e)", () => {
       creadoPorId: cobradorId,
     });
 
+    const conversacion = await conversacionRepo.save({
+      cliente: { id: clienteId },
+      canal: "whatsapp",
+      estado: "activa",
+      motivoDerivacion: null,
+      agenteAsignadoId: null,
+      closedAt: null,
+    });
+    await mensajeRepo.save({
+      conversacion: { id: conversacion.id },
+      emisor: "ia",
+      contenido: "test-recordatorio de pago",
+      intencionDetectada: null,
+      modeloUsado: null,
+    });
+
     await gastoRepo.save({
       ruta: { id: rutaId },
       descripcion: "test-gasto del día",
@@ -202,6 +226,8 @@ describe("Reporte diario por ruta (e2e)", () => {
   });
 
   afterAll(async () => {
+    await mensajeRepo.createQueryBuilder().delete().execute();
+    await conversacionRepo.createQueryBuilder().delete().execute();
     await pagoRepo.createQueryBuilder().delete().execute();
     await visitaRepo.createQueryBuilder().delete().execute();
     await gastoRepo.createQueryBuilder().delete().execute();
@@ -234,7 +260,10 @@ describe("Reporte diario por ruta (e2e)", () => {
     expect(res.body.totalDia).toBeGreaterThanOrEqual(1);
     expect(res.body.faltan).toBe(res.body.totalDia - res.body.pagaron);
     expect(typeof res.body.clientesSinCuentas).toBe("number");
-    expect(Array.isArray(res.body.clientesNotificados)).toBe(true);
+    expect(res.body.clientesNotificados).toHaveLength(1);
+    expect(res.body.clientesNotificados[0]).toEqual(
+      expect.objectContaining({ clienteId, hora: expect.stringMatching(/^\d{2}:\d{2}$/) }),
+    );
     expect(res.body.clientesNoVisitados).toEqual([]);
   });
 
