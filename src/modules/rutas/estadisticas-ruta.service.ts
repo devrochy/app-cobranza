@@ -10,6 +10,7 @@ import {
   EstadisticasConteos,
   EstadisticasRuta,
 } from "../../domain/estadisticas-ruta";
+import { ClienteBreve } from "../../domain/reporte-diario";
 import { Ruta } from "./ruta.entity";
 import { Liquidacion } from "./liquidacion.entity";
 import { RutaEstadisticasSnapshot } from "./ruta-estadisticas-snapshot.entity";
@@ -243,17 +244,21 @@ export class EstadisticasRutaService {
       .where("v.ruta_id = :rutaId", { rutaId })
       .andWhere("v.fecha = :fecha", { fecha })
       .andWhere("v.resultado IN ('pago', 'no_pago')")
-      .andWhere("v.cliente_id IN (:...ids)", { ids: delDia })
+      .andWhere("v.cliente_id IN (:...ids)", { ids: delDia.map((c) => c.clienteId) })
       .getRawMany<{ clienteId: string }>();
 
     return delDia.length - new Set(visitados.map((v) => Number(v.clienteId))).size;
   }
 
-  /** Clientes de la lista del día (misma regla que la lista operativa). */
-  private async clientesDelDia(rutaId: number, fecha: string): Promise<number[]> {
+  /**
+   * Clientes de la lista del día (misma regla que la lista operativa):
+   * cuota que vence la fecha, cuota en mora o compromiso con fecha prometida.
+   */
+  async clientesDelDia(rutaId: number, fecha: string): Promise<ClienteBreve[]> {
     const filas = await this.dataSource.manager
       .createQueryBuilder()
       .select("c.id", "clienteId")
+      .addSelect("c.nombre || ' ' || c.apellido", "nombre")
       .from("clientes", "c")
       .innerJoin("prestamos", "p", "p.cliente_id = c.id AND p.estatus = 'vigente'")
       .leftJoin("cuotas", "cu", "cu.prestamo_id = p.id")
@@ -267,8 +272,8 @@ export class EstadisticasRutaService {
           "WHERE p2.cliente_id = c.id AND pr.fecha_prometida = :fecha)",
       )
       .setParameter("fecha", fecha)
-      .getRawMany<{ clienteId: string }>();
-    return filas.map((f) => Number(f.clienteId));
+      .getRawMany<{ clienteId: string; nombre: string }>();
+    return filas.map((f) => ({ clienteId: Number(f.clienteId), nombre: f.nombre }));
   }
 
   private async contarSinVisitaDesdeLiquidada(rutaId: number): Promise<number> {

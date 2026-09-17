@@ -22,6 +22,7 @@ import { Liquidacion } from "./liquidacion.entity";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutaEstadisticasSnapshot } from "./ruta-estadisticas-snapshot.entity";
 import { EstadisticasRutaService } from "./estadisticas-ruta.service";
+import { ReportesDiariosService } from "./reportes-diarios.service";
 import { EstadisticasRutaJobService } from "./estadisticas-ruta-job.service";
 import { RutasResumenService } from "./rutas-resumen.service";
 import { RutaOptimizadaLog } from "./ruta-optimizada-log.entity";
@@ -45,7 +46,7 @@ import { RutasService } from "./rutas.service";
     SociosModule,
   ],
   controllers: [RutasController, ReportesGlobalController],
-  providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService, RutasNotasService, LiquidacionesService, RutasResumenService, EstadisticasRutaService, EstadisticasRutaJobService, RutaOptimizacionService, ListaClientesDelDiaService, TrayectoriasService, RutasAperturaService, PosicionCobradorService],
-  exports: [RutasService, RutaConfigService, InyeccionesService, GastosService, RutasNotasService, LiquidacionesService, EstadisticasRutaService, TrayectoriasService, CajaService, ListaClientesDelDiaService, RutaOptimizacionService, RutasAperturaService, PosicionCobradorService],
+  providers: [RutasService, RutaConfigService, InyeccionesService, CajaService, GastosService, RutasNotasService, LiquidacionesService, RutasResumenService, EstadisticasRutaService, EstadisticasRutaJobService, ReportesDiariosService, RutaOptimizacionService, ListaClientesDelDiaService, TrayectoriasService, RutasAperturaService, PosicionCobradorService],
+  exports: [RutasService, RutaConfigService, InyeccionesService, GastosService, RutasNotasService, LiquidacionesService, EstadisticasRutaService, ReportesDiariosService, TrayectoriasService, CajaService, ListaClientesDelDiaService, RutaOptimizacionService, RutasAperturaService, PosicionCobradorService],
 })
 export class RutasModule {}

@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
   RelationId,
 } from "typeorm";
+import { numericTransformer } from "../../common/numeric-transformer";
 import { Ruta } from "./ruta.entity";
 
 @Entity("reportes_diarios")
@@ -24,10 +25,10 @@ export class ReporteDiario {
   @Column({ type: "date" })
   fecha!: string;
 
-  @Column({ name: "cobrado_dia", type: "numeric", precision: 12, scale: 2, default: 0 })
+  @Column({ name: "cobrado_dia", type: "numeric", precision: 12, scale: 2, default: 0, transformer: numericTransformer })
   cobradoDia!: number;
 
-  @Column({ name: "prestado_dia", type: "numeric", precision: 12, scale: 2, default: 0 })
+  @Column({ name: "prestado_dia", type: "numeric", precision: 12, scale: 2, default: 0, transformer: numericTransformer })
   prestadoDia!: number;
 
   @Column({ name: "clientes_visitados_json", type: "jsonb", nullable: true })

@@ -7,6 +7,7 @@ import { GeoJSONFeatureCollection, GeoJSONLineString, ParadaGeoJSON, TrayectoGeo
 import { Ruta } from "./ruta.entity";
 import { RutaOptimizadaLog } from "./ruta-optimizada-log.entity";
 import { ReporteDiario } from "./reporte-diario.entity";
+import { ReportesDiariosService } from "./reportes-diarios.service";
 
 export interface RequesterTrayectoriasContext {
   rol: RolUsuario;
@@ -29,6 +30,7 @@ export class TrayectoriasService {
     private readonly logRepo: Repository<RutaOptimizadaLog>,
     @InjectRepository(ReporteDiario)
     private readonly reporteRepo: Repository<ReporteDiario>,
+    private readonly reportesDiariosService: ReportesDiariosService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -114,21 +116,18 @@ export class TrayectoriasService {
     };
 
     let existente = await reporteRepo.findOne({ where: { ruta: { id: rutaId }, fecha } });
+    const campos = await this.reportesDiariosService.computarCampos(rutaId, fecha);
     if (!existente) {
       existente = reporteRepo.create({
         ruta: { id: rutaId } as Ruta,
         rutaId,
         fecha,
-        cobradoDia: 0,
-        prestadoDia: 0,
-        clientesVisitadosJson: null,
-        clientesSinPagoJson: null,
         trayectoriasJson,
-        horaInicio: null,
-        horaFin: null,
+        ...campos,
       });
     } else {
       existente.trayectoriasJson = trayectoriasJson;
+      Object.assign(existente, campos);
     }
     const saved = await reporteRepo.save(existente);
     return { id: saved.id, rutaId, fecha: saved.fecha, trayectoriasJson: saved.trayectoriasJson };

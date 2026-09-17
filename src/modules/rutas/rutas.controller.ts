@@ -45,6 +45,7 @@ import { GenerarLiquidacionDto } from "./dto/generar-liquidacion.dto";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
 import { EstadisticasRutaService } from "./estadisticas-ruta.service";
+import { ReportesDiariosService } from "./reportes-diarios.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { TrayectoriasService } from "./trayectorias.service";
@@ -63,6 +64,7 @@ export class RutasController {
     private readonly liquidacionesService: LiquidacionesService,
     private readonly rutasResumenService: RutasResumenService,
     private readonly estadisticasRutaService: EstadisticasRutaService,
+    private readonly reportesDiariosService: ReportesDiariosService,
     private readonly rutaOptimizacionService: RutaOptimizacionService,
     private readonly listaClientesDelDiaService: ListaClientesDelDiaService,
     private readonly trayectoriasService: TrayectoriasService,
@@ -417,6 +419,57 @@ export class RutasController {
       rol: req.user.rol,
       sub: req.user.sub,
     });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  @Get(":id/reporte-dia")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  reporteDia(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("fecha") fecha: string | undefined,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.reportesDiariosService.reporteDia(
+      id,
+      fecha ?? this.reportesDiariosService.fechaDeHoy(),
+      { rol: req.user.rol, sub: req.user.sub },
+    );
+  }
+
+  @Get(":id/reportes-diarios")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  historialReportesDiarios(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("desde") desde: string | undefined,
+    @Query("hasta") hasta: string | undefined,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.reportesDiariosService.historial(id, desde ?? null, hasta ?? null, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/reportes-diarios/export")
+  @PermisoRequerido("descargar_reporte")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  async exportarReportesDiarios(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("desde") desde: string | undefined,
+    @Query("hasta") hasta: string | undefined,
+    @Req() req: Request & { user: AuthTokenPayload },
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.reportesDiariosService.exportarHistorial(
+      id,
+      desde ?? null,
+      hasta ?? null,
+      { rol: req.user.rol, sub: req.user.sub },
+    );
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(buffer);

@@ -5,6 +5,7 @@ import { DataSource, Repository } from "typeorm";
 import { Ruta } from "./ruta.entity";
 import { RutaOptimizadaLog } from "./ruta-optimizada-log.entity";
 import { ReporteDiario } from "./reporte-diario.entity";
+import { ReportesDiariosService } from "./reportes-diarios.service";
 import { TrayectoriasService } from "./trayectorias.service";
 
 describe("TrayectoriasService", () => {
@@ -55,6 +56,7 @@ describe("TrayectoriasService", () => {
         { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
         { provide: getRepositoryToken(RutaOptimizadaLog), useValue: mockLogRepo },
         { provide: getRepositoryToken(ReporteDiario), useValue: mockReporteRepo },
+        { provide: ReportesDiariosService, useValue: { computarCampos: jest.fn().mockResolvedValue({}) } },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
