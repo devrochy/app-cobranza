@@ -44,6 +44,7 @@ import { RutasNotasService } from "./rutas-notas.service";
 import { GenerarLiquidacionDto } from "./dto/generar-liquidacion.dto";
 import { LiquidacionesService } from "./liquidaciones.service";
 import { RutasResumenService } from "./rutas-resumen.service";
+import { EstadisticasRutaService } from "./estadisticas-ruta.service";
 import { RutaOptimizacionService } from "./ruta-optimizacion.service";
 import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { TrayectoriasService } from "./trayectorias.service";
@@ -61,6 +62,7 @@ export class RutasController {
     private readonly rutasNotasService: RutasNotasService,
     private readonly liquidacionesService: LiquidacionesService,
     private readonly rutasResumenService: RutasResumenService,
+    private readonly estadisticasRutaService: EstadisticasRutaService,
     private readonly rutaOptimizacionService: RutaOptimizacionService,
     private readonly listaClientesDelDiaService: ListaClientesDelDiaService,
     private readonly trayectoriasService: TrayectoriasService,
@@ -428,6 +430,19 @@ export class RutasController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.rutasResumenService.obtener(id, {
+      rol: req.user.rol,
+      sub: req.user.sub,
+    });
+  }
+
+  @Get(":id/estadisticas")
+  @PermisoRequerido("ver_reportes")
+  @UseGuards(JwtAuthGuard, PermisoGuard)
+  estadisticasRuta(
+    @Param("id", ParseIntPipe) id: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.estadisticasRutaService.obtener(id, {
       rol: req.user.rol,
       sub: req.user.sub,
     });
