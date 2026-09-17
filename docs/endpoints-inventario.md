@@ -1,7 +1,7 @@
 # Inventario de endpoints del backend (panel admin + APK)
 
-- **Estado:** vigente 2026-09-02
-- **Alcance:** matriz de todos los endpoints HTTP expuestos por el backend NestJS y su consumidor real (panel admin, APK cobrador, o ninguno).
+- **Estado:** vigente 2026-09-17 (nomenclatura migrada: Cartera/Gestor/Propietario/trayecto diario — ver `docs/glosario.md`).
+- **Alcance:** matriz de todos los endpoints HTTP expuestos por el backend NestJS y su consumidor real (panel admin, APK gestor, o ninguno).
 - **Decisión de esta iteración:** **documentar y conservar** los endpoints sin consumidor. No se elimina ni modifica ningún endpoint.
 
 ## Leyenda
@@ -18,164 +18,164 @@
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
 | `POST /auth/login` | auth | panel | en uso | Login admin (server action). |
-| `POST /auth/socio/login` | auth | panel | en uso | Login socio (server action). |
-| `POST /auth/cobrador/login` | auth | apk | en uso | `apiLogin` en `src/api/auth.ts`. |
+| `POST /auth/propietario/login` | auth | panel | en uso | Login propietario (server action). |
+| `POST /auth/gestor/login` | auth | apk | en uso | `apiLogin` en `src/api/auth.ts`. |
 | `POST /auth/refresh` | auth | panel | en uso | Refresh de tokens en `src/lib/api.ts`. |
 | `GET /auth/me` | auth | ninguno | sin consumidor | Conservado: el panel deriva el usuario de la cookie JWT (`session.sub`); puede ser útil para validación futura. |
 
 ---
 
-## Panel (dashboard, monitoreo IA, cartera global, reportes, tiempo real)
+## Panel (dashboard, monitoreo IA, clientes global, reportes, tiempo real)
 
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
 | `GET /dashboard` | panel (dashboard) | panel | en uso | Dashboard consolidado (HU-23). |
 | `GET /conversaciones-ia/panel` | panel (IA) | panel | en uso | Monitoreo IA (HU-24). |
-| `GET /cartera/clientes` | cartera | panel | en uso | Cartera global con filtros. |
+| `GET /clientes` | cartera | panel | en uso | Cartera global con filtros. |
 | `GET /reportes/liquidaciones` | reportes | panel | en uso | Historial de liquidaciones global. |
-| `GET /rutas/posiciones` | rutas | panel | en uso | Posiciones en vivo de cobradores (HU-44), vía route handler `/api/tiempo-real`. |
+| `GET /carteras/posiciones` | carteras | panel | en uso | Posiciones en vivo de gestores (HU-44), vía route handler `/api/tiempo-real`. |
 
 ---
 
-## Socios (`/socios`)
+## Propietarios (`/propietarios`)
 
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
-| `POST /socios` | socios | panel | en uso | |
-| `GET /socios` | socios | panel | en uso | Listado + filtros. |
-| `GET /socios/:id` | socios | panel | en uso | Detalle. |
-| `PATCH /socios/:id` | socios | panel | en uso | Editar. |
-| `PATCH /socios/:id/estatus` | socios | panel | en uso | Activar/bloquear. |
-| `PATCH /socios/:id/configuracion` | socios | panel | en uso | Configuración. |
-| `GET /socios/:id/permisos` | socios | panel | en uso | |
-| `PUT /socios/:id/permisos` | socios | panel | en uso | |
+| `POST /propietarios` | propietarios | panel | en uso | |
+| `GET /propietarios` | propietarios | panel | en uso | Listado + filtros. |
+| `GET /propietarios/:id` | propietarios | panel | en uso | Detalle. |
+| `PATCH /propietarios/:id` | propietarios | panel | en uso | Editar. |
+| `PATCH /propietarios/:id/estatus` | propietarios | panel | en uso | Activar/bloquear. |
+| `PATCH /propietarios/:id/configuracion` | propietarios | panel | en uso | Configuración. |
+| `GET /propietarios/:id/permisos` | propietarios | panel | en uso | |
+| `PUT /propietarios/:id/permisos` | propietarios | panel | en uso | |
 
-## Cobros de socio (`/cobros-socio`)
-
-| Endpoint | Controller | Consumidor | Estado | Nota |
-|---|---|---|---|---|
-| `GET /cobros-socio` | cobros-socio | panel | en uso | Listado por socio. |
-| `GET /cobros-socio/:id` | cobros-socio | ninguno | sin consumidor | Conservado: detalle de un cobro; hoy el panel solo lista, genera y paga. |
-| `POST /cobros-socio/generar` | cobros-socio | panel | en uso | |
-| `POST /cobros-socio/:id/pago` | cobros-socio | panel | en uso | |
-
-## Conversaciones Admin↔Socio (`/conversaciones-socio`)
+## Cobros de propietario (`/cobros-propietario`)
 
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
-| `GET /conversaciones-socio` | conversaciones-socio | panel | en uso | |
-| `GET /conversaciones-socio/:socioId` | conversaciones-socio | panel | en uso | |
-| `POST /conversaciones-socio/:socioId/mensajes` | conversaciones-socio | panel | en uso | |
+| `GET /cobros-propietario` | cobros-propietario | panel | en uso | Listado por propietario. |
+| `GET /cobros-propietario/:id` | cobros-propietario | ninguno | sin consumidor | Conservado: detalle de un cobro; hoy el panel solo lista, genera y paga. |
+| `POST /cobros-propietario/generar` | cobros-propietario | panel | en uso | |
+| `POST /cobros-propietario/:id/pago` | cobros-propietario | panel | en uso | |
+
+## Conversaciones Admin↔Propietario (`/conversaciones-propietario`)
+
+| Endpoint | Controller | Consumidor | Estado | Nota |
+|---|---|---|---|---|
+| `GET /conversaciones-propietario` | conversaciones-propietario | panel | en uso | |
+| `GET /conversaciones-propietario/:propietarioId` | conversaciones-propietario | panel | en uso | |
+| `POST /conversaciones-propietario/:propietarioId/mensajes` | conversaciones-propietario | panel | en uso | |
 
 ---
 
-## Cobradores (`/cobradores`)
+## Gestores (`/gestores`)
 
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
-| `POST /cobradores` | cobradores | panel | en uso | |
-| `GET /cobradores` | cobradores | panel | en uso | |
-| `PATCH /cobradores/:id` | cobradores | panel | en uso | |
-| `PATCH /cobradores/:id/estatus` | cobradores | panel | en uso | |
-| `GET /cobradores/:id/permisos` | cobradores | panel | en uso | |
-| `PUT /cobradores/:id/permisos` | cobradores | panel | en uso | |
+| `POST /gestores` | gestores | panel | en uso | |
+| `GET /gestores` | gestores | panel | en uso | |
+| `PATCH /gestores/:id` | gestores | panel | en uso | |
+| `PATCH /gestores/:id/estatus` | gestores | panel | en uso | |
+| `GET /gestores/:id/permisos` | gestores | panel | en uso | |
+| `PUT /gestores/:id/permisos` | gestores | panel | en uso | |
 
 ---
 
-## Rutas (`/rutas`, `/rutas/:id`)
+## Carteras (`/carteras`, `/carteras/:id`)
 
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
-| `POST /rutas` | rutas | panel | en uso | |
-| `GET /rutas` | rutas | panel | en uso | |
-| `GET /rutas/:id` | rutas | panel | en uso | |
-| `PATCH /rutas/:id` | rutas | panel | en uso | |
-| `PATCH /rutas/:id/estatus` | rutas | panel | en uso | |
-| `PATCH /rutas/:id/configuracion` | rutas | panel | en uso | |
-| `PATCH /rutas/:id/cobrador` | rutas | panel | en uso | Reasignar cobrador. |
-| `PUT /rutas/:id/ruta-config` | rutas | panel | en uso | |
-| `GET /rutas/:id/resumen` | rutas | panel | en uso | |
-| `GET /rutas/:id/ruta-config` | rutas | panel | en uso | |
-| `GET /rutas/:id/caja` | rutas | panel | en uso | |
-| `GET /rutas/:id/gastos` | rutas | panel | en uso | |
-| `POST /rutas/:id/gastos` | rutas | panel | en uso | (multipart, evidencias) |
-| `DELETE /rutas/:id/gastos/:gastoId` | rutas | panel | en uso | |
-| `PATCH /rutas/:id/gastos/:gastoId/aprobar` | rutas | panel | en uso | |
-| `GET /rutas/:id/inyecciones` | rutas | panel | en uso | |
-| `POST /rutas/:id/inyecciones` | rutas | panel | en uso | |
-| `DELETE /rutas/:id/inyecciones/:inyeccionId` | rutas | panel | en uso | |
-| `GET /rutas/:id/notas` | rutas | panel | en uso | |
-| `POST /rutas/:id/notas` | rutas | panel | en uso | |
-| `PATCH /rutas/:id/notas/:notaId` | rutas | panel | en uso | |
-| `DELETE /rutas/:id/notas/:notaId` | rutas | panel | en uso | |
-| `GET /rutas/:id/liquidaciones` | rutas | panel | en uso | |
-| `POST /rutas/:id/liquidaciones` | rutas | panel | en uso | |
-| `GET /rutas/:id/liquidaciones/:liquidacionId/export` | rutas | panel | en uso | Vía route handler Next.js. |
+| `POST /carteras` | carteras | panel | en uso | |
+| `GET /carteras` | carteras | panel | en uso | |
+| `GET /carteras/:id` | carteras | panel | en uso | |
+| `PATCH /carteras/:id` | carteras | panel | en uso | |
+| `PATCH /carteras/:id/estatus` | carteras | panel | en uso | |
+| `PATCH /carteras/:id/configuracion` | carteras | panel | en uso | |
+| `PATCH /carteras/:id/gestor` | carteras | panel | en uso | Reasignar gestor. |
+| `PUT /carteras/:id/cartera-config` | carteras | panel | en uso | |
+| `GET /carteras/:id/resumen` | carteras | panel | en uso | |
+| `GET /carteras/:id/cartera-config` | carteras | panel | en uso | |
+| `GET /carteras/:id/caja` | carteras | panel | en uso | |
+| `GET /carteras/:id/gastos` | carteras | panel | en uso | |
+| `POST /carteras/:id/gastos` | carteras | panel | en uso | (multipart, evidencias) |
+| `DELETE /carteras/:id/gastos/:gastoId` | carteras | panel | en uso | |
+| `PATCH /carteras/:id/gastos/:gastoId/aprobar` | carteras | panel | en uso | |
+| `GET /carteras/:id/inyecciones` | carteras | panel | en uso | |
+| `POST /carteras/:id/inyecciones` | carteras | panel | en uso | |
+| `DELETE /carteras/:id/inyecciones/:inyeccionId` | carteras | panel | en uso | |
+| `GET /carteras/:id/notas` | carteras | panel | en uso | |
+| `POST /carteras/:id/notas` | carteras | panel | en uso | |
+| `PATCH /carteras/:id/notas/:notaId` | carteras | panel | en uso | |
+| `DELETE /carteras/:id/notas/:notaId` | carteras | panel | en uso | |
+| `GET /carteras/:id/liquidaciones` | carteras | panel | en uso | |
+| `POST /carteras/:id/liquidaciones` | carteras | panel | en uso | |
+| `GET /carteras/:id/liquidaciones/:liquidacionId/export` | carteras | panel | en uso | Vía route handler Next.js. |
 
-### Día / trayectos / trayectorias de ruta
+### Trayecto diario / trayectos / trayectorias
 
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
-| `POST /rutas/:id/dia/trayectos` | rutas | panel | en uso | Generar trayectos (HU-55). |
-| `GET /rutas/:id/dia/trayectos` | rutas | panel | en uso | Consultar trayectos planificados. |
-| `GET /rutas/:id/dia/clientes` | rutas | panel | en uso | Lista de clientes del día (HU-13/56). |
-| `GET /rutas/:id/dia/mapa` | rutas | panel | en uso | Mapa de clientes del día (HU-57). |
-| `POST /rutas/:id/dia/trayectoria-real` | rutas | ninguno | sin consumidor | Conservado: la APK usa el equivalente `/cobrador/rutas/:rutaId/trayectoria-real`. Duplicado funcional. |
-| `GET /rutas/:id/dia/trayectorias` | rutas | ninguno | sin consumidor | Conservado: reporte diario planificada+real en GeoJSON (HU-49/50). El panel usa `/dia/trayectos` + `/dia/mapa`. |
+| `POST /carteras/:id/trayecto-diario/trayectos` | carteras | panel | en uso | Generar trayectos (HU-55). |
+| `GET /carteras/:id/trayecto-diario/trayectos` | carteras | panel | en uso | Consultar trayectos planificados. |
+| `GET /carteras/:id/trayecto-diario/clientes` | carteras | panel | en uso | Lista de clientes del día (HU-13/56). |
+| `GET /carteras/:id/trayecto-diario/mapa` | carteras | panel | en uso | Mapa de clientes del día (HU-57). |
+| `POST /carteras/:id/trayecto-diario/trayectoria-real` | carteras | ninguno | sin consumidor | Conservado: la APK usa el equivalente `/gestor/carteras/:carteraId/trayectoria-real`. Duplicado funcional. |
+| `GET /carteras/:id/trayecto-diario/trayectorias` | carteras | ninguno | sin consumidor | Conservado: reporte diario planificada+real en GeoJSON (HU-49/50). El panel usa `/dia/trayectos` + `/dia/mapa`. |
 
 ---
 
-## Cartera (`/rutas/:rutaId/clientes` y `/cartera`)
+## Clientes (`/carteras/:carteraId/clientes` y `/clientes`)
 
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
-| `GET /rutas/:rutaId/clientes` | cartera | panel+apk | en uso | Panel: cartera por ruta; APK: `listarClientesDeRuta`. |
-| `POST /rutas/:rutaId/clientes` | cartera | panel | en uso | |
-| `PATCH /rutas/:rutaId/clientes/:clienteId` | cartera | panel | en uso | Editar cliente. |
-| `PATCH /rutas/:rutaId/clientes/:clienteId/estatus` | cartera | ninguno | sin consumidor | Conservado: el panel edita/borra cliente por otro flujo; la APK no usa estatus. |
-| `GET /rutas/:rutaId/clientes/:clienteId/tarjeta` | cartera | panel+apk | en uso | Tarjeta de cliente (HU-54). |
-| `GET /rutas/:rutaId/clientes/:clienteId/prestamos` | cartera | panel+apk | en uso | |
-| `GET /rutas/:rutaId/clientes/:clienteId/conversacion` | cartera | panel | en uso | Historial conversación con cliente (HU-53). |
-| `POST /rutas/:rutaId/clientes/:clienteId/conversacion/mensajes` | cartera | panel | en uso | |
-| `GET /rutas/:rutaId/clientes/:clienteId/navegacion` | cartera | ninguno | sin consumidor | Conservado: enlace maps/waze (HU-59). La APK genera el enlace localmente (HU-37/59) y el panel no abre navegación desde cliente. |
-| `GET /rutas/:rutaId/prestamos` | cartera | panel | en uso | |
-| `POST /rutas/:rutaId/prestamos` | cartera | panel | en uso | |
-| `GET /rutas/:rutaId/prestamos/:prestamoId/estado-cuenta` | cartera | panel+apk | en uso | Estado de cuenta por préstamo (HU-54). |
-| `GET /rutas/:rutaId/prestamos/:prestamoId/promesas` | cartera | panel | en uso | |
-| `PATCH /rutas/:rutaId/promesas/:promesaId/estado` | cartera | panel | en uso | |
-| `PATCH /rutas/:rutaId/cuotas/:cuotaId` | cartera | ninguno | sin consumidor | Conservado: la APK usa el equivalente `/cobrador/rutas/:rutaId/cuotas/:cuotaId`. Duplicado funcional. |
-| `DELETE /rutas/:rutaId/cuotas/:cuotaId` | cartera | ninguno | sin consumidor | Conservado: idem. |
-| `POST /rutas/:rutaId/pagos` | cartera | panel | en uso | |
-| `POST /rutas/:rutaId/abonos` | cartera | panel | en uso | |
-| `POST /rutas/:rutaId/visitas` | cartera | panel | en uso | |
-| `GET /rutas/:rutaId/cambios-cliente` | cartera | panel | en uso | Cambios pendientes con aprobación (HU-47). |
-| `PATCH /rutas/:rutaId/cambios-cliente/:cambioId/decision` | cartera | panel | en uso | Aprobar/rechazar cambio. |
-| `DELETE /rutas/:rutaId/abonos/:abonoId` | cartera | ninguno | sin consumidor | Conservado: la APK usa el equivalente `/cobrador/...`. Duplicado funcional. |
+| `GET /carteras/:carteraId/clientes` | cartera | panel+apk | en uso | Panel: cartera por cartera; APK: `listarClientesDeCartera`. |
+| `POST /carteras/:carteraId/clientes` | cartera | panel | en uso | |
+| `PATCH /carteras/:carteraId/clientes/:clienteId` | cartera | panel | en uso | Editar cliente. |
+| `PATCH /carteras/:carteraId/clientes/:clienteId/estatus` | cartera | ninguno | sin consumidor | Conservado: el panel edita/borra cliente por otro flujo; la APK no usa estatus. |
+| `GET /carteras/:carteraId/clientes/:clienteId/tarjeta` | cartera | panel+apk | en uso | Tarjeta de cliente (HU-54). |
+| `GET /carteras/:carteraId/clientes/:clienteId/prestamos` | cartera | panel+apk | en uso | |
+| `GET /carteras/:carteraId/clientes/:clienteId/conversacion` | cartera | panel | en uso | Historial conversación con cliente (HU-53). |
+| `POST /carteras/:carteraId/clientes/:clienteId/conversacion/mensajes` | cartera | panel | en uso | |
+| `GET /carteras/:carteraId/clientes/:clienteId/navegacion` | cartera | ninguno | sin consumidor | Conservado: enlace maps/waze (HU-59). La APK genera el enlace localmente (HU-37/59) y el panel no abre navegación desde cliente. |
+| `GET /carteras/:carteraId/prestamos` | cartera | panel | en uso | |
+| `POST /carteras/:carteraId/prestamos` | cartera | panel | en uso | |
+| `GET /carteras/:carteraId/prestamos/:prestamoId/estado-cuenta` | cartera | panel+apk | en uso | Estado de cuenta por préstamo (HU-54). |
+| `GET /carteras/:carteraId/prestamos/:prestamoId/promesas` | cartera | panel | en uso | |
+| `PATCH /carteras/:carteraId/promesas/:promesaId/estado` | cartera | panel | en uso | |
+| `PATCH /carteras/:carteraId/cuotas/:cuotaId` | cartera | ninguno | sin consumidor | Conservado: la APK usa el equivalente `/gestor/carteras/:carteraId/cuotas/:cuotaId`. Duplicado funcional. |
+| `DELETE /carteras/:carteraId/cuotas/:cuotaId` | cartera | ninguno | sin consumidor | Conservado: idem. |
+| `POST /carteras/:carteraId/pagos` | cartera | panel | en uso | |
+| `POST /carteras/:carteraId/abonos` | cartera | panel | en uso | |
+| `POST /carteras/:carteraId/visitas` | cartera | panel | en uso | |
+| `GET /carteras/:carteraId/cambios-cliente` | cartera | panel | en uso | Cambios pendientes con aprobación (HU-47). |
+| `PATCH /carteras/:carteraId/cambios-cliente/:cambioId/decision` | cartera | panel | en uso | Aprobar/rechazar cambio. |
+| `DELETE /carteras/:carteraId/abonos/:abonoId` | cartera | ninguno | sin consumidor | Conservado: la APK usa el equivalente `/gestor/...`. Duplicado funcional. |
 
 ---
 
-## APK cobrador (`/cobrador`)
+## APK gestor (`/gestor`)
 
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
-| `GET /cobrador/mis-rutas` | cobrador | apk | en uso | Rutas + tipoInteres/numCuotas + permisos. |
-| `GET /cobrador/rutas/:rutaId/dia` | cobrador | apk | en uso | Snapshot del día (clientes + trayectos). |
-| `POST /cobrador/rutas/:rutaId/trayecto` | cobrador | apk | en uso | Generar trayecto (HU-55). |
-| `POST /cobrador/rutas/:rutaId/apertura` | cobrador | apk | en uso | Auditoría de apertura (HU-41). |
-| `POST /cobrador/rutas/:rutaId/posicion` | cobrador | apk | en uso | Posición GPS (HU-44). |
-| `POST /cobrador/rutas/:rutaId/visitas/pago` | cobrador | apk | en uso | |
-| `POST /cobrador/rutas/:rutaId/visitas/no-pago` | cobrador | apk | en uso | |
-| `POST /cobrador/rutas/:rutaId/gastos` | cobrador | apk | en uso | (multipart, evidencias) |
-| `POST /cobrador/rutas/:rutaId/trayectoria-real` | cobrador | apk | en uso | Registro de trayectoria real (HU-38/49). |
-| `POST /cobrador/rutas/:rutaId/prestamos` | cobrador | apk | en uso | |
-| `PATCH /cobrador/rutas/:rutaId/cuotas/:cuotaId` | cobrador | apk | en uso | |
-| `DELETE /cobrador/rutas/:rutaId/cuotas/:cuotaId` | cobrador | apk | en uso | |
-| `DELETE /cobrador/rutas/:rutaId/abonos/:abonoId` | cobrador | apk | en uso | |
-| `GET /cobrador/rutas/:rutaId/clientes` | cobrador | apk | en uso | |
-| `GET /cobrador/rutas/:rutaId/clientes/:clienteId/tarjeta` | cobrador | apk | en uso | |
-| `GET /cobrador/rutas/:rutaId/clientes/:clienteId/prestamos` | cobrador | apk | en uso | |
-| `POST /cobrador/rutas/:rutaId/clientes/:clienteId/evidencias` | cobrador | apk | en uso | Foto/documento (multipart). |
-| `GET /cobrador/rutas/:rutaId/prestamos/:prestamoId/estado-cuenta` | cobrador | apk | en uso | |
+| `GET /gestor/mis-carteras` | gestor | apk | en uso | Carteras + tipoInteres/numCuotas + permisos. |
+| `GET /gestor/carteras/:carteraId/dia` | gestor | apk | en uso | Snapshot del día (clientes + trayectos). |
+| `POST /gestor/carteras/:carteraId/trayecto` | gestor | apk | en uso | Generar trayecto (HU-55). |
+| `POST /gestor/carteras/:carteraId/apertura` | gestor | apk | en uso | Auditoría de apertura (HU-41). |
+| `POST /gestor/carteras/:carteraId/posicion` | gestor | apk | en uso | Posición GPS (HU-44). |
+| `POST /gestor/carteras/:carteraId/visitas/pago` | gestor | apk | en uso | |
+| `POST /gestor/carteras/:carteraId/visitas/no-pago` | gestor | apk | en uso | |
+| `POST /gestor/carteras/:carteraId/gastos` | gestor | apk | en uso | (multipart, evidencias) |
+| `POST /gestor/carteras/:carteraId/trayectoria-real` | gestor | apk | en uso | Registro de trayectoria real (HU-38/49). |
+| `POST /gestor/carteras/:carteraId/prestamos` | gestor | apk | en uso | |
+| `PATCH /gestor/carteras/:carteraId/cuotas/:cuotaId` | gestor | apk | en uso | |
+| `DELETE /gestor/carteras/:carteraId/cuotas/:cuotaId` | gestor | apk | en uso | |
+| `DELETE /gestor/carteras/:carteraId/abonos/:abonoId` | gestor | apk | en uso | |
+| `GET /gestor/carteras/:carteraId/clientes` | gestor | apk | en uso | |
+| `GET /gestor/carteras/:carteraId/clientes/:clienteId/tarjeta` | gestor | apk | en uso | |
+| `GET /gestor/carteras/:carteraId/clientes/:clienteId/prestamos` | gestor | apk | en uso | |
+| `POST /gestor/carteras/:carteraId/clientes/:clienteId/evidencias` | gestor | apk | en uso | Foto/documento (multipart). |
+| `GET /gestor/carteras/:carteraId/prestamos/:prestamoId/estado-cuenta` | gestor | apk | en uso | |
 
 ---
 
@@ -184,7 +184,7 @@
 | Endpoint | Controller | Consumidor | Estado | Nota |
 |---|---|---|---|---|
 | `POST /sync-offline/eventos` | sincronizacion-offline | apk | en uso | Envío de cola offline (device key header). |
-| `GET /sync-offline/dia` | sincronizacion-offline | ninguno | sin consumidor | Conservado: snapshot offline del día; la APK usa `GET /cobrador/rutas/:rutaId/dia` en su lugar. |
+| `GET /sync-offline/trayecto-diario` | sincronizacion-offline | ninguno | sin consumidor | Conservado: snapshot offline del día; la APK usa `GET /gestor/carteras/:carteraId/dia` en su lugar. |
 | `POST /devices` | sincronizacion-offline | ninguno | sin consumidor | Conservado: la APK envía `EXPO_PUBLIC_DEVICE_KEY` fija en header y nunca registra el device. |
 
 ---
@@ -209,11 +209,11 @@
 
 ## Duplicados funcionales (nota)
 
-- **Trayectoria real**: `POST /rutas/:id/dia/trayectoria-real` (panel) vs `POST /cobrador/rutas/:rutaId/trayectoria-real` (APK). Solo el del cobrador tiene consumidor.
-- **Cuotas**: `PATCH/DELETE /rutas/:rutaId/cuotas/:cuotaId` (panel) vs `PATCH/DELETE /cobrador/rutas/:rutaId/cuotas/:cuotaId` (APK). Solo el del cobrador tiene consumidor.
-- **Abonos**: `DELETE /rutas/:rutaId/abonos/:abonoId` (panel) vs `DELETE /cobrador/rutas/:rutaId/abonos/:abonoId` (APK). Solo el del cobrador tiene consumidor.
+- **Trayectoria real**: `POST /carteras/:id/trayecto-diario/trayectoria-real` (panel) vs `POST /gestor/carteras/:carteraId/trayectoria-real` (APK). Solo el del gestor tiene consumidor.
+- **Cuotas**: `PATCH/DELETE /carteras/:carteraId/cuotas/:cuotaId` (panel) vs `PATCH/DELETE /gestor/carteras/:carteraId/cuotas/:cuotaId` (APK). Solo el del gestor tiene consumidor.
+- **Abonos**: `DELETE /carteras/:carteraId/abonos/:abonoId` (panel) vs `DELETE /gestor/carteras/:carteraId/abonos/:abonoId` (APK). Solo el del gestor tiene consumidor.
 
-**Decisión:** se conservan ambos para no romper contratos; se documenta que el consumidor real es el de `/cobrador/*`.
+**Decisión:** se conservan ambos para no romper contratos; se documenta que el consumidor real es el de `/gestor/*`.
 
 ---
 

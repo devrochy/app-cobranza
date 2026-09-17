@@ -5,24 +5,24 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Abono } from "../../src/modules/cartera/abono.entity";
-import { AuditoriaCartera } from "../../src/modules/cartera/auditoria-cartera.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Pago } from "../../src/modules/cartera/pago.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Caja } from "../../src/modules/rutas/caja.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Abono } from "../../src/modules/clientes/abono.entity";
+import { AuditoriaCartera } from "../../src/modules/clientes/auditoria-cartera.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Pago } from "../../src/modules/clientes/pago.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Caja } from "../../src/modules/carteras/caja.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
@@ -31,13 +31,13 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
   let auditoriaRepo: Repository<AuditoriaCartera>;
   let cajaRepo: Repository<Caja>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
   let prestamoId: number;
 
   const ADMIN_USERNAME = "cuotas-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Cuotas2026";
-  const PASSWORD = "Socio#Cuotas2026";
+  const PASSWORD = "Propietario#Cuotas2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-cuotas";
@@ -56,9 +56,9 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
@@ -73,9 +73,9 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-CUOTAS-1" });
-    await socioRepo.delete({ codigo: "SC-CUOTAS-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-CUOTAS-1" });
+    await propietarioRepo.delete({ codigo: "SC-CUOTAS-1" });
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -93,47 +93,47 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-cuotas-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-cuotas-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-cuotas-1@correo.com",
+      correo: "propietario-cuotas-1@correo.com",
       telefono: "+59171160033",
       codigo: "SC-CUOTAS-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-cuotas-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-cuotas-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-cuotas-1@correo.com",
+      correo: "gestor-cuotas-1@correo.com",
       telefono: "+59172270033",
       codigo: "CB-CUOTAS-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta CUOTAS",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera CUOTAS",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Juan",
@@ -148,7 +148,7 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     clienteId = clienteRes.body.id as number;
 
     const prestamoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         clienteId,
@@ -166,9 +166,9 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.delete({ id: prestamoId });
     await clienteRepo.delete({ id: clienteId });
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-CUOTAS-1" });
-    await socioRepo.delete({ codigo: "SC-CUOTAS-1" });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-CUOTAS-1" });
+    await propietarioRepo.delete({ codigo: "SC-CUOTAS-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
@@ -179,12 +179,12 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     return cuota;
   }
 
-  it("PATCH /rutas/:id/cuotas/:cuotaId edita el valor con auditoría y sin tocar caja", async () => {
+  it("PATCH /carteras/:id/cuotas/:cuotaId edita el valor con auditoría y sin tocar caja", async () => {
     const cuota = await obtenerCuota(1);
-    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaAntes = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
 
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/cuotas/${cuota.id}`)
+      .patch(`/carteras/${carteraId}/cuotas/${cuota.id}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valorEsperado: 300, password: ADMIN_PASSWORD, motivo: "corrección de captura" });
 
@@ -197,34 +197,34 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     expect(auditoria?.actorRol).toBe("admin");
     expect(auditoria?.motivo).toBe("corrección de captura");
 
-    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaDespues = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual);
   });
 
-  it("PATCH /rutas/:id/cuotas/:cuotaId con password incorrecta -> 401", async () => {
+  it("PATCH /carteras/:id/cuotas/:cuotaId con password incorrecta -> 401", async () => {
     const cuota = await obtenerCuota(1);
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/cuotas/${cuota.id}`)
+      .patch(`/carteras/${carteraId}/cuotas/${cuota.id}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valorEsperado: 100, password: "incorrecta", motivo: "m" });
 
     expect(res.status).toBe(401);
   });
 
-  it("PATCH /rutas/:id/cuotas/:cuotaId sin motivo -> 400", async () => {
+  it("PATCH /carteras/:id/cuotas/:cuotaId sin motivo -> 400", async () => {
     const cuota = await obtenerCuota(1);
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/cuotas/${cuota.id}`)
+      .patch(`/carteras/${carteraId}/cuotas/${cuota.id}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valorEsperado: 100, password: ADMIN_PASSWORD, motivo: "" });
 
     expect(res.status).toBe(400);
   });
 
-  it("DELETE /rutas/:id/cuotas/:cuotaId de una cuota pagada -> 400 (primero revertir el pago)", async () => {
+  it("DELETE /carteras/:id/cuotas/:cuotaId de una cuota pagada -> 400 (primero revertir el pago)", async () => {
     const cuota = await obtenerCuota(2);
     await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/pagos`)
+      .post(`/carteras/${carteraId}/pagos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" });
 
@@ -232,7 +232,7 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     expect(pago).toBeDefined();
 
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaId}/cuotas/${cuota.id}`)
+      .delete(`/carteras/${carteraId}/cuotas/${cuota.id}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ password: ADMIN_PASSWORD, motivo: "error de captura" });
 
@@ -245,77 +245,77 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     expect(pagoSigue?.cuotaId).toBe(cuota.id);
   });
 
-  it("DELETE /rutas/:id/pagos/:pagoId borra el pago, reabre la cuota y revierte caja", async () => {
+  it("DELETE /carteras/:id/pagos/:pagoId borra el pago, reabre la cuota y revierte caja", async () => {
     const cuota = await obtenerCuota(3);
     const pagoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/pagos`)
+      .post(`/carteras/${carteraId}/pagos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" });
     const pagoId = pagoRes.body.id as number;
 
-    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaAntes = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
 
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaId}/pagos/${pagoId}`)
+      .delete(`/carteras/${carteraId}/pagos/${pagoId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ password: ADMIN_PASSWORD, motivo: "pago duplicado" });
 
     expect(res.status).toBe(200);
     expect(await pagoRepo.findOne({ where: { id: pagoId } })).toBeNull();
     expect((await cuotaRepo.findOne({ where: { id: cuota.id } }))?.estatus).toBe("pendiente");
-    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaDespues = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual - cuota.valorEsperado);
   });
 
-  it("DELETE /rutas/:id/pagos/:pagoId de un pago liquidado -> 400", async () => {
+  it("DELETE /carteras/:id/pagos/:pagoId de un pago liquidado -> 400", async () => {
     const cuota = await obtenerCuota(4);
     const pagoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/pagos`)
+      .post(`/carteras/${carteraId}/pagos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" });
     const pagoId = pagoRes.body.id as number;
     await pagoRepo.update(pagoId, { liquidado: true });
 
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaId}/pagos/${pagoId}`)
+      .delete(`/carteras/${carteraId}/pagos/${pagoId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ password: ADMIN_PASSWORD, motivo: "error" });
 
     expect(res.status).toBe(400);
   });
 
-  it("un socio sin eliminar_pago no puede borrar un pago -> 403", async () => {
-    const socioLogin = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-cuotas-1", password: PASSWORD });
-    const accessTokenSocio = socioLogin.body.accessToken as string;
+  it("un propietario sin eliminar_pago no puede borrar un pago -> 403", async () => {
+    const propietarioLogin = await request(app.getHttpServer())
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-cuotas-1", password: PASSWORD });
+    const accessTokenPropietario = propietarioLogin.body.accessToken as string;
 
     const cuota = await obtenerCuota(1);
     const pagoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/pagos`)
+      .post(`/carteras/${carteraId}/pagos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" });
     const pagoId = pagoRes.body.id as number;
 
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaId}/pagos/${pagoId}`)
-      .set("Authorization", `Bearer ${accessTokenSocio}`)
+      .delete(`/carteras/${carteraId}/pagos/${pagoId}`)
+      .set("Authorization", `Bearer ${accessTokenPropietario}`)
       .send({ password: PASSWORD, motivo: "error" });
 
     expect(res.status).toBe(403);
   });
 
-  it("DELETE /rutas/:id/abonos/:abonoId elimina el abono, revierte caja y audita", async () => {
+  it("DELETE /carteras/:id/abonos/:abonoId elimina el abono, revierte caja y audita", async () => {
     const abonoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/abonos`)
+      .post(`/carteras/${carteraId}/abonos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ prestamoId, valor: 50, metodoPago: "transferencia" });
     const abonoId = abonoRes.body.id as number;
 
-    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaAntes = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
 
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaId}/abonos/${abonoId}`)
+      .delete(`/carteras/${carteraId}/abonos/${abonoId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ password: ADMIN_PASSWORD, motivo: "abono duplicado" });
 
@@ -325,7 +325,7 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     const abonoEliminado = await abonoRepo.findOne({ where: { id: abonoId } });
     expect(abonoEliminado).toBeNull();
 
-    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaDespues = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual - 50);
 
     const auditoria = await auditoriaRepo.findOne({ where: { entidad: "abono", entidadId: abonoId, operacion: "eliminar" } });
@@ -334,28 +334,28 @@ describe("Gestión de cuotas y abonos con auditoría (e2e)", () => {
     expect(auditoria?.motivo).toBe("abono duplicado");
   });
 
-  it("DELETE /rutas/:id/abonos/:abonoId con password incorrecta -> 401", async () => {
+  it("DELETE /carteras/:id/abonos/:abonoId con password incorrecta -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaId}/abonos/999`)
+      .delete(`/carteras/${carteraId}/abonos/999`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ password: "incorrecta", motivo: "m" });
 
     expect(res.status).toBe(401);
   });
 
-  it("PATCH /rutas/:id/cuotas/:cuotaId con campo extra -> 400", async () => {
+  it("PATCH /carteras/:id/cuotas/:cuotaId con campo extra -> 400", async () => {
     const cuota = await obtenerCuota(3);
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/cuotas/${cuota.id}`)
+      .patch(`/carteras/${carteraId}/cuotas/${cuota.id}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valorEsperado: 100, password: ADMIN_PASSWORD, motivo: "m", extra: "no" });
 
     expect(res.status).toBe(400);
   });
 
-  it("PATCH /rutas/:id/cuotas/:cuotaId con cuota inexistente -> 404", async () => {
+  it("PATCH /carteras/:id/cuotas/:cuotaId con cuota inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/cuotas/999999`)
+      .patch(`/carteras/${carteraId}/cuotas/999999`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valorEsperado: 100, password: ADMIN_PASSWORD, motivo: "m" });
 

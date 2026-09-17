@@ -37,13 +37,13 @@ describe("RequestLoggingInterceptor", () => {
     return JSON.parse(spy.mock.calls[index][0] as string);
   }
 
-  it("loguea método, ruta, status y duración como JSON en respuestas exitosas", () => {
+  it("loguea método, cartera, status y duración como JSON en respuestas exitosas", () => {
     const next: CallHandler = { handle: () => of({}) };
-    interceptor.intercept(contextoCon("POST", "/cobrador/rutas/1/clientes", 201), next).subscribe();
+    interceptor.intercept(contextoCon("POST", "/gestor/carteras/1/clientes", 201), next).subscribe();
 
     const campos = camposDe(logSpy);
     expect(campos.method).toBe("POST");
-    expect(campos.path).toBe("/cobrador/rutas/1/clientes");
+    expect(campos.path).toBe("/gestor/carteras/1/clientes");
     expect(campos.status).toBe(201);
     expect(campos.durationMs).toEqual(expect.any(Number));
     expect(campos.userId).toBeUndefined();
@@ -53,13 +53,13 @@ describe("RequestLoggingInterceptor", () => {
   it("incluye userId y role del request autenticado", () => {
     const next: CallHandler = { handle: () => of({}) };
     interceptor.intercept(
-      contextoCon("GET", "/dashboard", 200, { sub: 42, rol: "socio" }),
+      contextoCon("GET", "/dashboard", 200, { sub: 42, rol: "propietario" }),
       next,
     ).subscribe();
 
     const campos = camposDe(logSpy);
     expect(campos.userId).toBe(42);
-    expect(campos.role).toBe("socio");
+    expect(campos.role).toBe("propietario");
   });
 
   it("loguea el cuerpo del error en respuestas de error como JSON", () => {

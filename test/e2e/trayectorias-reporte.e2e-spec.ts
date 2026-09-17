@@ -5,33 +5,33 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { RutaOptimizadaLog } from "../../src/modules/rutas/ruta-optimizada-log.entity";
-import { ReporteDiario } from "../../src/modules/rutas/reporte-diario.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { CarteraOptimizadaLog } from "../../src/modules/carteras/cartera-optimizada-log.entity";
+import { ReporteDiario } from "../../src/modules/carteras/reporte-diario.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Persistencia de trayectorias en reporte diario (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
-  let logRepo: Repository<RutaOptimizadaLog>;
+  let logRepo: Repository<CarteraOptimizadaLog>;
   let reporteRepo: Repository<ReporteDiario>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
 
   const ADMIN_USERNAME = "tray-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Tray2E2026";
-  const PASSWORD = "Socio#Tray2E2026";
+  const PASSWORD = "Propietario#Tray2E2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-tray2e";
@@ -50,13 +50,13 @@ describe("Persistencia de trayectorias en reporte diario (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
-    logRepo = moduleFixture.get(getRepositoryToken(RutaOptimizadaLog));
+    logRepo = moduleFixture.get(getRepositoryToken(CarteraOptimizadaLog));
     reporteRepo = moduleFixture.get(getRepositoryToken(ReporteDiario));
 
     await reporteRepo.createQueryBuilder().delete().execute();
@@ -64,9 +64,9 @@ describe("Persistencia de trayectorias en reporte diario (e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-TRAY2E-1" });
-    await socioRepo.delete({ codigo: "SC-TRAY2E-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-TRAY2E-1" });
+    await propietarioRepo.delete({ codigo: "SC-TRAY2E-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -84,48 +84,48 @@ describe("Persistencia de trayectorias en reporte diario (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-tray2e-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-tray2e-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-tray2e-1@correo.com",
+      correo: "propietario-tray2e-1@correo.com",
       telefono: "+59171160140",
       codigo: "SC-TRAY2E-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-tray2e-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-tray2e-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-tray2e-1@correo.com",
+      correo: "gestor-tray2e-1@correo.com",
       telefono: "+59172270140",
       codigo: "CB-TRAY2E-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta TRAY2E",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera TRAY2E",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     // Cliente con deuda para el trayecto planificado.
     const c1 = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Tray",
@@ -139,7 +139,7 @@ describe("Persistencia de trayectorias en reporte diario (e2e)", () => {
       });
     const c1Id = c1.body.id as number;
     const prestamoC1 = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId: c1Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
 
@@ -158,41 +158,41 @@ describe("Persistencia de trayectorias en reporte diario (e2e)", () => {
 
     // Generar el trayecto planificado (item 17).
     await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/dia/trayectos`)
+      .post(`/carteras/${carteraId}/trayecto-diario/trayectos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
   });
 
   afterAll(async () => {
     await reporteRepo.createQueryBuilder().delete().execute();
     await logRepo.createQueryBuilder().delete().execute();
-    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE ruta_id = :rutaId)", { rutaId }).execute();
-    await prestamoRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-TRAY2E-1" });
-    await socioRepo.delete({ codigo: "SC-TRAY2E-1" });
+    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE cartera_id = :carteraId)", { carteraId }).execute();
+    await prestamoRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-TRAY2E-1" });
+    await propietarioRepo.delete({ codigo: "SC-TRAY2E-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("POST /rutas/:id/dia/trayectoria-real registra la trayectoria real y crea el reporte", async () => {
+  it("POST /carteras/:id/trayecto-diario/trayectoria-real registra la trayectoria real y crea el reporte", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/dia/trayectoria-real`)
+      .post(`/carteras/${carteraId}/trayecto-diario/trayectoria-real`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ puntos: [{ latitud: -17.78, longitud: -63.18 }, { latitud: -17.79, longitud: -63.19 }] });
 
     expect(res.status).toBe(201);
     expect(res.body.tipo).toBe("real");
 
-    const real = await logRepo.findOne({ where: { ruta: { id: rutaId }, tipo: "real" } });
+    const real = await logRepo.findOne({ where: { cartera: { id: carteraId }, tipo: "real" } });
     expect(real).toBeDefined();
-    const reporte = await reporteRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const reporte = await reporteRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(reporte).toBeDefined();
   });
 
-  it("GET /rutas/:id/dia/trayectorias devuelve el reporte del día con planificada y real", async () => {
+  it("GET /carteras/:id/trayecto-diario/trayectorias devuelve el reporte del día con planificada y real", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/dia/trayectorias`)
+      .get(`/carteras/${carteraId}/trayecto-diario/trayectorias`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -206,46 +206,46 @@ describe("Persistencia de trayectorias en reporte diario (e2e)", () => {
     expect(origenes).toContain("real");
   });
 
-  it("GET /rutas/:id/dia/trayectorias con ruta inexistente -> 404", async () => {
+  it("GET /carteras/:id/trayecto-diario/trayectorias con cartera inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/999999/dia/trayectorias`)
+      .get(`/carteras/999999/trayecto-diario/trayectorias`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
   });
 
-  it("POST /rutas/:id/dia/trayectoria-real con menos de 2 puntos -> 400", async () => {
+  it("POST /carteras/:id/trayecto-diario/trayectoria-real con menos de 2 puntos -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/dia/trayectoria-real`)
+      .post(`/carteras/${carteraId}/trayecto-diario/trayectoria-real`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ puntos: [{ latitud: -17.78, longitud: -63.18 }] });
 
     expect(res.status).toBe(400);
   });
 
-  it("un socio SIN ver_reportes no puede registrar la trayectoria real -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-tray2e-2",
+  it("un propietario SIN ver_reportes no puede registrar la trayectoria real -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-tray2e-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-tray2e-2@correo.com",
+      correo: "propietario-tray2e-2@correo.com",
       telefono: "+59171160142",
       codigo: "SC-TRAY2E-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-tray2e-2", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-tray2e-2", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/dia/trayectoria-real`)
-      .set("Authorization", `Bearer ${tokenSocio}`)
+      .post(`/carteras/${carteraId}/trayecto-diario/trayectoria-real`)
+      .set("Authorization", `Bearer ${tokenPropietario}`)
       .send({ puntos: [{ latitud: -17.78, longitud: -63.18 }] });
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 });

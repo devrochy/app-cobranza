@@ -8,8 +8,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { RolUsuario } from "../auth/auth.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Cobrador } from "../cobradores/cobrador.entity";
-import { Socio } from "../socios/socio.entity";
+import { Gestor } from "../gestores/gestor.entity";
+import { Propietario } from "../propietarios/propietario.entity";
 import { PasswordService } from "../security/password.service";
 
 export interface PerfilPublic {
@@ -30,7 +30,7 @@ export interface CambiarPasswordInput {
 }
 
 /**
- * Auto-actualización del perfil (nombre/apellido) para admin, socio y cobrador.
+ * Auto-actualización del perfil (nombre/apellido) para admin, propietario y gestor.
  * Cada usuario edita sus propios datos sin permisos adicionales; el rol vive en
  * el JWT (JwtAuthGuard revalida el estado activo).
  */
@@ -39,10 +39,10 @@ export class PerfilService {
   constructor(
     @InjectRepository(AdminUser)
     private readonly adminRepo: Repository<AdminUser>,
-    @InjectRepository(Cobrador)
-    private readonly cobradorRepo: Repository<Cobrador>,
-    @InjectRepository(Socio)
-    private readonly socioRepo: Repository<Socio>,
+    @InjectRepository(Gestor)
+    private readonly gestorRepo: Repository<Gestor>,
+    @InjectRepository(Propietario)
+    private readonly propietarioRepo: Repository<Propietario>,
     private readonly password: PasswordService,
   ) {}
 
@@ -55,20 +55,20 @@ export class PerfilService {
       return this.toPublic(admin);
     }
 
-    if (rol === "cobrador") {
-      const cobrador = await this.cobradorRepo.findOne({ where: { id: sub } });
-      if (!cobrador) {
+    if (rol === "gestor") {
+      const gestor = await this.gestorRepo.findOne({ where: { id: sub } });
+      if (!gestor) {
         throw new NotFoundException("Perfil no encontrado");
       }
-      return this.toPublic(cobrador);
+      return this.toPublic(gestor);
     }
 
-    if (rol === "socio") {
-      const socio = await this.socioRepo.findOne({ where: { id: sub } });
-      if (!socio) {
+    if (rol === "propietario") {
+      const propietario = await this.propietarioRepo.findOne({ where: { id: sub } });
+      if (!propietario) {
         throw new NotFoundException("Perfil no encontrado");
       }
-      return this.toPublic(socio);
+      return this.toPublic(propietario);
     }
 
     throw new ForbiddenException("Acceso denegado");
@@ -89,24 +89,24 @@ export class PerfilService {
       return this.toPublic(await this.adminRepo.save(admin));
     }
 
-    if (rol === "cobrador") {
-      const cobrador = await this.cobradorRepo.findOne({ where: { id: sub } });
-      if (!cobrador) {
+    if (rol === "gestor") {
+      const gestor = await this.gestorRepo.findOne({ where: { id: sub } });
+      if (!gestor) {
         throw new NotFoundException("Perfil no encontrado");
       }
-      cobrador.nombre = input.nombre;
-      cobrador.apellido = input.apellido;
-      return this.toPublic(await this.cobradorRepo.save(cobrador));
+      gestor.nombre = input.nombre;
+      gestor.apellido = input.apellido;
+      return this.toPublic(await this.gestorRepo.save(gestor));
     }
 
-    if (rol === "socio") {
-      const socio = await this.socioRepo.findOne({ where: { id: sub } });
-      if (!socio) {
+    if (rol === "propietario") {
+      const propietario = await this.propietarioRepo.findOne({ where: { id: sub } });
+      if (!propietario) {
         throw new NotFoundException("Perfil no encontrado");
       }
-      socio.nombre = input.nombre;
-      socio.apellido = input.apellido;
-      return this.toPublic(await this.socioRepo.save(socio));
+      propietario.nombre = input.nombre;
+      propietario.apellido = input.apellido;
+      return this.toPublic(await this.propietarioRepo.save(propietario));
     }
 
     throw new ForbiddenException("Acceso denegado");
@@ -133,32 +133,32 @@ export class PerfilService {
       return;
     }
 
-    if (rol === "cobrador") {
-      const cobrador = await this.cobradorRepo.findOne({
+    if (rol === "gestor") {
+      const gestor = await this.gestorRepo.findOne({
         where: { id: sub },
         select: { id: true, passwordHash: true },
       });
-      if (!cobrador) {
+      if (!gestor) {
         throw new NotFoundException("Perfil no encontrado");
       }
-      await this.assertPasswordActual(cobrador.passwordHash, input.passwordActual);
-      await this.cobradorRepo.update(
+      await this.assertPasswordActual(gestor.passwordHash, input.passwordActual);
+      await this.gestorRepo.update(
         { id: sub },
         { passwordHash: await this.password.hash(input.passwordNueva) },
       );
       return;
     }
 
-    if (rol === "socio") {
-      const socio = await this.socioRepo.findOne({
+    if (rol === "propietario") {
+      const propietario = await this.propietarioRepo.findOne({
         where: { id: sub },
         select: { id: true, passwordHash: true },
       });
-      if (!socio) {
+      if (!propietario) {
         throw new NotFoundException("Perfil no encontrado");
       }
-      await this.assertPasswordActual(socio.passwordHash, input.passwordActual);
-      await this.socioRepo.update(
+      await this.assertPasswordActual(propietario.passwordHash, input.passwordActual);
+      await this.propietarioRepo.update(
         { id: sub },
         { passwordHash: await this.password.hash(input.passwordNueva) },
       );
@@ -178,7 +178,7 @@ export class PerfilService {
     }
   }
 
-  private toPublic(entidad: AdminUser | Cobrador | Socio): PerfilPublic {
+  private toPublic(entidad: AdminUser | Gestor | Propietario): PerfilPublic {
     return {
       id: entidad.id,
       usuario: entidad.usuario,

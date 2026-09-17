@@ -5,20 +5,20 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Auto-actualización de perfil (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
 
   const ADMIN_USUARIO = "perfil-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Perfil2026";
-  const SOCIO_USUARIO = "perfil-e2e-socio";
-  const COBRADOR_USUARIO = "perfil-e2e-cobrador";
+  const PROPIETARIO_USUARIO = "perfil-e2e-propietario";
+  const GESTOR_USUARIO = "perfil-e2e-gestor";
   const PASSWORD = "Pass#Perfil2026";
 
   beforeAll(async () => {
@@ -38,11 +38,11 @@ describe("Auto-actualización de perfil (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
 
-    await cobradorRepo.delete({ usuario: COBRADOR_USUARIO });
-    await socioRepo.delete({ usuario: SOCIO_USUARIO });
+    await gestorRepo.delete({ usuario: GESTOR_USUARIO });
+    await propietarioRepo.delete({ usuario: PROPIETARIO_USUARIO });
     await adminRepo.delete({ usuario: ADMIN_USUARIO });
 
     await adminRepo.save({
@@ -55,25 +55,25 @@ describe("Auto-actualización de perfil (e2e)", () => {
       telefono: null,
     });
 
-    const socio = await socioRepo.save({
-      usuario: SOCIO_USUARIO,
+    const propietario = await propietarioRepo.save({
+      usuario: PROPIETARIO_USUARIO,
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "perfil-e2e-socio@correo.com",
+      correo: "perfil-e2e-propietario@correo.com",
       telefono: "+59171160180",
       codigo: "SC-PERFIL-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    await cobradorRepo.save({
-      socio: { id: socio.id } as Socio,
-      usuario: COBRADOR_USUARIO,
+    await gestorRepo.save({
+      propietario: { id: propietario.id } as Propietario,
+      usuario: GESTOR_USUARIO,
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "perfil-e2e-cobrador@correo.com",
+      correo: "perfil-e2e-gestor@correo.com",
       telefono: "+59171160181",
       codigo: "CB-PERFIL-1",
       estatus: "activo",
@@ -81,23 +81,23 @@ describe("Auto-actualización de perfil (e2e)", () => {
   });
 
   afterAll(async () => {
-    await cobradorRepo.delete({ usuario: COBRADOR_USUARIO });
-    await socioRepo.delete({ usuario: SOCIO_USUARIO });
+    await gestorRepo.delete({ usuario: GESTOR_USUARIO });
+    await propietarioRepo.delete({ usuario: PROPIETARIO_USUARIO });
     await adminRepo.delete({ usuario: ADMIN_USUARIO });
     await app.close();
   });
 
   async function tokenDe(
-    rol: "cobrador" | "socio" | "admin",
+    rol: "gestor" | "propietario" | "admin",
   ): Promise<string> {
     const path =
       rol === "admin"
         ? "/auth/login"
-        : rol === "socio"
-          ? "/auth/socio/login"
-          : "/auth/cobrador/login";
+        : rol === "propietario"
+          ? "/auth/propietario/login"
+          : "/auth/gestor/login";
     const usuario =
-      rol === "admin" ? ADMIN_USUARIO : rol === "socio" ? SOCIO_USUARIO : COBRADOR_USUARIO;
+      rol === "admin" ? ADMIN_USUARIO : rol === "propietario" ? PROPIETARIO_USUARIO : GESTOR_USUARIO;
     const password = rol === "admin" ? ADMIN_PASSWORD : PASSWORD;
     const res = await request(app.getHttpServer())
       .post(path)
@@ -105,37 +105,37 @@ describe("Auto-actualización de perfil (e2e)", () => {
     return res.body.accessToken as string;
   }
 
-  it("PATCH /perfil actualiza el perfil del cobrador", async () => {
-    const token = await tokenDe("cobrador");
+  it("PATCH /perfil actualiza el perfil del gestor", async () => {
+    const token = await tokenDe("gestor");
 
     const res = await request(app.getHttpServer())
       .patch("/perfil")
       .set("Authorization", `Bearer ${token}`)
-      .send({ nombre: "Nuevo", apellido: "Cobrador" });
+      .send({ nombre: "Nuevo", apellido: "Gestor" });
 
     expect(res.status).toBe(200);
-    expect(res.body.usuario).toBe(COBRADOR_USUARIO);
+    expect(res.body.usuario).toBe(GESTOR_USUARIO);
     expect(res.body.nombre).toBe("Nuevo");
-    expect(res.body.apellido).toBe("Cobrador");
+    expect(res.body.apellido).toBe("Gestor");
 
-    const enDb = await cobradorRepo.findOne({ where: { usuario: COBRADOR_USUARIO } });
+    const enDb = await gestorRepo.findOne({ where: { usuario: GESTOR_USUARIO } });
     expect(enDb?.nombre).toBe("Nuevo");
   });
 
-  it("PATCH /perfil actualiza el perfil del socio", async () => {
-    const token = await tokenDe("socio");
+  it("PATCH /perfil actualiza el perfil del propietario", async () => {
+    const token = await tokenDe("propietario");
 
     const res = await request(app.getHttpServer())
       .patch("/perfil")
       .set("Authorization", `Bearer ${token}`)
-      .send({ nombre: "Ana", apellido: "Socio" });
+      .send({ nombre: "Ana", apellido: "Propietario" });
 
     expect(res.status).toBe(200);
-    expect(res.body.usuario).toBe(SOCIO_USUARIO);
+    expect(res.body.usuario).toBe(PROPIETARIO_USUARIO);
     expect(res.body.nombre).toBe("Ana");
 
-    const enDb = await socioRepo.findOne({ where: { usuario: SOCIO_USUARIO } });
-    expect(enDb?.apellido).toBe("Socio");
+    const enDb = await propietarioRepo.findOne({ where: { usuario: PROPIETARIO_USUARIO } });
+    expect(enDb?.apellido).toBe("Propietario");
   });
 
   it("PATCH /perfil sin token -> 401", async () => {
@@ -147,7 +147,7 @@ describe("Auto-actualización de perfil (e2e)", () => {
   });
 
   it("PATCH /perfil sin nombre -> 400", async () => {
-    const token = await tokenDe("cobrador");
+    const token = await tokenDe("gestor");
 
     const res = await request(app.getHttpServer())
       .patch("/perfil")
@@ -175,14 +175,14 @@ describe("Auto-actualización de perfil (e2e)", () => {
   });
 
   it("GET /perfil devuelve el perfil del usuario autenticado", async () => {
-    const token = await tokenDe("cobrador");
+    const token = await tokenDe("gestor");
 
     const res = await request(app.getHttpServer())
       .get("/perfil")
       .set("Authorization", `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.usuario).toBe(COBRADOR_USUARIO);
+    expect(res.body.usuario).toBe(GESTOR_USUARIO);
     expect(res.body).toHaveProperty("nombre");
     expect(res.body).toHaveProperty("apellido");
   });

@@ -1,0 +1,320 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
+import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
+import { DataSource, In, Repository } from "typeorm";
+import { assertOwned } from "../../common/ownership";
+import { RolUsuario } from "../auth/auth.service";
+import { Cartera } from "../carteras/cartera.entity";
+import { CarteraConfig } from "../carteras/cartera-config.entity";
+import { CarteraConfigDefaults } from "../carteras/cartera-config.service";
+import { Cliente } from "./cliente.entity";
+import { Cuota, CuotaEstatus } from "./cuota.entity";
+import { Prestamo, PrestamoEstatus } from "./prestamo.entity";
+import { ColorRiesgoService } from "./color-riesgo.service";
+import { ajustarDiaHabil } from "../../domain/dias-no-laborables";
+import { DiasNoLaborables } from "../carteras/cartera-config.entity";
+import { formatDate } from "../../common/date";
+
+export interface CreatePrestamoInput {
+  clienteId: number;
+  valor: number;
+  numCuotas: number;
+  tipoInteres?: number;
+  diasEntreCuotas: number;
+  fiadorNombre?: string;
+  fiadorApellido?: string;
+  fiadorDocumento?: string;
+  fiadorTelefono?: string;
+}
+
+export interface RequesterPrestamoContext {
+  rol: RolUsuario;
+  sub: number;
+}
+
+export interface CuotaPublic {
+  id: number;
+  numeroCuota: number;
+  valorEsperado: number;
+  fechaVencimiento: string;
+  estatus: CuotaEstatus;
+}
+
+export interface PrestamoPublic {
+  id: number;
+  carteraId: number;
+  clienteId: number;
+  valor: number;
+  numCuotas: number;
+  tipoInteres: number;
+  diasEntreCuotas: number;
+  fechaOtorgado: Date;
+  estatus: PrestamoEstatus;
+  cuotas: CuotaPublic[];
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date.getTime());
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+interface CuotaGenerada {
+  numeroCuota: number;
+  valorEsperado: number;
+  fechaVencimiento: string;
+  estatus: CuotaEstatus;
+}
+
+@Injectable()
+export class PrestamoService {
+  private readonly logger = new Logger(PrestamoService.name);
+
+  constructor(
+    @InjectRepository(Cartera)
+    private readonly carteraRepo: Repository<Cartera>,
+    @InjectRepository(Cliente)
+    private readonly clienteRepo: Repository<Cliente>,
+    @InjectRepository(CarteraConfig)
+    private readonly configRepo: Repository<CarteraConfig>,
+    @InjectRepository(Prestamo)
+    private readonly prestamoRepo: Repository<Prestamo>,
+    @InjectRepository(Cuota)
+    private readonly cuotaRepo: Repository<Cuota>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
+    private readonly colorRiesgo: ColorRiesgoService,
+  ) {}
+
+  async crear(
+    carteraId: number,
+    input: CreatePrestamoInput,
+    requester: RequesterPrestamoContext,
+    fechaOtorgado: Date = new Date(),
+  ): Promise<PrestamoPublic> {
+    const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
+    if (!cartera) {
+      throw new NotFoundException("La cartera no existe");
+    }
+    assertOwned(cartera, requester);
+
+    const cliente = await this.clienteRepo.findOne({
+      where: { id: input.clienteId, cartera: { id: carteraId } },
+    });
+    if (!cliente) {
+      throw new NotFoundException("El cliente no existe en esta cartera");
+    }
+
+    const config =
+      (await this.configRepo.findOne({ where: { cartera: { id: carteraId } } })) ??
+      (CarteraConfigDefaults as CarteraConfig);
+
+    const tipoInteres = input.tipoInteres ?? cartera.tipoInteres;
+
+    if (config.cuotasMinimasPrestamo > 0 && input.numCuotas < config.cuotasMinimasPrestamo) {
+      throw new BadRequestException(
+        `El número de cuotas debe ser al menos ${config.cuotasMinimasPrestamo}`,
+      );
+    }
+
+    const saldoVigenteCliente = await this.saldoVigente(cliente.id);
+    // HU-14: los topes se miden contra el saldo CON interés (consistente con
+    // `saldoVigente`); el nuevo préstamo aporta su total con interés.
+    const valorTotalNuevo = input.valor * (1 + tipoInteres / 100);
+
+    if (config.manejoCupoActivo) {
+      if (saldoVigenteCliente + valorTotalNuevo > config.cupoDefault) {
+        throw new ConflictException("El préstamo excede el cupo de la cartera");
+      }
+    }
+
+    // HU-14: tope de deuda del cliente (saldo vigente + nuevo préstamo, ambos con interés).
+    if (cliente.topeMaximoDeuda !== null && cliente.topeMaximoDeuda !== undefined) {
+      if (saldoVigenteCliente + valorTotalNuevo > cliente.topeMaximoDeuda) {
+        throw new ConflictException("El préstamo excede el tope de deuda del cliente");
+      }
+    }
+
+    // HU-14: fecha del préstamo editable ±30 días, gateada por flag de cartera.
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaInicio = new Date(fechaOtorgado);
+    fechaInicio.setHours(0, 0, 0, 0);
+    const dias = Math.round(
+      (fechaInicio.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (Math.abs(dias) > 30) {
+      throw new BadRequestException("La fecha del préstamo no puede diferir más de 30 días de hoy");
+    }
+    if (!config.permitirCambioFechaPrestamo && dias !== 0) {
+      throw new BadRequestException("No está permitido cambiar la fecha del préstamo");
+    }
+
+    const cuotas = this.generarCuotas(
+      input.valor,
+      tipoInteres,
+      input.numCuotas,
+      input.diasEntreCuotas,
+      fechaOtorgado,
+      config.diasNoLaborables,
+    );
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    let prestamo: Prestamo;
+    let cuotasPublic: CuotaPublic[] = [];
+    try {
+      prestamo = this.prestamoRepo.create({
+        cliente: { id: cliente.id } as Cliente,
+        clienteId: cliente.id,
+        cartera: { id: carteraId } as Cartera,
+        carteraId,
+        valor: input.valor,
+        numCuotas: input.numCuotas,
+        tipoInteres,
+        diasEntreCuotas: input.diasEntreCuotas,
+        fechaOtorgado,
+        fiadorNombre: input.fiadorNombre ?? null,
+        fiadorApellido: input.fiadorApellido ?? null,
+        fiadorDocumento: input.fiadorDocumento ?? null,
+        fiadorTelefono: input.fiadorTelefono ?? null,
+        estatus: "vigente",
+      });
+      prestamo = await queryRunner.manager.save(prestamo);
+      const filasCuotas = cuotas.map((c) => ({
+        prestamo: { id: prestamo.id } as Prestamo,
+        prestamoId: prestamo.id,
+        numeroCuota: c.numeroCuota,
+        valorEsperado: c.valorEsperado,
+        fechaVencimiento: c.fechaVencimiento,
+        estatus: c.estatus,
+      }));
+      const cuotasGuardadas = await queryRunner.manager.save(Cuota, filasCuotas);
+      cuotasPublic = cuotasGuardadas.map((c) => ({
+        id: c.id,
+        numeroCuota: c.numeroCuota,
+        valorEsperado: c.valorEsperado,
+        fechaVencimiento: c.fechaVencimiento,
+        estatus: c.estatus,
+      }));
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+
+    // Wiring del color de riesgo (HU-13): el cliente ya tiene crédito.
+    // No fatal: si falla, el préstamo ya está persistido (dato derivado).
+    await this.colorRiesgo.recalcularSeguro(cliente.id, carteraId);
+
+    return this.toPublic(prestamo, cuotasPublic, carteraId, cliente.id, tipoInteres);
+  }
+
+  private async saldoVigente(clienteId: number): Promise<number> {
+    const cuotas = await this.cuotaRepo.find({
+      where: {
+        prestamo: { cliente: { id: clienteId }, estatus: "vigente" },
+        estatus: In(["pendiente", "atrasada"]),
+      },
+    });
+    return cuotas.reduce((suma, cuota) => suma + cuota.valorEsperado, 0);
+  }
+
+  private generarCuotas(
+    valor: number,
+    tipoInteres: number,
+    numCuotas: number,
+    diasEntreCuotas: number,
+    fechaOtorgado: Date,
+    diasNoLaborables: DiasNoLaborables,
+  ): CuotaGenerada[] {
+    const valorTotal = valor * (1 + tipoInteres / 100);
+    const cuotaBase = Math.round((valorTotal / numCuotas) * 100) / 100;
+
+    return Array.from({ length: numCuotas }, (_, index) => {
+      const esUltima = index === numCuotas - 1;
+      const valorEsperado = esUltima
+        ? Math.round((valorTotal - cuotaBase * (numCuotas - 1)) * 100) / 100
+        : cuotaBase;
+      return {
+        numeroCuota: index + 1,
+        valorEsperado,
+        fechaVencimiento: formatDate(
+          ajustarDiaHabil(
+            addDays(fechaOtorgado, (index + 1) * diasEntreCuotas),
+            diasNoLaborables,
+          ),
+        ),
+        estatus: "pendiente" as const,
+      };
+    });
+  }
+
+  async listarPorCliente(
+    carteraId: number,
+    clienteId: number,
+    requester: RequesterPrestamoContext,
+  ): Promise<PrestamoPublic[]> {
+    const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
+    if (!cartera) {
+      throw new NotFoundException("La cartera no existe");
+    }
+    assertOwned(cartera, requester);
+    const cliente = await this.clienteRepo.findOne({
+      where: { id: clienteId, cartera: { id: carteraId } },
+    });
+    if (!cliente) {
+      throw new NotFoundException("El cliente no existe");
+    }
+
+    const prestamos = await this.prestamoRepo.find({
+      where: { cartera: { id: carteraId }, cliente: { id: clienteId } },
+      relations: { cuotas: true },
+      order: { id: "ASC", cuotas: { numeroCuota: "ASC" } },
+    });
+    return prestamos.map((prestamo) =>
+      this.toPublic(
+        prestamo,
+        (prestamo.cuotas ?? []).map((c) => ({
+          id: c.id,
+          numeroCuota: c.numeroCuota,
+          valorEsperado: c.valorEsperado,
+          fechaVencimiento: c.fechaVencimiento,
+          estatus: c.estatus,
+        })),
+        carteraId,
+        clienteId,
+        prestamo.tipoInteres,
+      ),
+    );
+  }
+
+  private toPublic(
+    prestamo: Prestamo,
+    cuotas: CuotaPublic[],
+    carteraId: number,
+    clienteId: number,
+    tipoInteres: number,
+  ): PrestamoPublic {
+    return {
+      id: prestamo.id,
+      carteraId,
+      clienteId,
+      valor: prestamo.valor,
+      numCuotas: prestamo.numCuotas,
+      tipoInteres,
+      diasEntreCuotas: prestamo.diasEntreCuotas,
+      fechaOtorgado: prestamo.fechaOtorgado,
+      estatus: prestamo.estatus,
+      cuotas,
+    };
+  }
+}

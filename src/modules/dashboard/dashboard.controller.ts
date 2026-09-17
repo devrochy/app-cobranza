@@ -11,9 +11,9 @@ import { ListarSeriesDto } from "./dto/listar-series.dto";
 
 /**
  * Endpoints del panel admin (Épica 5). `GET /dashboard` exige `ver_reportes`:
- * el PermisoGuard deja pasar a admin siempre y a un socio solo si tiene el
- * permiso (p. ej. juanita con toda la matriz). El handler fuerza `socioId = sub`
- * para rol socio (ignora `rutaId` del query). `conversaciones-ia/panel` sigue
+ * el PermisoGuard deja pasar a admin siempre y a un propietario solo si tiene el
+ * permiso (p. ej. juanita con toda la matriz). El handler fuerza `propietarioId = sub`
+ * para rol propietario (ignora `carteraId` del query). `conversaciones-ia/panel` sigue
  * admin-only (sin @PermisoRequerido).
  */
 @Controller()
@@ -30,10 +30,10 @@ export class DashboardController {
     @Query() dto: ListarDashboardDto,
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
-    const esSocio = req.user.rol === "socio";
+    const esPropietario = req.user.rol === "propietario";
     return this.dashboardService.obtener(new Date(), {
-      rutaId: esSocio ? undefined : dto.rutaId,
-      socioId: esSocio ? req.user.sub : dto.socioId,
+      carteraId: esPropietario ? undefined : dto.carteraId,
+      propietarioId: esPropietario ? req.user.sub : dto.propietarioId,
     });
   }
 
@@ -44,12 +44,12 @@ export class DashboardController {
     @Query() dto: ListarSeriesDto,
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
-    const esSocio = req.user.rol === "socio";
+    const esPropietario = req.user.rol === "propietario";
     return this.dashboardService.series(
       new Date(),
       {
-        rutaId: esSocio ? undefined : dto.rutaId,
-        socioId: esSocio ? req.user.sub : dto.socioId,
+        carteraId: esPropietario ? undefined : dto.carteraId,
+        propietarioId: esPropietario ? req.user.sub : dto.propietarioId,
       },
       dto.dias ?? 14,
     );

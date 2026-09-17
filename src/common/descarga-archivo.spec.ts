@@ -12,22 +12,22 @@ describe("prepararDescargaEvidencia", () => {
   });
 
   function crearArchivo(nombre: string): string {
-    const ruta = join(baseDir, nombre);
-    writeFileSync(ruta, "contenido");
-    return ruta;
+    const cartera = join(baseDir, nombre);
+    writeFileSync(cartera, "contenido");
+    return cartera;
   }
 
-  it("devuelve la ruta absoluta y headers inline con el mimetype y filename saneado", () => {
-    const ruta = crearArchivo("factura 01.pdf");
+  it("devuelve la cartera absoluta y headers inline con el mimetype y filename saneado", () => {
+    const cartera = crearArchivo("factura 01.pdf");
 
     const resultado = prepararDescargaEvidencia({
-      rutaArchivo: ruta,
+      carteraArchivo: cartera,
       mimetype: "application/pdf",
       nombreOriginal: 'factura "01".pdf',
       baseDir,
     });
 
-    expect(resultado.rutaAbsoluta).toBe(ruta);
+    expect(resultado.carteraAbsoluta).toBe(cartera);
     expect(resultado.headers["Content-Type"]).toBe("application/pdf");
     expect(resultado.headers["Content-Disposition"]).toContain("inline");
     expect(resultado.headers["Content-Disposition"]).not.toContain('"01"');
@@ -39,10 +39,10 @@ describe("prepararDescargaEvidencia", () => {
   });
 
   it("usa attachment cuando descargar es true", () => {
-    const ruta = crearArchivo("foto.jpg");
+    const cartera = crearArchivo("foto.jpg");
 
     const resultado = prepararDescargaEvidencia({
-      rutaArchivo: ruta,
+      carteraArchivo: cartera,
       mimetype: "image/jpeg",
       nombreOriginal: "foto.jpg",
       baseDir,
@@ -55,7 +55,7 @@ describe("prepararDescargaEvidencia", () => {
   it("lanza NotFoundException si el archivo no existe", () => {
     expect(() =>
       prepararDescargaEvidencia({
-        rutaArchivo: join(baseDir, "no-existe.jpg"),
+        carteraArchivo: join(baseDir, "no-existe.jpg"),
         mimetype: "image/jpeg",
         nombreOriginal: "no-existe.jpg",
         baseDir,
@@ -63,7 +63,7 @@ describe("prepararDescargaEvidencia", () => {
     ).toThrow(NotFoundException);
   });
 
-  it("rechaza rutas que escapan del directorio base (path traversal)", () => {
+  it("rechaza carteras que escapan del directorio base (path traversal)", () => {
     const fuera = join(baseDir, "..", "archivo-peligroso.txt");
     mkdirSync(baseDir, { recursive: true });
     writeFileSync(join(baseDir, "..", "archivo-peligroso.txt"), "secreto");
@@ -71,7 +71,7 @@ describe("prepararDescargaEvidencia", () => {
     expect(existsSync(fuera)).toBe(true);
     expect(() =>
       prepararDescargaEvidencia({
-        rutaArchivo: fuera,
+        carteraArchivo: fuera,
         mimetype: "text/plain",
         nombreOriginal: "archivo-peligroso.txt",
         baseDir,
@@ -80,10 +80,10 @@ describe("prepararDescargaEvidencia", () => {
   });
 
   it("usa un nombre por defecto si el original queda vacío al sanear", () => {
-    const ruta = crearArchivo("evidencia.jpg");
+    const cartera = crearArchivo("evidencia.jpg");
 
     const resultado = prepararDescargaEvidencia({
-      rutaArchivo: ruta,
+      carteraArchivo: cartera,
       mimetype: "image/jpeg",
       nombreOriginal: '  "\\/  ',
       baseDir,
@@ -104,7 +104,7 @@ describe("prepararDescargaEvidencia", () => {
 
     expect(() =>
       prepararDescargaEvidencia({
-        rutaArchivo: enlace,
+        carteraArchivo: enlace,
         mimetype: "text/plain",
         nombreOriginal: "enlace.txt",
         baseDir,
@@ -118,7 +118,7 @@ describe("prepararDescargaEvidencia", () => {
 
     expect(() =>
       prepararDescargaEvidencia({
-        rutaArchivo: subdir,
+        carteraArchivo: subdir,
         mimetype: "application/octet-stream",
         nombreOriginal: "sub",
         baseDir,

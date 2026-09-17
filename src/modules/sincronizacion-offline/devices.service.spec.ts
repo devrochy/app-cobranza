@@ -16,11 +16,11 @@ describe("DevicesService", () => {
       codigo: "11111111-1111-1111-1111-111111111111",
       apiKeyHash: "hash",
       estado: "activo",
-      cobradorId: 20,
+      gestorId: 20,
       imei: "imei-abc",
       whatsappNumber: "+59170000000",
       publicKey: "pubkey",
-      rutaId: null,
+      carteraId: null,
       fechaVinculacion: new Date(),
       createdAt: new Date(),
       ...overrides,
@@ -48,24 +48,24 @@ describe("DevicesService", () => {
     deviceRepo = module.get(getRepositoryToken(Device));
   });
 
-  describe("registrar (vinculación device ↔ cobrador)", () => {
+  describe("registrar (vinculación device ↔ gestor)", () => {
     const input = {
-      cobradorId: 20,
+      gestorId: 20,
       imei: "imei-abc",
       whatsappNumber: "+59170000000",
       publicKey: "pubkey-x25519",
     };
 
-    it("revoca el dispositivo activo previo del cobrador (vínculo 1:1)", async () => {
+    it("revoca el dispositivo activo previo del gestor (vínculo 1:1)", async () => {
       await service.registrar(input);
 
       expect(deviceRepo.update).toHaveBeenCalledWith(
-        { cobradorId: 20, estado: "activo" },
+        { gestorId: 20, estado: "activo" },
         { estado: "revocado" },
       );
     });
 
-    it("genera codigo + apiKey, guarda el hash y vincula cobrador/imei/whatsapp/publicKey", async () => {
+    it("genera codigo + apiKey, guarda el hash y vincula gestor/imei/whatsapp/publicKey", async () => {
       const result = await service.registrar(input);
 
       expect(result.codigo).toBeDefined();
@@ -74,7 +74,7 @@ describe("DevicesService", () => {
       const guardado = (mockDeviceRepo.save as jest.Mock).mock.calls[0][0] as Partial<Device>;
       expect(guardado.apiKeyHash).toBeDefined();
       expect(guardado.apiKeyHash).not.toBe(result.apiKey.split(".")[1]);
-      expect(guardado.cobradorId).toBe(20);
+      expect(guardado.gestorId).toBe(20);
       expect(guardado.imei).toBe("imei-abc");
       expect(guardado.whatsappNumber).toBe("+59170000000");
       expect(guardado.publicKey).toBe("pubkey-x25519");
@@ -83,11 +83,11 @@ describe("DevicesService", () => {
     });
   });
 
-  describe("listar / revocar / obtenerPorCobrador", () => {
+  describe("listar / revocar / obtenerPorGestor", () => {
     it("lista los dispositivos mapeados a público", async () => {
       (deviceRepo.find as jest.Mock).mockResolvedValue([device()]);
       const result = await service.listar();
-      expect(result[0]).toMatchObject({ id: 1, cobradorId: 20, estado: "activo" });
+      expect(result[0]).toMatchObject({ id: 1, gestorId: 20, estado: "activo" });
     });
 
     it("revoca un dispositivo y devuelve su estado", async () => {
@@ -104,12 +104,12 @@ describe("DevicesService", () => {
       await expect(service.revocar(999)).rejects.toThrow(NotFoundException);
     });
 
-    it("obtenerPorCobrador busca el dispositivo activo del cobrador", async () => {
+    it("obtenerPorGestor busca el dispositivo activo del gestor", async () => {
       (deviceRepo.findOne as jest.Mock).mockResolvedValue(device());
-      const result = await service.obtenerPorCobrador(20);
-      expect(result?.cobradorId).toBe(20);
+      const result = await service.obtenerPorGestor(20);
+      expect(result?.gestorId).toBe(20);
       expect(deviceRepo.findOne).toHaveBeenCalledWith({
-        where: { cobradorId: 20, estado: "activo" },
+        where: { gestorId: 20, estado: "activo" },
       });
     });
   });

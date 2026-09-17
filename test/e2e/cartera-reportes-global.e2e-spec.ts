@@ -5,26 +5,26 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { In, Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Liquidacion } from "../../src/modules/rutas/liquidacion.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Liquidacion } from "../../src/modules/carteras/liquidacion.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Cartera y reportes globales (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let liquidacionRepo: Repository<Liquidacion>;
   let clienteRepo: Repository<Cliente>;
   let accessTokenAdmin: string;
-  let tokenSocio1: string;
-  let tokenSocio2: string;
-  let rutaSocio1: number;
-  let rutaSocio2: number;
+  let tokenPropietario1: string;
+  let tokenPropietario2: string;
+  let carteraPropietario1: number;
+  let carteraPropietario2: number;
 
   const ADMIN_USERNAME = "global-e2e-admin";
   const ADMIN_PASSWORD = "global-e2e-password";
@@ -47,24 +47,24 @@ describe("Cartera y reportes globales (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     liquidacionRepo = moduleFixture.get(getRepositoryToken(Liquidacion));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
 
-    const limpiarRutas = async (nombres: string[]) => {
-      const rutas = await rutaRepo.find({ where: nombres.map((n) => ({ nombre: n })) });
-      const ids = rutas.map((r) => r.id);
+    const limpiarCarteras = async (nombres: string[]) => {
+      const carteras = await carteraRepo.find({ where: nombres.map((n) => ({ nombre: n })) });
+      const ids = carteras.map((r) => r.id);
       if (ids.length) {
-        await clienteRepo.delete({ ruta: { id: In(ids) } });
-        await liquidacionRepo.delete({ ruta: { id: In(ids) } });
+        await clienteRepo.delete({ cartera: { id: In(ids) } });
+        await liquidacionRepo.delete({ cartera: { id: In(ids) } });
       }
-      await rutaRepo.delete({ nombre: In(nombres) });
+      await carteraRepo.delete({ nombre: In(nombres) });
     };
-    await limpiarRutas(["Ruta Global 1", "Ruta Global 2"]);
-    await cobradorRepo.delete({ codigo: In(["CB-GLOBAL-1", "CB-GLOBAL-2"]) });
-    await socioRepo.delete({ codigo: In(["SC-GLOBAL-1", "SC-GLOBAL-2"]) });
+    await limpiarCarteras(["Cartera Global 1", "Cartera Global 2"]);
+    await gestorRepo.delete({ codigo: In(["CB-GLOBAL-1", "CB-GLOBAL-2"]) });
+    await propietarioRepo.delete({ codigo: In(["SC-GLOBAL-1", "SC-GLOBAL-2"]) });
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -82,60 +82,60 @@ describe("Cartera y reportes globales (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio1 = await socioRepo.save({
-      usuario: "socio-global-1",
+    const propietario1 = await propietarioRepo.save({
+      usuario: "propietario-global-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S1",
       apellido: "E2E",
-      correo: "socio-global-1@correo.com",
+      correo: "propietario-global-1@correo.com",
       telefono: "+59170001001",
       codigo: "SC-GLOBAL-1",
       moneda: "BOB",
       estatus: "activo",
     });
-    const socio2 = await socioRepo.save({
-      usuario: "socio-global-2",
+    const propietario2 = await propietarioRepo.save({
+      usuario: "propietario-global-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-global-2@correo.com",
+      correo: "propietario-global-2@correo.com",
       telefono: "+59170001002",
       codigo: "SC-GLOBAL-2",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador1 = await cobradorRepo.save({
-      socio: { id: socio1.id },
-      usuario: "cobrador-global-1",
+    const gestor1 = await gestorRepo.save({
+      propietario: { id: propietario1.id },
+      usuario: "gestor-global-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C1",
       apellido: "E2E",
-      correo: "cobrador-global-1@correo.com",
+      correo: "gestor-global-1@correo.com",
       telefono: "+59170001003",
       codigo: "CB-GLOBAL-1",
       estatus: "activo",
     });
-    const cobrador2 = await cobradorRepo.save({
-      socio: { id: socio2.id },
-      usuario: "cobrador-global-2",
+    const gestor2 = await gestorRepo.save({
+      propietario: { id: propietario2.id },
+      usuario: "gestor-global-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C2",
       apellido: "E2E",
-      correo: "cobrador-global-2@correo.com",
+      correo: "gestor-global-2@correo.com",
       telefono: "+59170001004",
       codigo: "CB-GLOBAL-2",
       estatus: "activo",
     });
 
-    const crearRuta = (nombre: string, socioId: number, cobradorId: number) =>
+    const crearCartera = (nombre: string, propietarioId: number, gestorId: number) =>
       request(app.getHttpServer())
-        .post("/rutas")
+        .post("/carteras")
         .set("Authorization", `Bearer ${accessTokenAdmin}`)
         .send({
           nombre,
-          socioId,
-          cobradorId,
+          propietarioId,
+          gestorId,
           tipoInteres: 20,
           numCuotas: 4,
           moneda: "BOB",
@@ -144,22 +144,22 @@ describe("Cartera y reportes globales (e2e)", () => {
         });
 
     await request(app.getHttpServer())
-      .put(`/socios/${socio1.id}/permisos`)
+      .put(`/propietarios/${propietario1.id}/permisos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ matriz: { configurar_ruta: true, ver_reportes: true } });
+      .send({ matriz: { configurar_cartera: true, ver_reportes: true } });
     await request(app.getHttpServer())
-      .put(`/socios/${socio2.id}/permisos`)
+      .put(`/propietarios/${propietario2.id}/permisos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ matriz: { configurar_ruta: true, ver_reportes: true } });
+      .send({ matriz: { configurar_cartera: true, ver_reportes: true } });
 
-    const ruta1 = await crearRuta("Ruta Global 1", socio1.id, cobrador1.id);
-    const ruta2 = await crearRuta("Ruta Global 2", socio2.id, cobrador2.id);
-    rutaSocio1 = ruta1.body.id as number;
-    rutaSocio2 = ruta2.body.id as number;
+    const cartera1 = await crearCartera("Cartera Global 1", propietario1.id, gestor1.id);
+    const cartera2 = await crearCartera("Cartera Global 2", propietario2.id, gestor2.id);
+    carteraPropietario1 = cartera1.body.id as number;
+    carteraPropietario2 = cartera2.body.id as number;
 
-    const crearCliente = (rutaId: number, nombre: string) =>
+    const crearCliente = (carteraId: number, nombre: string) =>
       request(app.getHttpServer())
-        .post(`/rutas/${rutaId}/clientes`)
+        .post(`/carteras/${carteraId}/clientes`)
         .set("Authorization", `Bearer ${accessTokenAdmin}`)
         .field("nombre", nombre)
         .field("apellido", "E2E")
@@ -169,12 +169,12 @@ describe("Cartera y reportes globales (e2e)", () => {
         .field("latitud", "-17.78")
         .field("longitud", "-63.18");
 
-    await crearCliente(rutaSocio1, "ClienteGlobal1");
-    await crearCliente(rutaSocio2, "ClienteGlobal2");
+    await crearCliente(carteraPropietario1, "ClienteGlobal1");
+    await crearCliente(carteraPropietario2, "ClienteGlobal2");
 
     await liquidacionRepo.save({
-      ruta: { id: rutaSocio1 },
-      rutaId: rutaSocio1,
+      cartera: { id: carteraPropietario1 },
+      carteraId: carteraPropietario1,
       fecha: "2026-08-31",
       periodo: "diario",
       cajaAnterior: 1000,
@@ -192,45 +192,45 @@ describe("Cartera y reportes globales (e2e)", () => {
     } as Partial<Liquidacion>);
 
     const login1 = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-global-1", password: PASSWORD });
-    tokenSocio1 = login1.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-global-1", password: PASSWORD });
+    tokenPropietario1 = login1.body.accessToken as string;
 
     const login2 = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-global-2", password: PASSWORD });
-    tokenSocio2 = login2.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-global-2", password: PASSWORD });
+    tokenPropietario2 = login2.body.accessToken as string;
   });
 
   afterAll(async () => {
-    const ids = [rutaSocio1, rutaSocio2].filter((id): id is number => Number.isFinite(id));
+    const ids = [carteraPropietario1, carteraPropietario2].filter((id): id is number => Number.isFinite(id));
     if (ids.length) {
-      await clienteRepo.delete({ ruta: { id: In(ids) } });
-      await liquidacionRepo.delete({ ruta: { id: In(ids) } });
+      await clienteRepo.delete({ cartera: { id: In(ids) } });
+      await liquidacionRepo.delete({ cartera: { id: In(ids) } });
     }
-    await rutaRepo.delete({ id: In(ids.length ? ids : [0]) });
-    await cobradorRepo.delete({ codigo: In(["CB-GLOBAL-1", "CB-GLOBAL-2"]) });
-    await socioRepo.delete({ codigo: In(["SC-GLOBAL-1", "SC-GLOBAL-2"]) });
+    await carteraRepo.delete({ id: In(ids.length ? ids : [0]) });
+    await gestorRepo.delete({ codigo: In(["CB-GLOBAL-1", "CB-GLOBAL-2"]) });
+    await propietarioRepo.delete({ codigo: In(["SC-GLOBAL-1", "SC-GLOBAL-2"]) });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("GET /cartera/clientes como admin ve clientes de todas las rutas con rutaNombre", async () => {
+  it("GET /clientes como admin ve clientes de todas las carteras con carteraNombre", async () => {
     const res = await request(app.getHttpServer())
-      .get("/cartera/clientes")
+      .get("/clientes")
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
-    const nombres = (res.body.items as { nombre: string; rutaNombre: string }[]).map((c) => c.nombre);
+    const nombres = (res.body.items as { nombre: string; carteraNombre: string }[]).map((c) => c.nombre);
     expect(nombres).toContain("ClienteGlobal1");
     expect(nombres).toContain("ClienteGlobal2");
-    expect(res.body.items.some((c: { rutaNombre: string }) => c.rutaNombre === "Ruta Global 1")).toBe(true);
+    expect(res.body.items.some((c: { carteraNombre: string }) => c.carteraNombre === "Cartera Global 1")).toBe(true);
   });
 
-  it("GET /cartera/clientes como socio solo ve clientes de sus rutas", async () => {
+  it("GET /clientes como propietario solo ve clientes de sus carteras", async () => {
     const res = await request(app.getHttpServer())
-      .get("/cartera/clientes")
-      .set("Authorization", `Bearer ${tokenSocio1}`);
+      .get("/clientes")
+      .set("Authorization", `Bearer ${tokenPropietario1}`);
 
     expect(res.status).toBe(200);
     const nombres = (res.body.items as { nombre: string }[]).map((c) => c.nombre);
@@ -243,16 +243,16 @@ describe("Cartera y reportes globales (e2e)", () => {
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
-    const conMia = (res.body as { comentario: string; rutaNombre: string }[]).some(
-      (l) => l.comentario === "liquidacion-e2e" && l.rutaNombre === "Ruta Global 1",
+    const conMia = (res.body as { comentario: string; carteraNombre: string }[]).some(
+      (l) => l.comentario === "liquidacion-e2e" && l.carteraNombre === "Cartera Global 1",
     );
     expect(conMia).toBe(true);
   });
 
-  it("GET /reportes/liquidaciones de un socio solo trae las de sus rutas", async () => {
+  it("GET /reportes/liquidaciones de un propietario solo trae las de sus carteras", async () => {
     const res = await request(app.getHttpServer())
       .get("/reportes/liquidaciones")
-      .set("Authorization", `Bearer ${tokenSocio2}`);
+      .set("Authorization", `Bearer ${tokenPropietario2}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(0);

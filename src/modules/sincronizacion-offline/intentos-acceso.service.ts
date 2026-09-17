@@ -5,7 +5,7 @@ import { AlertasService } from "./alertas.service";
 import { IntentoAcceso, IntentoMotivo } from "./intento-acceso.entity";
 
 export interface RegistrarIntentoInput {
-  cobradorId: number | null;
+  gestorId: number | null;
   imei: string | null;
   whatsappNumber: string | null;
   motivo: IntentoMotivo;
@@ -27,7 +27,7 @@ export class IntentosAccesoService {
     const intento = this.repo.create(input);
     const saved = await this.repo.save(intento);
     await this.alertas.notificarIntentoNoAutorizado({
-      cobradorId: input.cobradorId,
+      gestorId: input.gestorId,
       imei: input.imei,
       whatsappNumber: input.whatsappNumber,
       motivo: input.motivo,

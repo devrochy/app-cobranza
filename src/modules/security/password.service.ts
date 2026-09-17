@@ -3,7 +3,7 @@ import * as bcrypt from "bcrypt";
 
 /**
  * Abstracción del hasheo/verificación de contraseñas (bcrypt), compartida por
- * seed, auth y socios — evita duplicar la lógica de bcrypt por módulo.
+ * seed, auth y propietarios — evita duplicar la lógica de bcrypt por módulo.
  */
 @Injectable()
 export class PasswordService {

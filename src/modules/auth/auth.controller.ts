@@ -26,16 +26,16 @@ export class AuthController {
     return this.authService.login(dto.usuario, dto.password);
   }
 
-  @Post("socio/login")
+  @Post("propietario/login")
   @UseGuards(ThrottlerGuard)
-  loginSocio(@Body() dto: LoginDto) {
-    return this.authService.loginSocio(dto.usuario, dto.password);
+  loginPropietario(@Body() dto: LoginDto) {
+    return this.authService.loginPropietario(dto.usuario, dto.password);
   }
 
-  @Post("cobrador/login")
+  @Post("gestor/login")
   @UseGuards(ThrottlerGuard)
-  loginCobrador(@Body() dto: LoginDto) {
-    return this.authService.loginCobrador(dto.usuario, dto.password, {
+  loginGestor(@Body() dto: LoginDto) {
+    return this.authService.loginGestor(dto.usuario, dto.password, {
       imei: dto.imei,
       whatsappNumber: dto.whatsappNumber,
     });

@@ -66,12 +66,12 @@ export class SincronizacionOfflineController {
     return resultados;
   }
 
-  @Get("sync-offline/dia")
+  @Get("sync-offline/trayecto-diario")
   @UseGuards(DeviceApiKeyGuard)
   snapshotDia(
     @Req() req: RequestWithDevice,
-    @Query("rutaId", ParseIntPipe) rutaId: number,
+    @Query("carteraId", ParseIntPipe) carteraId: number,
   ) {
-    return this.snapshotDiaService.obtenerSnapshot(req.device!, rutaId);
+    return this.snapshotDiaService.obtenerSnapshot(req.device!, carteraId);
   }
 }

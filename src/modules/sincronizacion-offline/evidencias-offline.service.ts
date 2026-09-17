@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { mkdirSync, writeFileSync } from "fs";
 import { extname, join } from "path";
-import type { ArchivoSubido } from "../rutas/gastos.service";
-import { UPLOAD_DIR } from "../rutas/evidencia-upload";
+import type { ArchivoSubido } from "../carteras/gastos.service";
+import { UPLOAD_DIR } from "../carteras/evidencia-upload";
 
 export interface EvidenciaOfflineInput {
   nombre: string;

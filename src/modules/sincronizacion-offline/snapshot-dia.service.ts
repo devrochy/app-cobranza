@@ -1,14 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ListaClientesDelDiaService } from "../rutas/lista-clientes-dia.service";
-import { RutaOptimizacionService } from "../rutas/ruta-optimizacion.service";
-import { Ruta } from "../rutas/ruta.entity";
+import { ListaClientesDelDiaService } from "../carteras/lista-clientes-dia.service";
+import { CarteraOptimizacionService } from "../carteras/cartera-optimizacion.service";
+import { Cartera } from "../carteras/cartera.entity";
 import { Device } from "./device.entity";
 import { SnapshotCifrado, SnapshotCryptoService } from "./snapshot-crypto.service";
 
 export interface SnapshotDiaPublic {
-  ruta: { id: number; nombre: string };
+  cartera: { id: number; nombre: string };
   clientes: unknown[];
   trayectos: unknown;
 }
@@ -17,43 +17,43 @@ export type SnapshotDiaResult = SnapshotDiaPublic | SnapshotCifrado;
 
 /**
  * Snapshot del día para la APK offline (HU-64, PRD 6.5:435): la APK descarga al
- * inicio con conexión la ruta + clientes del día + trayectos y trabaja con copia
- * local. El dispositivo ya está autenticado y vinculado a su cobrador; la ruta
- * solicitada debe pertenecer a ese cobrador.
+ * inicio con conexión la cartera + clientes del día + trayectos y trabaja con copia
+ * local. El dispositivo ya está autenticado y vinculado a su gestor; la cartera
+ * solicitada debe pertenecer a ese gestor.
  */
 @Injectable()
 export class SnapshotDiaService {
   constructor(
-    @InjectRepository(Ruta)
-    private readonly rutaRepo: Repository<Ruta>,
+    @InjectRepository(Cartera)
+    private readonly carteraRepo: Repository<Cartera>,
     private readonly listaClientesDelDiaService: ListaClientesDelDiaService,
-    private readonly rutaOptimizacionService: RutaOptimizacionService,
+    private readonly carteraOptimizacionService: CarteraOptimizacionService,
     private readonly crypto: SnapshotCryptoService,
   ) {}
 
   async obtenerSnapshot(
     device: Device,
-    rutaId: number,
+    carteraId: number,
   ): Promise<SnapshotDiaResult> {
-    if (device.cobradorId == null) {
-      throw new BadRequestException("El dispositivo no tiene cobrador vinculado");
+    if (device.gestorId == null) {
+      throw new BadRequestException("El dispositivo no tiene gestor vinculado");
     }
-    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
-    if (!ruta) {
-      throw new NotFoundException("La ruta no existe");
+    const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
+    if (!cartera) {
+      throw new NotFoundException("La cartera no existe");
     }
-    if (ruta.cobradorId !== device.cobradorId) {
+    if (cartera.gestorId !== device.gestorId) {
       throw new ForbiddenException(
-        "La ruta no pertenece al cobrador del dispositivo",
+        "La cartera no pertenece al gestor del dispositivo",
       );
     }
 
     const requester = { rol: "admin" as const, sub: 0 };
-    const clientes = await this.listaClientesDelDiaService.obtener(rutaId, requester);
+    const clientes = await this.listaClientesDelDiaService.obtener(carteraId, requester);
 
     let trayectos: unknown = null;
     try {
-      trayectos = await this.rutaOptimizacionService.consultar(rutaId, requester);
+      trayectos = await this.carteraOptimizacionService.consultar(carteraId, requester);
     } catch (err) {
       // Sin trayecto planificado todavía: la APK trabaja con la lista de clientes.
       if (!(err instanceof NotFoundException)) {
@@ -62,7 +62,7 @@ export class SnapshotDiaService {
     }
 
     const snapshot: SnapshotDiaPublic = {
-      ruta: { id: ruta.id, nombre: ruta.nombre },
+      cartera: { id: cartera.id, nombre: cartera.nombre },
       clientes,
       trayectos,
     };

@@ -4,7 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { DataSource } from "typeorm";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
-import { PermisosSocioService } from "../socios/permisos-socio.service";
+import { PermisosPropietarioService } from "../propietarios/permisos-propietario.service";
 import { DeviceApiKeyGuard } from "./device-api-key.guard";
 import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service";
 import { DevicesService } from "./devices.service";
@@ -25,7 +25,7 @@ describe("SincronizacionOfflineController", () => {
   const mockSnapshot = { obtenerSnapshot: jest.fn() };
   const mockIntentos = { listar: jest.fn() };
 
-  const deviceReq = { device: { id: 3, rutaId: 5 } } as never;
+  const deviceReq = { device: { id: 3, carteraId: 5 } } as never;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -41,7 +41,7 @@ describe("SincronizacionOfflineController", () => {
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
-        { provide: PermisosSocioService, useValue: { tienePermiso: jest.fn() } },
+        { provide: PermisosPropietarioService, useValue: { tienePermiso: jest.fn() } },
         { provide: JwtService, useValue: new JwtService() },
         { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
@@ -55,7 +55,7 @@ describe("SincronizacionOfflineController", () => {
 
   it("registrar dispositivo delega en el servicio", async () => {
     const dto = {
-      cobradorId: 20,
+      gestorId: 20,
       imei: "imei-1",
       whatsappNumber: "+59170000000",
       publicKey: "pk-x25519",
@@ -70,15 +70,15 @@ describe("SincronizacionOfflineController", () => {
       deviceReq,
     );
     expect(syncService.ingestir).toHaveBeenCalledWith(
-      { id: 3, rutaId: 5 },
+      { id: 3, carteraId: 5 },
       [{ eventoIdCliente: "11111111-1111-4111-8111-111111111111", tipoEvento: "visita", payload: {} }],
     );
-    expect(mockAplicar.aplicarPendientesDeDispositivo).toHaveBeenCalledWith({ id: 3, rutaId: 5 });
+    expect(mockAplicar.aplicarPendientesDeDispositivo).toHaveBeenCalledWith({ id: 3, carteraId: 5 });
   });
 
-  it("obtener snapshot del día delega con el dispositivo y la ruta", async () => {
+  it("obtener snapshot del día delega con el dispositivo y la cartera", async () => {
     await controller.snapshotDia(deviceReq, 5);
-    expect(snapshot.obtenerSnapshot).toHaveBeenCalledWith({ id: 3, rutaId: 5 }, 5);
+    expect(snapshot.obtenerSnapshot).toHaveBeenCalledWith({ id: 3, carteraId: 5 }, 5);
   });
 
   it("listar intentos de acceso delega en el servicio", async () => {

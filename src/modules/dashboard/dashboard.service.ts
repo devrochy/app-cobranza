@@ -2,15 +2,15 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, MoreThanOrEqual, Repository } from "typeorm";
 import { formatDate } from "../../common/date";
-import { Abono } from "../cartera/abono.entity";
-import { Cliente } from "../cartera/cliente.entity";
-import { Cuota } from "../cartera/cuota.entity";
-import { Pago } from "../cartera/pago.entity";
-import { Prestamo } from "../cartera/prestamo.entity";
-import { Gasto } from "../rutas/gasto.entity";
-import { Liquidacion } from "../rutas/liquidacion.entity";
-import { Ruta } from "../rutas/ruta.entity";
-import { Socio } from "../socios/socio.entity";
+import { Abono } from "../clientes/abono.entity";
+import { Cliente } from "../clientes/cliente.entity";
+import { Cuota } from "../clientes/cuota.entity";
+import { Pago } from "../clientes/pago.entity";
+import { Prestamo } from "../clientes/prestamo.entity";
+import { Gasto } from "../carteras/gasto.entity";
+import { Liquidacion } from "../carteras/liquidacion.entity";
+import { Cartera } from "../carteras/cartera.entity";
+import { Propietario } from "../propietarios/propietario.entity";
 
 export interface DashboardPublic {
   carteraActiva: number;
@@ -19,8 +19,8 @@ export interface DashboardPublic {
   cobradoSemana: number;
   gastosPeriodo: number;
   comisionesPeriodo: number;
-  rutasActivas: number;
-  sociosActivos: number;
+  carterasActivas: number;
+  propietariosActivos: number;
   clientesActivos: number;
   prestamosVigentes: number;
 }
@@ -36,13 +36,13 @@ export interface DashboardSeries {
 }
 
 /**
- * Dashboard consolidado multi-ruta (HU-23). Semántica (documentada, ajustable):
+ * Dashboard consolidado multi-cartera (HU-23). Semántica (documentada, ajustable):
  * - carteraActiva: suma del valor esperado de cuotas pendiente/atrasada de préstamos vigentes.
  * - moraTotal: suma del valor esperado de cuotas atrasadas.
  * - cobradoDia/cobradoSemana: suma de pagos + abonos con fecha_hora en el día / últimos 7 días.
  * - gastosPeriodo: suma de gastos aprobados del mes actual.
  * - comisionesPeriodo: suma de comisión de liquidaciones del mes actual.
- * Admite filtros opcionales `rutaId`/`socioId` para acotar los agregados.
+ * Admite filtros opcionales `carteraId`/`propietarioId` para acotar los agregados.
  */
 @Injectable()
 export class DashboardService {
@@ -59,39 +59,39 @@ export class DashboardService {
     private readonly gastoRepo: Repository<Gasto>,
     @InjectRepository(Liquidacion)
     private readonly liquidacionRepo: Repository<Liquidacion>,
-    @InjectRepository(Ruta)
-    private readonly rutaRepo: Repository<Ruta>,
-    @InjectRepository(Socio)
-    private readonly socioRepo: Repository<Socio>,
+    @InjectRepository(Cartera)
+    private readonly carteraRepo: Repository<Cartera>,
+    @InjectRepository(Propietario)
+    private readonly propietarioRepo: Repository<Propietario>,
     @InjectRepository(Cliente)
     private readonly clienteRepo: Repository<Cliente>,
   ) {}
 
   async obtener(
     hoy: Date = new Date(),
-    filtros: { rutaId?: number; socioId?: number } = {},
+    filtros: { carteraId?: number; propietarioId?: number } = {},
   ): Promise<DashboardPublic> {
     const inicioDia = this.inicioDeDia(hoy);
     const inicioSemana = this.restarDias(inicioDia, 6);
     const inicioMes = this.inicioDeMes(hoy);
     const inicioMesStr = formatDate(inicioMes);
 
-    const rutaIds = await this.resolverRutaIds(filtros);
-    // TypeORM no resuelve RelationId (`rutaId`) en filtros de sum/count: se usa
-    // siempre la relación `ruta.id`. `rutasActivas` filtra por `id` (es Ruta).
-    const filtroRuta = rutaIds ? { ruta: { id: In(rutaIds) } } : {};
-    const filtroRutaEsId = rutaIds ? { id: In(rutaIds) } : {};
-    const filtroPago = rutaIds ? { cliente: { ruta: { id: In(rutaIds) } } } : {};
-    const filtroAbono = rutaIds ? { prestamo: { ruta: { id: In(rutaIds) } } } : {};
+    const carteraIds = await this.resolverCarteraIds(filtros);
+    // TypeORM no resuelve RelationId (`carteraId`) en filtros de sum/count: se usa
+    // siempre la relación `cartera.id`. `carterasActivas` filtra por `id` (es Cartera).
+    const filtroCartera = carteraIds ? { cartera: { id: In(carteraIds) } } : {};
+    const filtroCarteraEsId = carteraIds ? { id: In(carteraIds) } : {};
+    const filtroPago = carteraIds ? { cliente: { cartera: { id: In(carteraIds) } } } : {};
+    const filtroAbono = carteraIds ? { prestamo: { cartera: { id: In(carteraIds) } } } : {};
 
     const [carteraActiva, moraTotal] = await Promise.all([
       this.cuotaRepo.sum("valorEsperado", {
         estatus: In(["pendiente", "atrasada"]),
-        prestamo: { estatus: "vigente", ...filtroRuta },
+        prestamo: { estatus: "vigente", ...filtroCartera },
       }),
       this.cuotaRepo.sum("valorEsperado", {
         estatus: "atrasada",
-        prestamo: { estatus: "vigente", ...filtroRuta },
+        prestamo: { estatus: "vigente", ...filtroCartera },
       }),
     ]);
 
@@ -119,29 +119,29 @@ export class DashboardService {
         aprobado: true,
         estado: "activo",
         fechaHora: MoreThanOrEqual(inicioMes),
-        ...filtroRuta,
+        ...filtroCartera,
       }),
       this.liquidacionRepo.sum("comisionValor", {
         fecha: MoreThanOrEqual(inicioMesStr),
-        ...filtroRuta,
+        ...filtroCartera,
       }),
     ]);
 
-    const socioIds = await this.resolverSocioIds(rutaIds, filtros.socioId);
-    const filtroSocio = socioIds ? { id: In(socioIds) } : {};
-    const [rutasActivas, sociosActivos, clientesActivos, prestamosVigentes] =
+    const propietarioIds = await this.resolverPropietarioIds(carteraIds, filtros.propietarioId);
+    const filtroPropietario = propietarioIds ? { id: In(propietarioIds) } : {};
+    const [carterasActivas, propietariosActivos, clientesActivos, prestamosVigentes] =
       await Promise.all([
-        this.rutaRepo.count({
-          where: { estatus: "activo", ...filtroRutaEsId },
+        this.carteraRepo.count({
+          where: { estatus: "activo", ...filtroCarteraEsId },
         }),
-        this.socioRepo.count({
-          where: { estatus: "activo", ...filtroSocio },
+        this.propietarioRepo.count({
+          where: { estatus: "activo", ...filtroPropietario },
         }),
         this.clienteRepo.count({
-          where: { estatus: "activo", ...filtroRuta },
+          where: { estatus: "activo", ...filtroCartera },
         }),
         this.prestamoRepo.count({
-          where: { estatus: "vigente", ...filtroRuta },
+          where: { estatus: "vigente", ...filtroCartera },
         }),
       ]);
 
@@ -152,8 +152,8 @@ export class DashboardService {
       cobradoSemana: Number(pagosSemana ?? 0) + Number(abonosSemana ?? 0),
       gastosPeriodo: Number(gastosPeriodo ?? 0),
       comisionesPeriodo: Number(comisionesPeriodo ?? 0),
-      rutasActivas,
-      sociosActivos,
+      carterasActivas,
+      propietariosActivos,
       clientesActivos,
       prestamosVigentes,
     };
@@ -162,20 +162,20 @@ export class DashboardService {
   /**
    * Serie histórica diaria (los últimos `dias`): cobrado (pagos + abonos) y
    * gastos aprobados por día, con los días sin movimiento en 0. Acepta los
-   * mismos filtros que `obtener` (rutaId/socioId).
+   * mismos filtros que `obtener` (carteraId/propietarioId).
    */
   async series(
     hoy: Date = new Date(),
-    filtros: { rutaId?: number; socioId?: number } = {},
+    filtros: { carteraId?: number; propietarioId?: number } = {},
     dias = 14,
   ): Promise<DashboardSeries> {
     const fin = this.inicioDeDia(hoy);
     const inicio = this.restarDias(fin, dias - 1);
 
-    const rutaIds = await this.resolverRutaIds(filtros);
-    const filtroRuta = rutaIds ? { ruta: { id: In(rutaIds) } } : {};
-    const filtroPago = rutaIds ? { cliente: { ruta: { id: In(rutaIds) } } } : {};
-    const filtroAbono = rutaIds ? { prestamo: { ruta: { id: In(rutaIds) } } } : {};
+    const carteraIds = await this.resolverCarteraIds(filtros);
+    const filtroCartera = carteraIds ? { cartera: { id: In(carteraIds) } } : {};
+    const filtroPago = carteraIds ? { cliente: { cartera: { id: In(carteraIds) } } } : {};
+    const filtroAbono = carteraIds ? { prestamo: { cartera: { id: In(carteraIds) } } } : {};
 
     const [pagos, abonos, gastos] = await Promise.all([
       this.pagoRepo.find({
@@ -191,7 +191,7 @@ export class DashboardService {
           aprobado: true,
           estado: "activo",
           fechaHora: MoreThanOrEqual(inicio),
-          ...filtroRuta,
+          ...filtroCartera,
         },
         select: { valor: true, fechaHora: true },
       }),
@@ -223,36 +223,36 @@ export class DashboardService {
     return { dias: serie };
   }
 
-  private async resolverRutaIds(filtros: {
-    rutaId?: number;
-    socioId?: number;
+  private async resolverCarteraIds(filtros: {
+    carteraId?: number;
+    propietarioId?: number;
   }): Promise<number[] | undefined> {
-    if (filtros.rutaId) {
-      return [filtros.rutaId];
+    if (filtros.carteraId) {
+      return [filtros.carteraId];
     }
-    if (filtros.socioId) {
-      const rutas = await this.rutaRepo.find({
-        where: { socio: { id: filtros.socioId } },
+    if (filtros.propietarioId) {
+      const carteras = await this.carteraRepo.find({
+        where: { propietario: { id: filtros.propietarioId } },
       });
-      return rutas.map((r) => r.id);
+      return carteras.map((r) => r.id);
     }
     return undefined;
   }
 
-  private async resolverSocioIds(
-    rutaIds: number[] | undefined,
-    socioId: number | undefined,
+  private async resolverPropietarioIds(
+    carteraIds: number[] | undefined,
+    propietarioId: number | undefined,
   ): Promise<number[] | undefined> {
-    if (socioId) {
-      return [socioId];
+    if (propietarioId) {
+      return [propietarioId];
     }
-    if (rutaIds) {
-      // `select` con RelationId no resuelve en TypeORM: se cargan las rutas y
-      // se lee `socioId` desde la entidad (columna persistida).
-      const rutas = await this.rutaRepo.find({
-        where: { id: In(rutaIds) },
+    if (carteraIds) {
+      // `select` con RelationId no resuelve en TypeORM: se cargan las carteras y
+      // se lee `propietarioId` desde la entidad (columna persistida).
+      const carteras = await this.carteraRepo.find({
+        where: { id: In(carteraIds) },
       });
-      return [...new Set(rutas.map((r) => r.socioId))];
+      return [...new Set(carteras.map((r) => r.propietarioId))];
     }
     return undefined;
   }

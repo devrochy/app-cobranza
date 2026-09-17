@@ -46,7 +46,7 @@ function extraerMensaje(cuerpo: unknown): string {
 
 /**
  * Log de requests (diagnóstico) en formato estructurado (JSON), para
- * observabilidad: registra método, ruta, status, duración y, cuando el request
+ * observabilidad: registra método, cartera, status, duración y, cuando el request
  * está autenticado, la identidad (userId/role). En respuestas >=400 incluye el
  * cuerpo del error (truncado). NestJS no loguea excepciones HTTP manejadas
  * (4xx/5xx explícitas) por defecto, así que sin esto un rechazo de validación
@@ -63,14 +63,14 @@ export class RequestLoggingInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest();
     const res = context.switchToHttp().getResponse();
     const metodo = req.method;
-    const ruta = req.originalUrl ?? req.url;
+    const cartera = req.originalUrl ?? req.url;
     const inicio = Date.now();
 
     const base = () => {
       const user = req.user as { sub?: number; rol?: string } | undefined;
       const entrada: Record<string, unknown> = {
         method: metodo,
-        path: ruta,
+        path: cartera,
         status: res.statusCode,
         durationMs: Date.now() - inicio,
       };

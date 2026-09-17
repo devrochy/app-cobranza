@@ -1,12 +1,12 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { CarteraModule } from "../cartera/cartera.module";
-import { CobradoresModule } from "../cobradores/cobradores.module";
-import { Ruta } from "../rutas/ruta.entity";
-import { RutasModule } from "../rutas/rutas.module";
+import { ClientesModule } from "../clientes/clientes.module";
+import { GestoresModule } from "../gestores/gestores.module";
+import { Cartera } from "../carteras/cartera.entity";
+import { CarterasModule } from "../carteras/carteras.module";
 import { SecurityModule } from "../security/security.module";
-import { SociosModule } from "../socios/socios.module";
+import { PropietariosModule } from "../propietarios/propietarios.module";
 import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service";
 import { AplicarOfflineJob } from "./aplicar-offline-job.service";
 import { AlertasService } from "./alertas.service";
@@ -24,13 +24,13 @@ import { SnapshotDiaService } from "./snapshot-dia.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Device, SincronizacionOffline, Ruta, IntentoAcceso]),
+    TypeOrmModule.forFeature([Device, SincronizacionOffline, Cartera, IntentoAcceso]),
     SecurityModule,
     JwtModule.register({}),
-    RutasModule,
-    SociosModule,
-    CarteraModule,
-    CobradoresModule,
+    CarterasModule,
+    PropietariosModule,
+    ClientesModule,
+    GestoresModule,
   ],
   controllers: [SincronizacionOfflineController],
   providers: [

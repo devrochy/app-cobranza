@@ -5,30 +5,30 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { ConversacionIa } from "../../src/modules/cartera/conversacion-ia.entity";
-import { MensajeIa } from "../../src/modules/cartera/mensaje-ia.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { ConversacionIa } from "../../src/modules/clientes/conversacion-ia.entity";
+import { MensajeIa } from "../../src/modules/clientes/mensaje-ia.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Historial de conversación y chat con el cliente (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let conversacionRepo: Repository<ConversacionIa>;
   let mensajeRepo: Repository<MensajeIa>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
 
   const ADMIN_USERNAME = "chat-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Chat2026";
-  const PASSWORD = "Socio#Chat2026";
+  const PASSWORD = "Propietario#Chat2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-chat";
@@ -47,20 +47,20 @@ describe("Historial de conversación y chat con el cliente (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     conversacionRepo = moduleFixture.get(getRepositoryToken(ConversacionIa));
     mensajeRepo = moduleFixture.get(getRepositoryToken(MensajeIa));
 
     await mensajeRepo.createQueryBuilder().delete().execute();
     await conversacionRepo.createQueryBuilder().delete().execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id IN (SELECT id FROM rutas WHERE nombre = 'Ruta CHAT')").execute();
-    await rutaRepo.delete({ nombre: "Ruta CHAT" });
-    await cobradorRepo.delete({ codigo: "CB-CHAT-1" });
-    await socioRepo.delete({ codigo: "SC-CHAT-1" });
-    await socioRepo.delete({ codigo: "SC-CHAT-2" });
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id IN (SELECT id FROM carteras WHERE nombre = 'Cartera CHAT')").execute();
+    await carteraRepo.delete({ nombre: "Cartera CHAT" });
+    await gestorRepo.delete({ codigo: "CB-CHAT-1" });
+    await propietarioRepo.delete({ codigo: "SC-CHAT-1" });
+    await propietarioRepo.delete({ codigo: "SC-CHAT-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -78,47 +78,47 @@ describe("Historial de conversación y chat con el cliente (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-chat-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-chat-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-chat-1@correo.com",
+      correo: "propietario-chat-1@correo.com",
       telefono: "+59171160170",
       codigo: "SC-CHAT-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-chat-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-chat-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-chat-1@correo.com",
+      correo: "gestor-chat-1@correo.com",
       telefono: "+59172270170",
       codigo: "CB-CHAT-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta CHAT",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera CHAT",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Chat",
@@ -136,18 +136,18 @@ describe("Historial de conversación y chat con el cliente (e2e)", () => {
   afterAll(async () => {
     await mensajeRepo.createQueryBuilder().delete().execute();
     await conversacionRepo.createQueryBuilder().delete().execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-CHAT-1" });
-    await socioRepo.delete({ codigo: "SC-CHAT-1" });
-    await socioRepo.delete({ codigo: "SC-CHAT-2" });
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-CHAT-1" });
+    await propietarioRepo.delete({ codigo: "SC-CHAT-1" });
+    await propietarioRepo.delete({ codigo: "SC-CHAT-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
   it("POST .../conversacion/mensajes con contenido vacío -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes/${clienteId}/conversacion/mensajes`)
+      .post(`/carteras/${carteraId}/clientes/${clienteId}/conversacion/mensajes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ contenido: "" });
 
@@ -156,7 +156,7 @@ describe("Historial de conversación y chat con el cliente (e2e)", () => {
 
   it("POST .../conversacion/mensajes envía el mensaje del agente y lo persiste", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes/${clienteId}/conversacion/mensajes`)
+      .post(`/carteras/${carteraId}/clientes/${clienteId}/conversacion/mensajes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ contenido: "Estimado, por favor regularice su pago" });
 
@@ -170,7 +170,7 @@ describe("Historial de conversación y chat con el cliente (e2e)", () => {
 
   it("GET .../conversacion devuelve el historial y el enlace wa.me", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/conversacion`)
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/conversacion`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -181,7 +181,7 @@ describe("Historial de conversación y chat con el cliente (e2e)", () => {
 
   it("GET .../conversacion con cliente inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/999999/conversacion`)
+      .get(`/carteras/${carteraId}/clientes/999999/conversacion`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
@@ -189,33 +189,33 @@ describe("Historial de conversación y chat con el cliente (e2e)", () => {
 
   it("GET .../conversacion sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/conversacion`);
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/conversacion`);
 
     expect(res.status).toBe(401);
   });
 
-  it("un socio SIN ver_reportes no puede ver el historial -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-chat-2",
+  it("un propietario SIN ver_reportes no puede ver el historial -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-chat-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-chat-2@correo.com",
+      correo: "propietario-chat-2@correo.com",
       telefono: "+59171160172",
       codigo: "SC-CHAT-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-chat-2", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-chat-2", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/conversacion`)
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/conversacion`)
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 });

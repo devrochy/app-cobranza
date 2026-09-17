@@ -5,21 +5,21 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
-describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
+describe("Bloqueo/activación de propietario y gestor (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let accessToken: string;
-  let socioId: number;
-  let cobradorId: number;
-  let rutaId: number;
+  let propietarioId: number;
+  let gestorId: number;
+  let carteraId: number;
 
   const ADMIN_USERNAME = "estatus-e2e-admin";
   const ADMIN_PASSWORD = "estatus-e2e-password";
@@ -41,9 +41,9 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -61,61 +61,61 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessToken = login.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-es-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-es-1",
       passwordHash: await bcrypt.hash("password-seguro", 4),
       nombre: "Juan",
       apellido: "Pérez",
-      correo: "socio-es1@correo.com",
+      correo: "propietario-es1@correo.com",
       telefono: "+59174444441",
       codigo: "SC-ES-001",
       moneda: "BOB",
       estatus: "activo",
     });
-    socioId = socio.id;
+    propietarioId = propietario.id;
 
-    const cobrador = await request(app.getHttpServer())
-      .post("/cobradores")
+    const gestor = await request(app.getHttpServer())
+      .post("/gestores")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
-        socioId,
-        usuario: "cobrador-es",
+        propietarioId,
+        usuario: "gestor-es",
         password: "password-seguro",
         nombre: "Carlos",
         apellido: "López",
-        correo: "cobrador-es@correo.com",
+        correo: "gestor-es@correo.com",
         telefono: "+59175555555",
         codigo: "CB-ES-001",
       });
-    cobradorId = cobrador.body.id as number;
+    gestorId = gestor.body.id as number;
 
-    const ruta = await request(app.getHttpServer())
-      .post("/rutas")
+    const cartera = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
-        nombre: "Ruta ESTATUS",
-        socioId,
-        cobradorId,
+        nombre: "Cartera ESTATUS",
+        propietarioId,
+        gestorId,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 0,
         costoCobro: 100,
       });
-    rutaId = ruta.body.id as number;
+    carteraId = cartera.body.id as number;
   });
 
   afterAll(async () => {
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ id: cobradorId });
-    await socioRepo.delete({ id: socioId });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ id: gestorId });
+    await propietarioRepo.delete({ id: propietarioId });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("PATCH /socios/:id/estatus -> 200 bloquea sin passwordHash y conserva el hash de la contraseña", async () => {
+  it("PATCH /propietarios/:id/estatus -> 200 bloquea sin passwordHash y conserva el hash de la contraseña", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/socios/${socioId}/estatus`)
+      .patch(`/propietarios/${propietarioId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "bloqueado" });
 
@@ -123,18 +123,18 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
     expect(res.body.estatus).toBe("bloqueado");
     expect(Object.keys(res.body)).not.toContain("passwordHash");
 
-    const persisted = await socioRepo
+    const persisted = await propietarioRepo
       .createQueryBuilder("s")
       .addSelect("s.passwordHash")
-      .where("s.id = :id", { id: socioId })
+      .where("s.id = :id", { id: propietarioId })
       .getOne();
     expect(persisted).toBeDefined();
     expect(await bcrypt.compare("password-seguro", persisted!.passwordHash)).toBe(true);
   });
 
-  it("PATCH /socios/:id/estatus -> 200 reactiva", async () => {
+  it("PATCH /propietarios/:id/estatus -> 200 reactiva", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/socios/${socioId}/estatus`)
+      .patch(`/propietarios/${propietarioId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "activo" });
 
@@ -142,33 +142,33 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
     expect(res.body.estatus).toBe("activo");
   });
 
-  it("bloquear el socio aplica la cascada a cobradores y rutas; reactivar la revierte", async () => {
+  it("bloquear el propietario aplica la cascada a gestores y carteras; reactivar la revierte", async () => {
     await request(app.getHttpServer())
-      .patch(`/socios/${socioId}/estatus`)
+      .patch(`/propietarios/${propietarioId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "bloqueado" })
       .expect(200);
 
-    expect((await cobradorRepo.findOne({ where: { id: cobradorId } }))?.estatus).toBe("bloqueado");
-    expect((await rutaRepo.findOne({ where: { id: rutaId } }))?.estatus).toBe("bloqueado");
+    expect((await gestorRepo.findOne({ where: { id: gestorId } }))?.estatus).toBe("bloqueado");
+    expect((await carteraRepo.findOne({ where: { id: carteraId } }))?.estatus).toBe("bloqueado");
 
     await request(app.getHttpServer())
-      .patch(`/socios/${socioId}/estatus`)
+      .patch(`/propietarios/${propietarioId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "activo" })
       .expect(200);
 
-    expect((await cobradorRepo.findOne({ where: { id: cobradorId } }))?.estatus).toBe("activo");
-    expect((await rutaRepo.findOne({ where: { id: rutaId } }))?.estatus).toBe("activo");
+    expect((await gestorRepo.findOne({ where: { id: gestorId } }))?.estatus).toBe("activo");
+    expect((await carteraRepo.findOne({ where: { id: carteraId } }))?.estatus).toBe("activo");
   });
 
-  it("PATCH /socios/:id/estatus es idempotente (dos PATCH con el mismo estatus)", async () => {
+  it("PATCH /propietarios/:id/estatus es idempotente (dos PATCH con el mismo estatus)", async () => {
     const primero = await request(app.getHttpServer())
-      .patch(`/socios/${socioId}/estatus`)
+      .patch(`/propietarios/${propietarioId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "bloqueado" });
     const segundo = await request(app.getHttpServer())
-      .patch(`/socios/${socioId}/estatus`)
+      .patch(`/propietarios/${propietarioId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "bloqueado" });
 
@@ -177,35 +177,35 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
     expect(segundo.body.estatus).toBe("bloqueado");
   });
 
-  it("PATCH /socios/:id/estatus con estatus inválido -> 400", async () => {
+  it("PATCH /propietarios/:id/estatus con estatus inválido -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/socios/${socioId}/estatus`)
+      .patch(`/propietarios/${propietarioId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "pendiente" });
 
     expect(res.status).toBe(400);
   });
 
-  it("PATCH /socios/:id/estatus inexistente -> 404", async () => {
+  it("PATCH /propietarios/:id/estatus inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/socios/999999/estatus`)
+      .patch(`/propietarios/999999/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "bloqueado" });
 
     expect(res.status).toBe(404);
   });
 
-  it("PATCH /socios/:id/estatus sin token -> 401", async () => {
+  it("PATCH /propietarios/:id/estatus sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/socios/${socioId}/estatus`)
+      .patch(`/propietarios/${propietarioId}/estatus`)
       .send({ estatus: "bloqueado" });
 
     expect(res.status).toBe(401);
   });
 
-  it("PATCH /cobradores/:id/estatus -> 200 bloquea sin passwordHash y conserva el hash", async () => {
+  it("PATCH /gestores/:id/estatus -> 200 bloquea sin passwordHash y conserva el hash", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/cobradores/${cobradorId}/estatus`)
+      .patch(`/gestores/${gestorId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "bloqueado" });
 
@@ -213,18 +213,18 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
     expect(res.body.estatus).toBe("bloqueado");
     expect(Object.keys(res.body)).not.toContain("passwordHash");
 
-    const persisted = await cobradorRepo
+    const persisted = await gestorRepo
       .createQueryBuilder("c")
       .addSelect("c.passwordHash")
-      .where("c.id = :id", { id: cobradorId })
+      .where("c.id = :id", { id: gestorId })
       .getOne();
     expect(persisted).toBeDefined();
     expect(await bcrypt.compare("password-seguro", persisted!.passwordHash)).toBe(true);
   });
 
-  it("PATCH /cobradores/:id/estatus -> 200 reactiva", async () => {
+  it("PATCH /gestores/:id/estatus -> 200 reactiva", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/cobradores/${cobradorId}/estatus`)
+      .patch(`/gestores/${gestorId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "activo" });
 
@@ -232,26 +232,26 @@ describe("Bloqueo/activación de socio y cobrador (e2e)", () => {
     expect(res.body.estatus).toBe("activo");
   });
 
-  it("PATCH /cobradores/:id/estatus con estatus inválido -> 400", async () => {
+  it("PATCH /gestores/:id/estatus con estatus inválido -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/cobradores/${cobradorId}/estatus`)
+      .patch(`/gestores/${gestorId}/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "pendiente" });
 
     expect(res.status).toBe(400);
   });
 
-  it("PATCH /cobradores/:id/estatus sin token -> 401", async () => {
+  it("PATCH /gestores/:id/estatus sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/cobradores/${cobradorId}/estatus`)
+      .patch(`/gestores/${gestorId}/estatus`)
       .send({ estatus: "bloqueado" });
 
     expect(res.status).toBe(401);
   });
 
-  it("PATCH /cobradores/:id/estatus inexistente -> 404", async () => {
+  it("PATCH /gestores/:id/estatus inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/cobradores/999999/estatus`)
+      .patch(`/gestores/999999/estatus`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ estatus: "bloqueado" });
 

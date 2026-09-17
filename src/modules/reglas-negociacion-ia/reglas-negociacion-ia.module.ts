@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { SecurityModule } from "../security/security.module";
-import { SociosModule } from "../socios/socios.module";
+import { PropietariosModule } from "../propietarios/propietarios.module";
 import { ReglaNegociacionIa } from "./regla-negociacion-ia.entity";
 import { ReglasNegociacionIaController } from "./reglas-negociacion-ia.controller";
 import { ReglasNegociacionIaService } from "./reglas-negociacion-ia.service";
@@ -12,7 +12,7 @@ import { ReglasNegociacionIaService } from "./reglas-negociacion-ia.service";
     TypeOrmModule.forFeature([ReglaNegociacionIa]),
     SecurityModule,
     JwtModule.register({}),
-    SociosModule,
+    PropietariosModule,
   ],
   controllers: [ReglasNegociacionIaController],
   providers: [ReglasNegociacionIaService],

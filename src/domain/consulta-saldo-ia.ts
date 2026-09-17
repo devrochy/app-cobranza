@@ -7,7 +7,7 @@ export interface ProximaCuotaInfo {
 /**
  * HU-27: texto de respuesta a la consulta de saldo. `proximaCuota` es null si
  * no hay cuota pendiente (cliente al día o sin deuda). La moneda se pasa desde
- * la ruta (los préstamos no guardan moneda propia).
+ * la cartera (los préstamos no guardan moneda propia).
  */
 export function construirTextoConsultaSaldo(
   nombreCliente: string,

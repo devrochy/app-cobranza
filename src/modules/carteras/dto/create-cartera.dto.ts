@@ -1,0 +1,49 @@
+import {
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  Matches,
+  Min,
+} from "class-validator";
+
+export class CreateCarteraDto {
+  @IsString()
+  @IsNotEmpty({ message: "El nombre es obligatorio" })
+  nombre!: string;
+
+  @IsOptional()
+  @IsString()
+  descripcion?: string;
+
+  @IsInt()
+  @IsPositive({ message: "propietarioId debe ser un id válido" })
+  propietarioId!: number;
+
+  @IsInt()
+  @IsPositive({ message: "gestorId debe ser un id válido" })
+  gestorId!: number;
+
+  @IsNumber({}, { message: "El tipo de interés debe ser un número" })
+  @IsPositive({ message: "El tipo de interés debe ser mayor que 0" })
+  tipoInteres!: number;
+
+  @IsInt()
+  @Min(1, { message: "El número de cuotas debe ser al menos 1" })
+  numCuotas!: number;
+
+  @Matches(/^[A-Z]{3}$/, {
+    message: "La moneda debe ser un código ISO 4217 de 3 letras",
+  })
+  moneda!: string;
+
+  @IsNumber({}, { message: "El saldo inicial debe ser un número" })
+  @Min(0, { message: "El saldo inicial no puede ser negativo" })
+  saldoInicial!: number;
+
+  @IsNumber({}, { message: "El costo de cobro debe ser un número" })
+  @Min(0, { message: "El costo de cobro no puede ser negativo" })
+  costoCobro!: number;
+}

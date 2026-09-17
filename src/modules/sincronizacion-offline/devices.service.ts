@@ -8,13 +8,13 @@ import { Device, DeviceEstado } from "./device.entity";
 export interface DeviceRegistrado {
   codigo: string;
   apiKey: string;
-  cobradorId: number | null;
+  gestorId: number | null;
   imei: string | null;
   whatsappNumber: string | null;
 }
 
 export interface DeviceVinculacionInput {
-  cobradorId: number;
+  gestorId: number;
   imei: string;
   whatsappNumber: string;
   publicKey: string;
@@ -22,7 +22,7 @@ export interface DeviceVinculacionInput {
 
 export interface DevicePublic {
   id: number;
-  cobradorId: number | null;
+  gestorId: number | null;
   imei: string | null;
   whatsappNumber: string | null;
   estado: DeviceEstado;
@@ -32,7 +32,7 @@ export interface DevicePublic {
 
 /**
  * Registro y autenticación de dispositivos (HU-39, HU-64). El vínculo correcto
- * es **device ↔ cobrador** (1:1): un dispositivo activo por cobrador; al
+ * es **device ↔ gestor** (1:1): un dispositivo activo por gestor; al
  * vincular uno nuevo se revoca el anterior. La API key tiene el formato
  * `<codigo>.<secreto>`: el codigo localiza el dispositivo y el secreto se
  * valida contra su hash (bcrypt).
@@ -46,9 +46,9 @@ export class DevicesService {
   ) {}
 
   async registrar(input: DeviceVinculacionInput): Promise<DeviceRegistrado> {
-    // Vínculo 1:1 estricto: revoca el dispositivo activo anterior del cobrador.
+    // Vínculo 1:1 estricto: revoca el dispositivo activo anterior del gestor.
     await this.deviceRepo.update(
-      { cobradorId: input.cobradorId, estado: "activo" },
+      { gestorId: input.gestorId, estado: "activo" },
       { estado: "revocado" },
     );
     const codigo = randomUUID();
@@ -56,11 +56,11 @@ export class DevicesService {
     const device = this.deviceRepo.create({
       codigo,
       apiKeyHash: await this.password.hash(secreto),
-      cobradorId: input.cobradorId,
+      gestorId: input.gestorId,
       imei: input.imei,
       whatsappNumber: input.whatsappNumber,
       publicKey: input.publicKey,
-      rutaId: null,
+      carteraId: null,
       estado: "activo",
       fechaVinculacion: new Date(),
     });
@@ -68,7 +68,7 @@ export class DevicesService {
     return {
       codigo: saved.codigo,
       apiKey: `${saved.codigo}.${secreto}`,
-      cobradorId: saved.cobradorId,
+      gestorId: saved.gestorId,
       imei: saved.imei,
       whatsappNumber: saved.whatsappNumber,
     };
@@ -89,9 +89,9 @@ export class DevicesService {
     return this.toPublic(saved);
   }
 
-  async obtenerPorCobrador(cobradorId: number): Promise<Device | null> {
+  async obtenerPorGestor(gestorId: number): Promise<Device | null> {
     return this.deviceRepo.findOne({
-      where: { cobradorId, estado: "activo" },
+      where: { gestorId, estado: "activo" },
     });
   }
 
@@ -111,7 +111,7 @@ export class DevicesService {
   private toPublic(device: Device): DevicePublic {
     return {
       id: device.id,
-      cobradorId: device.cobradorId,
+      gestorId: device.gestorId,
       imei: device.imei,
       whatsappNumber: device.whatsappNumber,
       estado: device.estado,

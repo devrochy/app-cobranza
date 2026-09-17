@@ -1,8 +1,8 @@
-import { DiasNoLaborables } from "../modules/rutas/ruta-config.entity";
+import { DiasNoLaborables } from "../modules/carteras/cartera-config.entity";
 
 /**
  * Ajusta una fecha de vencimiento de cuota al siguiente día hábil cuando cae en
- * un día no laborable según la configuración de la ruta (HU-10/HU-13).
+ * un día no laborable según la configuración de la cartera (HU-10/HU-13).
  * - solo_domingos: solo se desplaza el domingo.
  * - domingos_y_feriados: en el MVP se comporta igual que solo_domingos (aún no
  *   existe una fuente de feriados por país; se documenta como limitación).

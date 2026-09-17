@@ -1,0 +1,198 @@
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Cartera } from "../carteras/cartera.entity";
+import { Prestamo } from "./prestamo.entity";
+import { Cuota } from "./cuota.entity";
+import { Abono } from "./abono.entity";
+import { Pago } from "./pago.entity";
+import { Cliente } from "./cliente.entity";
+import { WHATSAPP_GATEWAY } from "./whatsapp-gateway.interface";
+import { NotificacionesService } from "./notificaciones.service";
+import { EstadoCuentaService } from "./estado-cuenta.service";
+
+describe("EstadoCuentaService", () => {
+  let service: EstadoCuentaService;
+  let carteraRepo: Repository<Cartera>;
+  let prestamoRepo: Repository<Prestamo>;
+  let cuotaRepo: Repository<Cuota>;
+  let abonoRepo: Repository<Abono>;
+
+  const adminContext = { rol: "admin" as const, sub: 0 };
+  const propietarioContext = { rol: "propietario" as const, sub: 1 };
+
+  const mockCarteraRepo = { findOne: jest.fn() };
+  const mockPrestamoRepo = { findOne: jest.fn() };
+  const mockCuotaRepo = { find: jest.fn() };
+  const mockAbonoRepo = { find: jest.fn() };
+  const mockPagoRepo = { find: jest.fn() };
+  const mockGateway = { enviarMensaje: jest.fn(), recibirMensaje: jest.fn() };
+  const mockNotificacionesService = { obtenerConversacion: jest.fn() };
+
+  function carteraFixture(overrides: Partial<Cartera> = {}): Cartera {
+    return {
+      id: 1,
+      propietarioId: 1,
+      gestorId: 1,
+      nombre: "Cartera Centro",
+      descripcion: null,
+      tipoInteres: 20,
+      numCuotas: 8,
+      moneda: "BOB",
+      estatus: "activo",
+      createdAt: new Date(),
+      ...overrides,
+    } as Cartera;
+  }
+
+  function prestamoFixture(overrides: Partial<Prestamo> = {}): Prestamo {
+    return {
+      id: 5,
+      carteraId: 1,
+      clienteId: 10,
+      valor: 300,
+      numCuotas: 3,
+      tipoInteres: 0,
+      diasEntreCuotas: 7,
+      fechaOtorgado: new Date("2026-08-01"),
+      fiadorNombre: null,
+      fiadorApellido: null,
+      fiadorDocumento: null,
+      fiadorTelefono: null,
+      estatus: "vigente",
+      createdAt: new Date(),
+      cliente: { id: 10, nombre: "Juan", apellido: "Perez", telefonoWhatsapp: "+59171160000" } as Cliente,
+      ...overrides,
+    } as Prestamo;
+  }
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockPagoRepo.find.mockResolvedValue([]);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EstadoCuentaService,
+        { provide: getRepositoryToken(Cartera), useValue: mockCarteraRepo },
+        { provide: getRepositoryToken(Prestamo), useValue: mockPrestamoRepo },
+        { provide: getRepositoryToken(Cuota), useValue: mockCuotaRepo },
+        { provide: getRepositoryToken(Abono), useValue: mockAbonoRepo },
+        { provide: getRepositoryToken(Pago), useValue: mockPagoRepo },
+        { provide: WHATSAPP_GATEWAY, useValue: mockGateway },
+        { provide: NotificacionesService, useValue: mockNotificacionesService },
+      ],
+    }).compile();
+
+    service = module.get(EstadoCuentaService);
+    carteraRepo = module.get(getRepositoryToken(Cartera));
+    prestamoRepo = module.get(getRepositoryToken(Prestamo));
+    cuotaRepo = module.get(getRepositoryToken(Cuota));
+    abonoRepo = module.get(getRepositoryToken(Abono));
+  });
+
+  it("lanza NotFoundException si la cartera no existe", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.obtener(999, 5, adminContext)).rejects.toThrow(NotFoundException);
+  });
+
+  it("un propietario no puede ver el estado de cuenta de una cartera ajena -> 403", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture({ propietarioId: 2 }));
+
+    await expect(service.obtener(1, 5, propietarioContext)).rejects.toThrow(ForbiddenException);
+  });
+
+  it("lanza NotFoundException si el préstamo no existe en la cartera", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.obtener(1, 999, adminContext)).rejects.toThrow(NotFoundException);
+  });
+
+  it("obtener devuelve el estado de cuenta con cuotas, abonos y totales", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue(
+      prestamoFixture(),
+    );
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([
+      { id: 11, numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2026-09-01", estatus: "pagada" },
+      { id: 12, numeroCuota: 2, valorEsperado: 100, fechaVencimiento: "2026-09-08", estatus: "pendiente" },
+      { id: 13, numeroCuota: 3, valorEsperado: 100, fechaVencimiento: "2026-09-15", estatus: "pendiente" },
+    ]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([{ valor: 50 }, { valor: 25 }]);
+
+    const result = await service.obtener(1, 5, adminContext);
+
+    expect(result.prestamoId).toBe(5);
+    expect(result.totalAbonos).toBe(75);
+    expect(result.saldoPendiente).toBe(125);
+    expect(result.proximoVencimiento).toBe("2026-09-08");
+    expect(result.cuotas).toHaveLength(3);
+    expect(result.cuotas.map((c) => c.cuotaId)).toEqual([11, 12, 13]);
+    expect(result.moneda).toBe("BOB");
+  });
+
+  it("expone el pago por cuota (para eliminar desde el panel)", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue(prestamoFixture());
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([
+      { id: 11, numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2026-09-01", estatus: "pagada" },
+      { id: 12, numeroCuota: 2, valorEsperado: 100, fechaVencimiento: "2026-09-08", estatus: "pendiente" },
+    ]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([]);
+    (mockPagoRepo.find as jest.Mock).mockResolvedValue([
+      { id: 77, cuotaId: 11, valor: 100, fechaHora: new Date("2026-08-30T10:00:00Z"), liquidado: false },
+    ]);
+
+    const result = await service.obtener(1, 5, adminContext);
+
+    expect(result.cuotas[0].pago).toMatchObject({ id: 77, valor: 100, liquidado: false });
+    expect(result.cuotas[1].pago).toBeNull();
+  });
+
+  it("enviarReporte construye el texto y lo envía via gateway con emisor ia e intención reporte_estado_cuenta", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue(
+      prestamoFixture(),
+    );
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([
+      { numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2026-09-01", estatus: "pendiente" },
+    ]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([]);
+    mockNotificacionesService.obtenerConversacion.mockResolvedValue({ id: 7, clienteId: 10 });
+
+    const result = await service.enviarReporte(1, 5, adminContext);
+
+    expect(result.conversacionId).toBe(7);
+    expect(mockGateway.enviarMensaje).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversacionId: 7,
+        emisor: "ia",
+        intencionDetectada: "reporte_estado_cuenta",
+        telefono: "+59171160000",
+      }),
+    );
+    const mensajeEnviado = mockGateway.enviarMensaje.mock.calls[0][0];
+    expect(mensajeEnviado.contenido).toContain("Estado de cuenta");
+    expect(mensajeEnviado.contenido).toContain("Juan");
+  });
+
+  it("enviarReporte no falla si no hay teléfono (envío sin destinatario por simular)", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (prestamoRepo.findOne as jest.Mock).mockResolvedValue(
+      prestamoFixture({
+        cliente: { id: 10, nombre: "Juan", apellido: "Perez", telefonoWhatsapp: "" } as Cliente,
+      }),
+    );
+    (cuotaRepo.find as jest.Mock).mockResolvedValue([
+      { numeroCuota: 1, valorEsperado: 100, fechaVencimiento: "2026-09-01", estatus: "pendiente" },
+    ]);
+    (abonoRepo.find as jest.Mock).mockResolvedValue([]);
+    mockNotificacionesService.obtenerConversacion.mockResolvedValue({ id: 7, clienteId: 10 });
+
+    const result = await service.enviarReporte(1, 5, adminContext);
+
+    expect(mockGateway.enviarMensaje).toHaveBeenCalledTimes(1);
+    expect(result.conversacionId).toBe(7);
+  });
+});

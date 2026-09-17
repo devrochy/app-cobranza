@@ -1,0 +1,953 @@
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
+import { Cartera } from "../carteras/cartera.entity";
+import { CarteraConfig } from "../carteras/cartera-config.entity";
+import { Cliente } from "./cliente.entity";
+import { ClienteEvidencia } from "./cliente-evidencia.entity";
+import { CambioClientePendiente } from "./cambio-cliente-pendiente.entity";
+import { PermisosPropietarioService } from "../propietarios/permisos-propietario.service";
+import { CreateClienteInput, ClienteService } from "./cliente.service";
+import { eliminarArchivosSubidos } from "../../common/archivos";
+
+jest.mock("../../common/archivos", () => ({
+  eliminarArchivosSubidos: jest.fn(),
+}));
+
+describe("ClienteService", () => {
+  let service: ClienteService;
+  let carteraRepo: Repository<Cartera>;
+  let clienteRepo: Repository<Cliente>;
+  let configRepo: Repository<CarteraConfig>;
+  let evidenciaRepo: Repository<ClienteEvidencia>;
+  let cambioRepo: Repository<CambioClientePendiente>;
+
+  const baseInput: CreateClienteInput = {
+    nombre: "Juan",
+    apellido: "Pérez",
+    negocio: "Tienda",
+    telefonoWhatsapp: "+59171111111",
+    latitud: -17.78,
+    longitud: -63.18,
+    topeMaximoDeuda: 5000,
+    latitudDomicilio: -17.79,
+    longitudDomicilio: -63.19,
+    tipoDocumento: "ci",
+    numeroDocumento: "1234567",
+  };
+
+  const adminContext = { rol: "admin" as const, sub: 0 };
+  const propietarioContext = { rol: "propietario" as const, sub: 1 };
+
+  const mockCarteraRepo = { findOne: jest.fn() };
+  const mockClienteRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), createQueryBuilder: jest.fn() };
+  const mockConfigRepo = { findOne: jest.fn() };
+  const mockEvidenciaRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), find: jest.fn() };
+  const mockCambioRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn(async () => ({ affected: 1 })) };
+  const mockPermisosPropietario = { tienePermiso: jest.fn() };
+  const mockDataSource = {
+    transaction: jest.fn(async (fn: (m: unknown) => Promise<unknown>) =>
+      fn({
+        getRepository: jest.fn((entity: unknown) => {
+          if (entity === ClienteEvidencia) {
+            return mockEvidenciaRepo;
+          }
+          if (entity === CambioClientePendiente) {
+            return mockCambioRepo;
+          }
+          return mockClienteRepo;
+        }),
+      }),
+    ),
+  };
+
+  interface ArchivoSubido {
+    originalname: string;
+    mimetype: string;
+    size: number;
+    filename: string;
+    path: string;
+  }
+
+  function carteraFixture(overrides: Partial<Cartera> = {}): Cartera {
+    return {
+      id: 1,
+      propietarioId: 1,
+      gestorId: 1,
+      nombre: "Cartera Centro",
+      descripcion: null,
+      tipoInteres: 20,
+      numCuotas: 8,
+      moneda: "BOB",
+      estatus: "activo",
+      createdAt: new Date(),
+      ...overrides,
+    } as Cartera;
+  }
+
+  function archivoFixture(overrides: Partial<ArchivoSubido> = {}): ArchivoSubido {
+    return {
+      originalname: "foto.jpg",
+      mimetype: "image/jpeg",
+      size: 2048,
+      filename: "abc.jpg",
+      path: "/uploads/clientes/abc.jpg",
+      ...overrides,
+    };
+  }
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ClienteService,
+        { provide: getRepositoryToken(Cartera), useValue: mockCarteraRepo },
+        { provide: getRepositoryToken(Cliente), useValue: mockClienteRepo },
+        { provide: getRepositoryToken(CarteraConfig), useValue: mockConfigRepo },
+        { provide: getRepositoryToken(ClienteEvidencia), useValue: mockEvidenciaRepo },
+        { provide: getRepositoryToken(CambioClientePendiente), useValue: mockCambioRepo },
+        { provide: PermisosPropietarioService, useValue: mockPermisosPropietario },
+        { provide: DataSource, useValue: mockDataSource },
+      ],
+    }).compile();
+
+    service = module.get(ClienteService);
+    carteraRepo = module.get(getRepositoryToken(Cartera));
+    clienteRepo = module.get(getRepositoryToken(Cliente));
+    configRepo = module.get(getRepositoryToken(CarteraConfig));
+    evidenciaRepo = module.get(getRepositoryToken(ClienteEvidencia));
+    cambioRepo = module.get(getRepositoryToken(CambioClientePendiente));
+  });
+
+  it("persiste el cliente con color blanco y estatus activo", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.create as jest.Mock).mockImplementation((e: Partial<Cliente>) => e as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cliente>) => ({
+      id: 1,
+      carteraId: 1,
+      ...e,
+      createdAt: new Date(),
+    }) as Cliente);
+
+    const result = await service.crear(1, baseInput, [], adminContext);
+
+    expect(clienteRepo.save).toHaveBeenCalledTimes(1);
+    expect(result.nombre).toBe("Juan");
+    expect(result.colorRiesgo).toBe("blanco");
+    expect(result.estatus).toBe("activo");
+    expect(result.carteraId).toBe(1);
+    expect(result.latitud).toBeCloseTo(-17.78, 5);
+    expect(result.longitud).toBeCloseTo(-63.18, 5);
+  });
+
+  it("persiste la ubicación como Point de PostGIS (coordinates = [lng, lat])", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.create as jest.Mock).mockImplementation((e: Partial<Cliente>) => e as Cliente);
+
+    await service.crear(1, baseInput, [], adminContext);
+
+    const creado = (clienteRepo.create as jest.Mock).mock.results[0].value as Partial<Cliente>;
+    expect(creado.ubicacion).toEqual({ type: "Point", coordinates: [-63.18, -17.78] });
+  });
+
+  it("persiste el tope de deuda y la ubicación de domicilio", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.create as jest.Mock).mockImplementation((e: Partial<Cliente>) => e as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cliente>) => ({
+      id: 1,
+      carteraId: 1,
+      ...e,
+      createdAt: new Date(),
+    }) as Cliente);
+
+    const result = await service.crear(1, baseInput, [], adminContext);
+
+    const creado = (clienteRepo.create as jest.Mock).mock.results[0].value as Partial<Cliente>;
+    expect(creado.topeMaximoDeuda).toBe(5000);
+    expect(creado.ubicacionDomicilio).toEqual({ type: "Point", coordinates: [-63.19, -17.79] });
+    expect(result.topeMaximoDeuda).toBe(5000);
+    expect(result.latitudDomicilio).toBeCloseTo(-17.79, 5);
+    expect(result.longitudDomicilio).toBeCloseTo(-63.19, 5);
+  });
+
+  it("no persiste domicilio si no se envía", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.create as jest.Mock).mockImplementation((e: Partial<Cliente>) => e as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cliente>) => ({
+      id: 1,
+      carteraId: 1,
+      ...e,
+      createdAt: new Date(),
+    }) as Cliente);
+
+    const sinDomicilio: CreateClienteInput = {
+      nombre: baseInput.nombre,
+      apellido: baseInput.apellido,
+      negocio: baseInput.negocio,
+      telefonoWhatsapp: baseInput.telefonoWhatsapp,
+      latitud: baseInput.latitud,
+      longitud: baseInput.longitud,
+      tipoDocumento: baseInput.tipoDocumento,
+      numeroDocumento: baseInput.numeroDocumento,
+    };
+    const result = await service.crear(1, sinDomicilio, [], adminContext);
+
+    const creado = (clienteRepo.create as jest.Mock).mock.results[0].value as Partial<Cliente>;
+    expect(creado.ubicacionDomicilio).toBeNull();
+    expect(result.latitudDomicilio).toBeNull();
+  });
+
+  it("lanza NotFoundException si la cartera no existe", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.crear(999, baseInput, [], adminContext)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("un propietario no puede crear un cliente en una cartera ajena -> 403", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture({ propietarioId: 2 }));
+
+    await expect(service.crear(1, baseInput, [], propietarioContext)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it("persiste las evidencias del cliente (foto facial)", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({ reconocimientoFacialActivo: false, registroDocumentoCliente: false } as CarteraConfig);
+    (clienteRepo.create as jest.Mock).mockImplementation((e: Partial<Cliente>) => e as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cliente>) => ({
+      id: 1,
+      carteraId: 1,
+      ...e,
+      createdAt: new Date(),
+    }) as Cliente);
+    (evidenciaRepo.create as jest.Mock).mockImplementation((e: Partial<ClienteEvidencia>) => e as ClienteEvidencia);
+    (evidenciaRepo.save as jest.Mock).mockImplementation(async (e: Partial<ClienteEvidencia>) => ({
+      id: 1,
+      ...e,
+    }) as ClienteEvidencia);
+
+    await service.crear(
+      1,
+      baseInput,
+      [{ tipo: "foto_facial", archivo: archivoFixture() }],
+      adminContext,
+    );
+
+    expect(evidenciaRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: "foto_facial", nombreOriginal: "foto.jpg" }),
+    );
+  });
+
+  it("exige foto facial si reconocimientoFacialActivo está activo", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({ reconocimientoFacialActivo: true, registroDocumentoCliente: false } as CarteraConfig);
+
+    await expect(service.crear(1, baseInput, [], adminContext)).rejects.toThrow(
+      "La foto facial es obligatoria",
+    );
+  });
+
+  it("limpia las fotos en disco si la creación falla", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: false,
+      registroDocumentoCliente: false,
+    } as CarteraConfig);
+    mockDataSource.transaction.mockRejectedValueOnce(new Error("boom"));
+
+    await expect(
+      service.crear(
+        1,
+        baseInput,
+        [{ tipo: "foto_facial", archivo: archivoFixture({ path: "/tmp/f.jpg" }) }],
+        adminContext,
+      ),
+    ).rejects.toThrow("boom");
+
+    expect(eliminarArchivosSubidos).toHaveBeenCalledWith(["/tmp/f.jpg"]);
+  });
+
+  it("exige foto de documento si registroDocumentoCliente está activo", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({ reconocimientoFacialActivo: false, registroDocumentoCliente: true } as CarteraConfig);
+
+    await expect(service.crear(1, baseInput, [], adminContext)).rejects.toThrow(
+      "La foto de documento es obligatoria",
+    );
+  });
+
+  it("persiste el tipo y número de documento (normalizado)", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: false,
+      registroDocumentoCliente: false,
+    });
+    (clienteRepo.create as jest.Mock).mockImplementation((e: Partial<Cliente>) => e as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cliente>) => ({
+      id: 1,
+      carteraId: 1,
+      ...e,
+      createdAt: new Date(),
+    }) as Cliente);
+
+    const result = await service.crear(
+      1,
+      { ...baseInput, tipoDocumento: "pasaporte", numeroDocumento: " ab123456 " },
+      [],
+      adminContext,
+    );
+
+    const creado = (clienteRepo.create as jest.Mock).mock.results[0].value as Partial<Cliente>;
+    expect(creado.tipoDocumento).toBe("pasaporte");
+    expect(creado.numeroDocumento).toBe("AB123456");
+    expect(result.tipoDocumento).toBe("pasaporte");
+    expect(result.numeroDocumento).toBe("AB123456");
+  });
+
+  it("rechaza el alta si el número de documento no es válido para el tipo", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: false,
+      registroDocumentoCliente: false,
+    });
+
+    await expect(
+      service.crear(
+        1,
+        { ...baseInput, tipoDocumento: "ci", numeroDocumento: "ABC" },
+        [],
+        adminContext,
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(clienteRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("exige documento al editar un cliente que aún no lo tiene", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      carteraId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      tipoDocumento: null,
+      numeroDocumento: null,
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      createdAt: new Date(),
+    } as Cliente);
+
+    await expect(
+      service.actualizar(1, 1, { nombre: "Nuevo" }, adminContext),
+    ).rejects.toThrow(BadRequestException);
+    expect(clienteRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("permite editar el número de documento de un cliente existente", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      carteraId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      createdAt: new Date(),
+    } as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (c: Cliente) => c);
+
+    const result = (await service.actualizar(
+      1,
+      1,
+      { numeroDocumento: "7654321" },
+      adminContext,
+    )) as unknown as Cliente;
+
+    expect(result.numeroDocumento).toBe("7654321");
+    expect(clienteRepo.save).toHaveBeenCalled();
+  });
+
+  it("actualiza el cliente directamente si el requester tiene actualizar_cliente", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(true);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      carteraId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
+      createdAt: new Date(),
+    } as Cliente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (c: Cliente) => c);
+
+    const result = (await service.actualizar(
+      1,
+      1,
+      { nombre: "Juan Carlos" },
+      propietarioContext,
+    )) as unknown as Cliente;
+
+    expect(clienteRepo.save).toHaveBeenCalled();
+    expect(result.nombre).toBe("Juan Carlos");
+    expect(cambioRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("crea una propuesta pendiente si el requester no tiene actualizar_cliente", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(false);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      carteraId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
+      createdAt: new Date(),
+    } as Cliente);
+    (cambioRepo.create as jest.Mock).mockImplementation((e: Partial<CambioClientePendiente>) => e as CambioClientePendiente);
+    (cambioRepo.save as jest.Mock).mockImplementation(async (e: Partial<CambioClientePendiente>) => ({
+      id: 1,
+      ...e,
+    }) as CambioClientePendiente);
+
+    const result = (await service.actualizar(
+      1,
+      1,
+      { nombre: "Nuevo" },
+      propietarioContext,
+    )) as unknown as import("./cambio-cliente-pendiente.entity").CambioClientePendiente;
+
+    expect(cambioRepo.save).toHaveBeenCalled();
+    expect(result.estado).toBe("pendiente");
+    expect(clienteRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("lanza NotFoundException si la cartera no existe al actualizar", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.actualizar(999, 1, { nombre: "X" }, adminContext)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("aprueba la propuesta y aplica los cambios al cliente", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(true);
+    const cliente = {
+      id: 1,
+      carteraId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
+      createdAt: new Date(),
+    } as Cliente;
+    (cambioRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      clienteId: 1,
+      camposPropuestos: { nombre: "Nuevo" },
+      estado: "pendiente",
+      solicitadoPorRol: "propietario",
+      solicitadoPorId: 1,
+      revisadoPor: null,
+      revisadoEn: null,
+      motivoRechazo: null,
+      cliente,
+    } as unknown as CambioClientePendiente);
+    (cambioRepo.save as jest.Mock).mockImplementation(async (e: Partial<CambioClientePendiente>) => e as CambioClientePendiente);
+    (clienteRepo.save as jest.Mock).mockImplementation(async (c: Cliente) => c);
+
+    const result = await service.decidirPropuesta(1, 1, "aprobar", adminContext);
+
+    expect(result.estado).toBe("aprobado");
+    expect(cliente.nombre).toBe("Nuevo");
+    expect(clienteRepo.save).toHaveBeenCalled();
+  });
+
+  it("rechaza la propuesta y registra el motivo", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(true);
+    const cliente = {
+      id: 1,
+      carteraId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
+      createdAt: new Date(),
+    } as Cliente;
+    (cambioRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      clienteId: 1,
+      camposPropuestos: { nombre: "Nuevo" },
+      estado: "pendiente",
+      solicitadoPorRol: "propietario",
+      solicitadoPorId: 1,
+      revisadoPor: null,
+      revisadoEn: null,
+      motivoRechazo: null,
+      cliente,
+    } as unknown as CambioClientePendiente);
+    (cambioRepo.save as jest.Mock).mockImplementation(async (e: Partial<CambioClientePendiente>) => e as CambioClientePendiente);
+
+    const result = await service.decidirPropuesta(1, 1, "rechazar", adminContext, "Dato incorrecto");
+
+    expect(result.estado).toBe("rechazado");
+    expect(result.motivoRechazo).toBe("Dato incorrecto");
+    expect(cliente.nombre).toBe("Juan");
+  });
+
+  it("lanza 400 si rechaza sin motivo", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(true);
+    (cambioRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      clienteId: 1,
+      camposPropuestos: { nombre: "Nuevo" },
+      estado: "pendiente",
+      solicitadoPorRol: "propietario",
+      solicitadoPorId: 1,
+      revisadoPor: null,
+      revisadoEn: null,
+      motivoRechazo: null,
+      cliente: { id: 1 },
+    } as unknown as CambioClientePendiente);
+
+    await expect(service.decidirPropuesta(1, 1, "rechazar", adminContext)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it("un propietario sin actualizar_cliente no puede decidir -> 403", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(false);
+
+    await expect(service.decidirPropuesta(1, 1, "aprobar", propietarioContext)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it("lanza NotFoundException si el cliente no existe al actualizar", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.actualizar(1, 999, { nombre: "X" }, adminContext)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("lanza 400 si no hay campos para actualizar", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, carteraId: 1 } as Cliente);
+
+    await expect(service.actualizar(1, 1, {}, adminContext)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it("un propietario no puede actualizar un cliente en una cartera ajena -> 403", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture({ propietarioId: 2 }));
+
+    await expect(service.actualizar(1, 1, { nombre: "X" }, propietarioContext)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it("lanza NotFoundException si la propuesta no existe al decidir", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(true);
+    (cambioRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.decidirPropuesta(1, 999, "aprobar", adminContext)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("lanza 400 si la propuesta ya fue decidida", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(true);
+    (cambioRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      clienteId: 1,
+      camposPropuestos: { nombre: "X" },
+      estado: "aprobado",
+      solicitadoPorRol: "propietario",
+      solicitadoPorId: 1,
+      revisadoPor: 0,
+      revisadoEn: new Date(),
+      motivoRechazo: null,
+      cliente: { id: 1 },
+    } as unknown as CambioClientePendiente);
+
+    await expect(service.decidirPropuesta(1, 1, "aprobar", adminContext)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it("lanza 400 si otra decisión ganó la carrera (UPDATE condicional affected 0)", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(true);
+    (cambioRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      clienteId: 1,
+      camposPropuestos: { nombre: "X" },
+      estado: "pendiente",
+      solicitadoPorRol: "propietario",
+      solicitadoPorId: 1,
+      revisadoPor: null,
+      revisadoEn: null,
+      motivoRechazo: null,
+      cliente: { id: 1 },
+    } as unknown as CambioClientePendiente);
+    (cambioRepo.update as jest.Mock).mockResolvedValueOnce({ affected: 0 });
+
+    await expect(service.decidirPropuesta(1, 1, "aprobar", adminContext)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it("permite varias propuestas pendientes para el mismo cliente", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (mockPermisosPropietario.tienePermiso as jest.Mock).mockResolvedValue(false);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({
+      id: 1,
+      carteraId: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      topeMaximoDeuda: null,
+      estatus: "activo",
+      colorRiesgo: "blanco",
+      tipoDocumento: "ci",
+      numeroDocumento: "1234567",
+      createdAt: new Date(),
+    } as Cliente);
+    (cambioRepo.create as jest.Mock).mockImplementation((e: Partial<CambioClientePendiente>) => e as CambioClientePendiente);
+    (cambioRepo.save as jest.Mock).mockImplementation(async (e: Partial<CambioClientePendiente>) => ({
+      id: 1,
+      ...e,
+    }) as CambioClientePendiente);
+
+    await service.actualizar(1, 1, { nombre: "A" }, propietarioContext);
+    await service.actualizar(1, 1, { apellido: "B" }, propietarioContext);
+
+    expect(cambioRepo.save).toHaveBeenCalledTimes(2);
+    expect(clienteRepo.save).not.toHaveBeenCalled();
+  });
+
+
+  describe("listar / listarCambios / setEstatus", () => {
+    const adminCtx = { rol: "admin" as const, sub: 1 };
+    const cartera = { id: 10, propietarioId: 3, gestorId: 4, estatus: "activo" };
+
+    const clienteFilas = [
+      { id: 1, carteraId: 10, nombre: "Ana", apellido: "Ruiz", ubicacion: { coordinates: [-63.2, -17.8] }, ubicacionDomicilio: null },
+    ];
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it("lista los clientes de la cartera en orden id ASC", async () => {
+      (mockCarteraRepo.findOne as jest.Mock).mockResolvedValue(cartera);
+      (mockClienteRepo.find as jest.Mock).mockResolvedValue(clienteFilas);
+      (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([
+        { clienteId: clienteFilas[0].id, tipo: "foto_facial", carteraArchivo: "/uploads/clientes/ana.jpg" },
+      ]);
+
+      const res = await service.listar(10, adminCtx);
+
+      expect(mockCarteraRepo.findOne).toHaveBeenCalledWith({ where: { id: 10 } });
+      expect(mockClienteRepo.find).toHaveBeenCalledWith({
+        where: { cartera: { id: 10 } },
+        order: { id: "ASC" },
+      });
+      expect(res[0].nombre).toBe("Ana");
+      expect(res[0].fotoUrl).toBe("/uploads/clientes/ana.jpg");
+    });
+
+    it("normaliza a URL servible el fotoUrl cuando la evidencia guarda un path absoluto", async () => {
+      (mockCarteraRepo.findOne as jest.Mock).mockResolvedValue(cartera);
+      (mockClienteRepo.find as jest.Mock).mockResolvedValue(clienteFilas);
+      (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([
+        {
+          clienteId: clienteFilas[0].id,
+          tipo: "foto_facial",
+          carteraArchivo: "/Users/roaguilar/Projects/app-cobranza/uploads/clientes/ana.jpg",
+        },
+      ]);
+
+      const res = await service.listar(10, adminCtx);
+
+      expect(res[0].fotoUrl).toBe("/uploads/clientes/ana.jpg");
+    });
+
+    it("lanza 404 si la cartera no existe al listar", async () => {
+      (mockCarteraRepo.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(service.listar(999, adminCtx)).rejects.toThrow(NotFoundException);
+    });
+
+    it("lista los cambios de cliente filtrados por estado", async () => {
+      (mockCarteraRepo.findOne as jest.Mock).mockResolvedValue(cartera);
+      (mockCambioRepo.find as jest.Mock).mockResolvedValue([
+        { id: 5, clienteId: 1, camposPropuestos: { negocio: "X" }, estado: "pendiente", solicitadoPorRol: "propietario", solicitadoPorId: 3, revisadoPor: null, revisadoEn: null, motivoRechazo: null, createdAt: new Date() },
+      ]);
+
+      const res = await service.listarCambios(10, "pendiente", adminCtx);
+
+      expect(mockCambioRepo.find).toHaveBeenCalledWith(expect.objectContaining({
+        where: { cliente: { cartera: { id: 10 } }, estado: "pendiente" },
+        relations: { cliente: true },
+      }));
+      expect(res[0].estado).toBe("pendiente");
+    });
+
+    it("cambia el estatus del cliente", async () => {
+      (mockCarteraRepo.findOne as jest.Mock).mockResolvedValue(cartera);
+      (mockClienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, estatus: "activo", ubicacion: { coordinates: [-63.2, -17.8] }, ubicacionDomicilio: null });
+      (mockClienteRepo.save as jest.Mock).mockImplementation(async (e: Partial<Cliente>) => e);
+
+      const res = await service.setEstatus(10, 1, "bloqueado", adminCtx);
+
+      expect(mockClienteRepo.findOne).toHaveBeenCalledWith({ where: { id: 1, cartera: { id: 10 } } });
+      expect(mockClienteRepo.save).toHaveBeenCalledWith(expect.objectContaining({ estatus: "bloqueado" }));
+      expect(res.estatus).toBe("bloqueado");
+    });
+
+    it("lanza 404 si el cliente no existe al cambiar estatus", async () => {
+      (mockCarteraRepo.findOne as jest.Mock).mockResolvedValue(cartera);
+      (mockClienteRepo.findOne as jest.Mock).mockResolvedValue(null);
+      await expect(service.setEstatus(10, 999, "bloqueado", adminCtx)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("listarGlobal", () => {
+    const clienteGlobal = {
+      id: 1,
+      carteraId: 10,
+      nombre: "Juan",
+      apellido: "Pérez",
+      negocio: null,
+      telefonoWhatsapp: "+59171111111",
+      latitud: -17.78,
+      longitud: -63.18,
+      latitudDomicilio: null,
+      longitudDomicilio: null,
+      topeMaximoDeuda: null,
+      estatus: "activo",
+      colorRiesgo: "verde",
+      createdAt: new Date(),
+      ubicacion: { type: "Point", coordinates: [-63.18, -17.78] },
+      ubicacionDomicilio: null,
+      cartera: { id: 10, nombre: "Cartera Centro" },
+    };
+
+    function mockQueryBuilder(rows: unknown[]) {
+      return {
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([rows, rows.length]),
+      };
+    }
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("admin ve clientes de todas las carteras con carteraNombre", async () => {
+      const qb = mockQueryBuilder([clienteGlobal]);
+      (mockClienteRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const res = await service.listarGlobal({ rol: "admin", sub: 0 }, {});
+
+      expect(mockClienteRepo.createQueryBuilder).toHaveBeenCalledWith("cliente");
+      expect(qb.andWhere).not.toHaveBeenCalled();
+      expect(qb.skip).toHaveBeenCalledWith(0);
+      expect(qb.take).toHaveBeenCalledWith(20);
+      expect(res.items).toHaveLength(1);
+      expect(res.items[0].carteraNombre).toBe("Cartera Centro");
+      expect(res.total).toBe(1);
+      expect(res.page).toBe(1);
+      expect(res.limit).toBe(20);
+    });
+
+    it("pagina según page/limit", async () => {
+      const qb = mockQueryBuilder([clienteGlobal]);
+      (mockClienteRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const res = await service.listarGlobal({ rol: "admin", sub: 0 }, { page: 3, limit: 10 });
+
+      expect(qb.skip).toHaveBeenCalledWith(20);
+      expect(qb.take).toHaveBeenCalledWith(10);
+      expect(res.page).toBe(3);
+      expect(res.limit).toBe(10);
+    });
+
+    it("un propietario solo ve clientes de sus carteras", async () => {
+      const qb = mockQueryBuilder([clienteGlobal]);
+      (mockClienteRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listarGlobal({ rol: "propietario", sub: 7 }, {});
+
+      expect(qb.andWhere).toHaveBeenCalledWith("cartera.propietario_id = :propietarioId", {
+        propietarioId: 7,
+      });
+    });
+
+    it("aplica filtros de estatus, color de riesgo y busqueda", async () => {
+      const qb = mockQueryBuilder([]);
+      (mockClienteRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      await service.listarGlobal({ rol: "admin", sub: 0 }, {
+        busqueda: "juan",
+        estatus: "activo",
+        colorRiesgo: "rojo",
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith("cliente.estatus = :estatus", {
+        estatus: "activo",
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith("cliente.colorRiesgo = :riesgo", {
+        riesgo: "rojo",
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining("ILIKE"),
+        { termino: "%juan%" },
+      );
+    });
+  });
+
+  it("agregarEvidencias guarda la evidencia del cliente existente", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({ reconocimientoFacialActivo: false, registroDocumentoCliente: false } as CarteraConfig);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, carteraId: 1 });
+    (evidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (evidenciaRepo.create as jest.Mock).mockImplementation((e: Partial<ClienteEvidencia>) => e as ClienteEvidencia);
+    (evidenciaRepo.save as jest.Mock).mockImplementation(async (e: Partial<ClienteEvidencia>) => ({ id: 9, ...e }) as ClienteEvidencia);
+
+    await service.agregarEvidencias(
+      1,
+      1,
+      [{ tipo: "foto_facial", archivo: archivoFixture() }],
+      adminContext,
+    );
+
+    expect(evidenciaRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: "foto_facial", carteraArchivo: "/uploads/clientes/abc.jpg", clienteId: 1 }),
+    );
+    expect(evidenciaRepo.save).toHaveBeenCalled();
+  });
+
+  it("agregarEvidencias lanza NotFound si el cliente no existe", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      service.agregarEvidencias(1, 999, [{ tipo: "foto_facial", archivo: archivoFixture() }], adminContext),
+    ).rejects.toThrow("El cliente no existe");
+  });
+
+  it("permite subir solo la foto cuando el cliente ya tiene el documento (no exige ambos en la request)", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: true,
+      registroDocumentoCliente: true,
+    } as CarteraConfig);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, carteraId: 1 });
+    // El cliente ya tiene documento_frente guardado en BD.
+    (evidenciaRepo.find as jest.Mock).mockResolvedValue([
+      { id: 5, tipo: "documento_frente", carteraArchivo: "/uploads/clientes/doc.jpg" } as ClienteEvidencia,
+    ]);
+    (evidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (evidenciaRepo.create as jest.Mock).mockImplementation((e: Partial<ClienteEvidencia>) => e as ClienteEvidencia);
+    (evidenciaRepo.save as jest.Mock).mockImplementation(async (e: Partial<ClienteEvidencia>) => ({ id: 9, ...e }) as ClienteEvidencia);
+
+    // Solo se sube la foto facial; el documento ya existía.
+    await expect(
+      service.agregarEvidencias(
+        1,
+        1,
+        [{ tipo: "foto_facial", archivo: archivoFixture() }],
+        adminContext,
+      ),
+    ).resolves.toEqual({ clienteId: 1 });
+    expect(evidenciaRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: "foto_facial" }),
+    );
+  });
+
+  it("permite subir una evidencia a un cliente sin ninguna otra (edición de a una)", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (configRepo.findOne as jest.Mock).mockResolvedValue({
+      reconocimientoFacialActivo: true,
+      registroDocumentoCliente: true,
+    } as CarteraConfig);
+    (clienteRepo.findOne as jest.Mock).mockResolvedValue({ id: 1, carteraId: 1 });
+    // El cliente no tiene ninguna evidencia (p. ej. clientes test sin silueta).
+    (evidenciaRepo.find as jest.Mock).mockResolvedValue([]);
+    (evidenciaRepo.findOne as jest.Mock).mockResolvedValue(null);
+    (evidenciaRepo.create as jest.Mock).mockImplementation((e: Partial<ClienteEvidencia>) => e as ClienteEvidencia);
+    (evidenciaRepo.save as jest.Mock).mockImplementation(async (e: Partial<ClienteEvidencia>) => ({ id: 9, ...e }) as ClienteEvidencia);
+
+    // Subir SOLO el documento frente no debe rechazarse aunque falte la foto.
+    await expect(
+      service.agregarEvidencias(
+        1,
+        1,
+        [{ tipo: "documento_frente", archivo: archivoFixture() }],
+        adminContext,
+      ),
+    ).resolves.toEqual({ clienteId: 1 });
+    expect(evidenciaRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: "documento_frente" }),
+    );
+  });
+});

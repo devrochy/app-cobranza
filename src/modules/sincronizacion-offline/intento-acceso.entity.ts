@@ -12,7 +12,7 @@ export const INTENTO_MOTIVO = [
 export type IntentoMotivo = (typeof INTENTO_MOTIVO)[number];
 
 /**
- * Registro de un intento de acceso no autorizado (HU-42): login de un cobrador
+ * Registro de un intento de acceso no autorizado (HU-42): login de un gestor
  * cuyo IMEI/WhatsApp no coincide con el dispositivo vinculado. Sirve de alerta
  * consultable desde el panel.
  */
@@ -21,8 +21,8 @@ export class IntentoAcceso {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: "cobrador_id", type: "int", nullable: true })
-  cobradorId!: number | null;
+  @Column({ name: "gestor_id", type: "int", nullable: true })
+  gestorId!: number | null;
 
   @Column({ type: "varchar", nullable: true })
   imei!: string | null;

@@ -4,20 +4,20 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { In, LessThan, Repository } from "typeorm";
 import { RequesterOwned } from "../../common/ownership";
-import { AbonosService } from "../cartera/abonos.service";
-import { ClienteService } from "../cartera/cliente.service";
-import { RegistrarAbonoDto } from "../cartera/dto/registrar-abono.dto";
-import { RegistrarPagoDto } from "../cartera/dto/registrar-pago.dto";
-import { RegistrarVisitaDto } from "../cartera/dto/registrar-visita.dto";
-import { PagosService } from "../cartera/pagos.service";
-import { VisitasService } from "../cartera/visitas.service";
-import { CobradorPermisoNombre } from "../cobradores/cobrador-permiso.entity";
-import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
-import { RegistrarGastoDto } from "../rutas/dto/registrar-gasto.dto";
-import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-real.dto";
-import { Ruta } from "../rutas/ruta.entity";
-import { GastosService } from "../rutas/gastos.service";
-import { TrayectoriasService } from "../rutas/trayectorias.service";
+import { AbonosService } from "../clientes/abonos.service";
+import { ClienteService } from "../clientes/cliente.service";
+import { RegistrarAbonoDto } from "../clientes/dto/registrar-abono.dto";
+import { RegistrarPagoDto } from "../clientes/dto/registrar-pago.dto";
+import { RegistrarVisitaDto } from "../clientes/dto/registrar-visita.dto";
+import { PagosService } from "../clientes/pagos.service";
+import { VisitasService } from "../clientes/visitas.service";
+import { GestorPermisoNombre } from "../gestores/gestor-permiso.entity";
+import { GestoresPermisosService } from "../gestores/gestores-permisos.service";
+import { RegistrarGastoDto } from "../carteras/dto/registrar-gasto.dto";
+import { RegistrarTrayectoriaRealDto } from "../carteras/dto/registrar-trayectoria-real.dto";
+import { Cartera } from "../carteras/cartera.entity";
+import { GastosService } from "../carteras/gastos.service";
+import { TrayectoriasService } from "../carteras/trayectorias.service";
 import { Device } from "./device.entity";
 import { EvidenciasOfflineService } from "./evidencias-offline.service";
 import { SincronizacionOffline } from "./sincronizacion-offline.entity";
@@ -30,7 +30,7 @@ const DTO_POR_TIPO: Record<string, new () => object> = {
   trayectoria: RegistrarTrayectoriaRealDto,
 };
 
-const PERMISO_POR_TIPO: Partial<Record<string, CobradorPermisoNombre>> = {
+const PERMISO_POR_TIPO: Partial<Record<string, GestorPermisoNombre>> = {
   pago: "registrar_pago",
   abono: "registrar_abono",
   gasto: "registrar_gasto",
@@ -46,15 +46,15 @@ const MAX_REINTENTOS = 5;
  * `(dispositivo, evento_id_cliente)`; el claim atómico (pendiente/error →
  * procesando) evita duplicados entre el sync on-ingest y el job de reintentos.
  * Valida la forma del payload por tipoEvento (mismos DTOs que el flujo online)
- * y respeta la matriz cobrador_permisos del cobrador de la ruta.
+ * y respeta la matriz gestor_permisos del gestor de la cartera.
  */
 @Injectable()
 export class AplicarEventosOfflineService {
   constructor(
     @InjectRepository(SincronizacionOffline)
     private readonly repo: Repository<SincronizacionOffline>,
-    @InjectRepository(Ruta)
-    private readonly rutaRepo: Repository<Ruta>,
+    @InjectRepository(Cartera)
+    private readonly carteraRepo: Repository<Cartera>,
     private readonly visitasService: VisitasService,
     private readonly pagosService: PagosService,
     private readonly abonosService: AbonosService,
@@ -62,19 +62,19 @@ export class AplicarEventosOfflineService {
     private readonly trayectoriasService: TrayectoriasService,
     private readonly clienteService: ClienteService,
     private readonly evidenciasService: EvidenciasOfflineService,
-    private readonly permisosCobrador: CobradoresPermisosService,
+    private readonly permisosGestor: GestoresPermisosService,
   ) {}
 
   async aplicarEventosDeDispositivo(
     device: Device,
     eventos: SincronizacionOffline[],
   ): Promise<void> {
-    if (device.cobradorId == null) {
-      await this.marcarError(eventos, "El dispositivo no tiene cobrador vinculado");
+    if (device.gestorId == null) {
+      await this.marcarError(eventos, "El dispositivo no tiene gestor vinculado");
       return;
     }
-    const cobradorId = device.cobradorId;
-    const requester: RequesterOwned = { rol: "cobrador", sub: cobradorId };
+    const gestorId = device.gestorId;
+    const requester: RequesterOwned = { rol: "gestor", sub: gestorId };
 
     for (const evento of eventos) {
       if (evento.estado === "sincronizado") {
@@ -93,23 +93,23 @@ export class AplicarEventosOfflineService {
         continue;
       }
       try {
-        // El evento indica su ruta activa; debe pertenecer al cobrador del
-        // dispositivo (permite operar todas las rutas del cobrador).
-        const rutaId = await this.rutaDelEvento(evento, cobradorId);
+        // El evento indica su cartera activa; debe pertenecer al gestor del
+        // dispositivo (permite operar todas las carteras del gestor).
+        const carteraId = await this.carteraDelEvento(evento, gestorId);
         const permiso = this.permisoPorTipo(evento);
         if (permiso) {
-          const tiene = await this.permisosCobrador.tienePermiso(
-            cobradorId,
+          const tiene = await this.permisosGestor.tienePermiso(
+            gestorId,
             permiso,
           );
           if (!tiene) {
             throw new ForbiddenException(
-              `El cobrador no tiene el permiso ${permiso}`,
+              `El gestor no tiene el permiso ${permiso}`,
             );
           }
         }
         await this.validarPayload(evento.tipoEvento, evento.payloadJson);
-        await this.aplicarUno(rutaId, evento, requester);
+        await this.aplicarUno(carteraId, evento, requester);
         await this.repo.update(evento.id, {
           estado: "sincronizado",
           syncedAt: new Date(),
@@ -124,23 +124,23 @@ export class AplicarEventosOfflineService {
     }
   }
 
-  /** Resuelve la ruta del evento y valida que sea del cobrador del dispositivo. */
-  private async rutaDelEvento(
+  /** Resuelve la cartera del evento y valida que sea del gestor del dispositivo. */
+  private async carteraDelEvento(
     evento: SincronizacionOffline,
-    cobradorId: number,
+    gestorId: number,
   ): Promise<number> {
     const payload = (evento.payloadJson ?? {}) as Record<string, unknown>;
-    const rutaId = Number(payload.rutaId);
-    if (!Number.isInteger(rutaId) || rutaId <= 0) {
-      throw new BadRequestException("El evento no incluye rutaId");
+    const carteraId = Number(payload.carteraId);
+    if (!Number.isInteger(carteraId) || carteraId <= 0) {
+      throw new BadRequestException("El evento no incluye carteraId");
     }
-    const ruta = await this.rutaRepo.findOne({ where: { id: rutaId } });
-    if (!ruta || ruta.cobradorId !== cobradorId) {
+    const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
+    if (!cartera || cartera.gestorId !== gestorId) {
       throw new ForbiddenException(
-        "La ruta no pertenece al cobrador del dispositivo",
+        "La cartera no pertenece al gestor del dispositivo",
       );
     }
-    return rutaId;
+    return carteraId;
   }
 
   async aplicarPendientesDeDispositivo(device: Device): Promise<void> {
@@ -156,7 +156,7 @@ export class AplicarEventosOfflineService {
     await this.aplicarEventosDeDispositivo(device, eventos);
   }
 
-  private permisoPorTipo(evento: SincronizacionOffline): CobradorPermisoNombre | null {
+  private permisoPorTipo(evento: SincronizacionOffline): GestorPermisoNombre | null {
     if (evento.tipoEvento === "visita") {
       const resultado = (evento.payloadJson as { resultado?: string } | null)
         ?.resultado;
@@ -193,33 +193,33 @@ export class AplicarEventosOfflineService {
   }
 
   private async aplicarUno(
-    rutaId: number,
+    carteraId: number,
     evento: SincronizacionOffline,
     requester: RequesterOwned,
   ): Promise<void> {
-    // `rutaId` es un campo de transporte del evento; no forma parte de los
+    // `carteraId` es un campo de transporte del evento; no forma parte de los
     // payloads de dominio.
     const payload = { ...((evento.payloadJson ?? {}) as Record<string, unknown>) };
-    delete payload.rutaId;
+    delete payload.carteraId;
 
     switch (evento.tipoEvento) {
       case "visita":
         await this.visitasService.registrar(
-          rutaId,
+          carteraId,
           payload as unknown as Parameters<VisitasService["registrar"]>[1],
           requester,
         );
         return;
       case "pago":
         await this.pagosService.registrarPagoDeCuota(
-          rutaId,
+          carteraId,
           payload as unknown as Parameters<PagosService["registrarPagoDeCuota"]>[1],
           requester,
         );
         return;
       case "abono":
         await this.abonosService.registrarAbono(
-          rutaId,
+          carteraId,
           payload as unknown as Parameters<AbonosService["registrarAbono"]>[1],
           requester,
         );
@@ -229,7 +229,7 @@ export class AplicarEventosOfflineService {
         const archivos = await this.evidenciasService.persistir(
           evidencias as never,
         );
-        await this.gastosService.registrar(rutaId, input as never, archivos, requester);
+        await this.gastosService.registrar(carteraId, input as never, archivos, requester);
         return;
       }
       case "cambio_cliente": {
@@ -237,12 +237,12 @@ export class AplicarEventosOfflineService {
           clienteId: number;
           input: never;
         };
-        await this.clienteService.actualizar(rutaId, clienteId, input, requester);
+        await this.clienteService.actualizar(carteraId, clienteId, input, requester);
         return;
       }
       case "trayectoria": {
         const { puntos } = payload as { puntos: { latitud: number; longitud: number }[] };
-        await this.trayectoriasService.registrarReal(rutaId, puntos, requester);
+        await this.trayectoriasService.registrarReal(carteraId, puntos, requester);
         return;
       }
       default:

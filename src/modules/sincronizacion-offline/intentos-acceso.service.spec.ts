@@ -36,7 +36,7 @@ describe("IntentosAccesoService", () => {
 
   it("registra el intento y dispara la alerta", async () => {
     const input = {
-      cobradorId: 20,
+      gestorId: 20,
       imei: "imei-x",
       whatsappNumber: "+59171111111",
       motivo: "imei_no_coincide" as const,
@@ -47,7 +47,7 @@ describe("IntentosAccesoService", () => {
     expect(repo.create).toHaveBeenCalledWith(input);
     expect(repo.save).toHaveBeenCalled();
     expect(alertas.notificarIntentoNoAutorizado).toHaveBeenCalledWith({
-      cobradorId: 20,
+      gestorId: 20,
       imei: "imei-x",
       whatsappNumber: "+59171111111",
       motivo: "imei_no_coincide",

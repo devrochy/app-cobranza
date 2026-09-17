@@ -6,19 +6,19 @@ import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
 import { ReglaNegociacionIa } from "../../src/modules/reglas-negociacion-ia/regla-negociacion-ia.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Configuración de reglas de negociación de la IA (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
+  let propietarioRepo: Repository<Propietario>;
   let reglasRepo: Repository<ReglaNegociacionIa>;
   let accessTokenAdmin: string;
 
   const ADMIN_USERNAME = "reglas-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Reglas2026";
-  const PASSWORD = "Socio#Reglas2026";
+  const PASSWORD = "Propietario#Reglas2026";
 
   const VALORES = {
     maxDiasProrroga: 5,
@@ -44,11 +44,11 @@ describe("Configuración de reglas de negociación de la IA (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
     reglasRepo = moduleFixture.get(getRepositoryToken(ReglaNegociacionIa));
 
     await reglasRepo.createQueryBuilder().delete().execute();
-    await socioRepo.delete({ codigo: "SC-REGLAS-1" });
+    await propietarioRepo.delete({ codigo: "SC-REGLAS-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -69,7 +69,7 @@ describe("Configuración de reglas de negociación de la IA (e2e)", () => {
 
   afterAll(async () => {
     await reglasRepo.createQueryBuilder().delete().execute();
-    await socioRepo.delete({ codigo: "SC-REGLAS-1" });
+    await propietarioRepo.delete({ codigo: "SC-REGLAS-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
@@ -163,32 +163,32 @@ describe("Configuración de reglas de negociación de la IA (e2e)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("un socio no puede acceder al endpoint (admin-only) -> 403", async () => {
-    await socioRepo.save({
-      usuario: "socio-reglas-1",
+  it("un propietario no puede acceder al endpoint (admin-only) -> 403", async () => {
+    await propietarioRepo.save({
+      usuario: "propietario-reglas-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-reglas-1@correo.com",
+      correo: "propietario-reglas-1@correo.com",
       telefono: "+59171160170",
       codigo: "SC-REGLAS-1",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-reglas-1", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-reglas-1", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const resGet = await request(app.getHttpServer())
       .get("/reglas-negociacion-ia")
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(resGet.status).toBe(403);
 
     const resPut = await request(app.getHttpServer())
       .put("/reglas-negociacion-ia")
-      .set("Authorization", `Bearer ${tokenSocio}`)
+      .set("Authorization", `Bearer ${tokenPropietario}`)
       .send(VALORES);
 
     expect(resPut.status).toBe(403);

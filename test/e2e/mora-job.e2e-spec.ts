@@ -3,28 +3,28 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { AppModule } from "../../src/app.module";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { MoraJobService } from "../../src/modules/cartera/mora-job.service";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { MoraJobService } from "../../src/modules/clientes/mora-job.service";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 
 describe("Job de mora (e2e)", () => {
   let app: INestApplication;
   let cuotaRepo: Repository<Cuota>;
   let prestamoRepo: Repository<Prestamo>;
   let clienteRepo: Repository<Cliente>;
-  let rutaRepo: Repository<Ruta>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
+  let carteraRepo: Repository<Cartera>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
   let moraJob: MoraJobService;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
   let prestamoId: number;
-  let socioId: number;
-  let cobradorId: number;
+  let propietarioId: number;
+  let gestorId: number;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -37,9 +37,9 @@ describe("Job de mora (e2e)", () => {
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
     moraJob = moduleFixture.get(MoraJobService);
 
     // Limpieza completa en orden de FK por si quedan datos residuales de corridas previas.
@@ -47,75 +47,75 @@ describe("Job de mora (e2e)", () => {
       .createQueryBuilder()
       .delete()
       .where(
-        "prestamo_id IN (SELECT p.id FROM prestamos p JOIN clientes c ON c.id = p.cliente_id JOIN rutas r ON r.id = c.ruta_id WHERE r.nombre = :nombre)",
-        { nombre: "Ruta MORA-E2E" },
+        "prestamo_id IN (SELECT p.id FROM prestamos p JOIN clientes c ON c.id = p.cliente_id JOIN carteras r ON r.id = c.cartera_id WHERE r.nombre = :nombre)",
+        { nombre: "Cartera MORA-E2E" },
       )
       .execute();
     await prestamoRepo
       .createQueryBuilder()
       .delete()
       .where(
-        "cliente_id IN (SELECT c.id FROM clientes c JOIN rutas r ON r.id = c.ruta_id WHERE r.nombre = :nombre)",
-        { nombre: "Ruta MORA-E2E" },
+        "cliente_id IN (SELECT c.id FROM clientes c JOIN carteras r ON r.id = c.cartera_id WHERE r.nombre = :nombre)",
+        { nombre: "Cartera MORA-E2E" },
       )
       .execute();
     await clienteRepo
       .createQueryBuilder()
       .delete()
       .where(
-        "ruta_id IN (SELECT r.id FROM rutas r WHERE r.nombre = :nombre)",
-        { nombre: "Ruta MORA-E2E" },
+        "cartera_id IN (SELECT r.id FROM carteras r WHERE r.nombre = :nombre)",
+        { nombre: "Cartera MORA-E2E" },
       )
       .execute();
-    await rutaRepo
+    await carteraRepo
       .createQueryBuilder()
       .delete()
-      .where("nombre = :nombre", { nombre: "Ruta MORA-E2E" })
+      .where("nombre = :nombre", { nombre: "Cartera MORA-E2E" })
       .execute();
-    await cobradorRepo.delete({ codigo: "CB-MORA-E2E" });
-    await socioRepo.delete({ codigo: "SC-MORA-E2E" });
+    await gestorRepo.delete({ codigo: "CB-MORA-E2E" });
+    await propietarioRepo.delete({ codigo: "SC-MORA-E2E" });
 
-    const socio = await socioRepo.save({
-      usuario: "socio-mora-e2e",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-mora-e2e",
       passwordHash: "x",
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-mora-e2e@correo.com",
+      correo: "propietario-mora-e2e@correo.com",
       telefono: "+59171160097",
       codigo: "SC-MORA-E2E",
       moneda: "BOB",
       estatus: "activo",
     });
-    socioId = socio.id;
+    propietarioId = propietario.id;
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socioId } as Socio,
-      usuario: "cobrador-mora-e2e",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietarioId } as Propietario,
+      usuario: "gestor-mora-e2e",
       passwordHash: "x",
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-mora-e2e@correo.com",
+      correo: "gestor-mora-e2e@correo.com",
       telefono: "+59172270099",
       codigo: "CB-MORA-E2E",
       estatus: "activo",
     });
-    cobradorId = cobrador.id;
+    gestorId = gestor.id;
 
-    const ruta = await rutaRepo.save({
-      socio: { id: socioId } as Socio,
-      cobrador: { id: cobradorId } as Cobrador,
-      nombre: "Ruta MORA-E2E",
+    const cartera = await carteraRepo.save({
+      propietario: { id: propietarioId } as Propietario,
+      gestor: { id: gestorId } as Gestor,
+      nombre: "Cartera MORA-E2E",
       descripcion: null,
       tipoInteres: 20,
       numCuotas: 4,
       moneda: "BOB",
       estatus: "activo",
     });
-    rutaId = ruta.id;
+    carteraId = cartera.id;
 
     const cliente = await clienteRepo.save({
-      ruta: { id: rutaId } as Ruta,
-      rutaId,
+      cartera: { id: carteraId } as Cartera,
+      carteraId,
       nombre: "Ana",
       apellido: "Mora",
       negocio: null,
@@ -131,8 +131,8 @@ describe("Job de mora (e2e)", () => {
     const prestamo = await prestamoRepo.save({
       cliente: { id: clienteId } as Cliente,
       clienteId,
-      ruta: { id: rutaId } as Ruta,
-      rutaId,
+      cartera: { id: carteraId } as Cartera,
+      carteraId,
       valor: 1000,
       numCuotas: 4,
       tipoInteres: 20,
@@ -155,11 +155,11 @@ describe("Job de mora (e2e)", () => {
     if (clienteId) {
       await clienteRepo.delete({ id: clienteId });
     }
-    if (rutaId) {
-      await rutaRepo.delete({ id: rutaId });
+    if (carteraId) {
+      await carteraRepo.delete({ id: carteraId });
     }
-    await cobradorRepo.delete({ codigo: "CB-MORA-E2E" });
-    await socioRepo.delete({ codigo: "SC-MORA-E2E" });
+    await gestorRepo.delete({ codigo: "CB-MORA-E2E" });
+    await propietarioRepo.delete({ codigo: "SC-MORA-E2E" });
     await app.close();
   });
 

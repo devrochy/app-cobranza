@@ -1,14 +1,14 @@
 import { IsNotEmpty, IsString } from "class-validator";
 
 /**
- * Vinculación de un dispositivo a un cobrador (HU-39). En el MVP local el IMEI y
+ * Vinculación de un dispositivo a un gestor (HU-39). En el MVP local el IMEI y
  * el WhatsApp se "simulan": la APK envía el Android ID (`expo-application`) y el
- * teléfono autorizado del cobrador. `publicKey` es la clave pública X25519 del
+ * teléfono autorizado del gestor. `publicKey` es la clave pública X25519 del
  * dispositivo (HU-40).
  */
 export class RegistrarDispositivoDto {
-  @IsNotEmpty({ message: "El cobrador es obligatorio" })
-  cobradorId!: number;
+  @IsNotEmpty({ message: "El gestor es obligatorio" })
+  gestorId!: number;
 
   @IsString()
   @IsNotEmpty({ message: "El IMEI es obligatorio" })

@@ -5,25 +5,25 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Abono } from "../../src/modules/cartera/abono.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Pago } from "../../src/modules/cartera/pago.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { PromesaPago } from "../../src/modules/cartera/promesa-pago.entity";
-import { Visita } from "../../src/modules/cartera/visita.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Caja } from "../../src/modules/rutas/caja.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Abono } from "../../src/modules/clientes/abono.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Pago } from "../../src/modules/clientes/pago.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { PromesaPago } from "../../src/modules/clientes/promesa-pago.entity";
+import { Visita } from "../../src/modules/clientes/visita.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Caja } from "../../src/modules/carteras/caja.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Registro de visitas (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
@@ -33,7 +33,7 @@ describe("Registro de visitas (e2e)", () => {
   let promesaRepo: Repository<PromesaPago>;
   let cajaRepo: Repository<Caja>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
   let prestamoId: number;
 
@@ -58,9 +58,9 @@ describe("Registro de visitas (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
@@ -77,9 +77,9 @@ describe("Registro de visitas (e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-VISITAS-1" });
-    await socioRepo.delete({ codigo: "SC-VISITAS-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-VISITAS-1" });
+    await propietarioRepo.delete({ codigo: "SC-VISITAS-1" });
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -97,47 +97,47 @@ describe("Registro de visitas (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-visitas-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-visitas-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-visitas-1@correo.com",
+      correo: "propietario-visitas-1@correo.com",
       telefono: "+59171160022",
       codigo: "SC-VISITAS-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-visitas-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-visitas-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-visitas-1@correo.com",
+      correo: "gestor-visitas-1@correo.com",
       telefono: "+59172270022",
       codigo: "CB-VISITAS-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta VISITAS",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera VISITAS",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Juan",
@@ -152,7 +152,7 @@ describe("Registro de visitas (e2e)", () => {
     clienteId = clienteRes.body.id as number;
 
     const prestamoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         clienteId,
@@ -171,16 +171,16 @@ describe("Registro de visitas (e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.delete({ id: prestamoId });
     await clienteRepo.delete({ id: clienteId });
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-VISITAS-1" });
-    await socioRepo.delete({ codigo: "SC-VISITAS-1" });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-VISITAS-1" });
+    await propietarioRepo.delete({ codigo: "SC-VISITAS-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("POST /rutas/:id/visitas con resultado no_pago registra la visita", async () => {
+  it("POST /carteras/:id/visitas con resultado no_pago registra la visita", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/visitas`)
+      .post(`/carteras/${carteraId}/visitas`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ prestamoId, clienteId, resultado: "no_pago", motivoNoPago: "no_esta" });
 
@@ -189,9 +189,9 @@ describe("Registro de visitas (e2e)", () => {
     expect(res.body.motivoNoPago).toBe("no_esta");
   });
 
-  it("POST /rutas/:id/visitas con compromiso_de_pago crea la promesa", async () => {
+  it("POST /carteras/:id/visitas con compromiso_de_pago crea la promesa", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/visitas`)
+      .post(`/carteras/${carteraId}/visitas`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         prestamoId,
@@ -211,21 +211,21 @@ describe("Registro de visitas (e2e)", () => {
     expect(promesa?.fechaPrometida).toBe("2026-08-30");
   });
 
-  it("POST /rutas/:id/visitas con compromiso_de_pago sin fecha -> 400", async () => {
+  it("POST /carteras/:id/visitas con compromiso_de_pago sin fecha -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/visitas`)
+      .post(`/carteras/${carteraId}/visitas`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ prestamoId, clienteId, resultado: "no_pago", motivoNoPago: "compromiso_de_pago" });
 
     expect(res.status).toBe(400);
   });
 
-  it("POST /rutas/:id/visitas con resultado pago ejecuta el pago de cuota y actualiza caja", async () => {
+  it("POST /carteras/:id/visitas con resultado pago ejecuta el pago de cuota y actualiza caja", async () => {
     const cuota = await cuotaRepo.findOne({ where: { prestamo: { id: prestamoId }, numeroCuota: 1 } });
-    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaAntes = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
 
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/visitas`)
+      .post(`/carteras/${carteraId}/visitas`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         prestamoId,
@@ -251,15 +251,15 @@ describe("Registro de visitas (e2e)", () => {
     expect(pago).toBeDefined();
     expect(pago?.visitaId).not.toBeNull();
 
-    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaDespues = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual + cuota!.valorEsperado);
   });
 
-  it("POST /rutas/:id/visitas con resultado pago abono ejecuta el abono y actualiza caja", async () => {
-    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+  it("POST /carteras/:id/visitas con resultado pago abono ejecuta el abono y actualiza caja", async () => {
+    const cajaAntes = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
 
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/visitas`)
+      .post(`/carteras/${carteraId}/visitas`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         prestamoId,
@@ -281,13 +281,13 @@ describe("Registro de visitas (e2e)", () => {
     expect(abono).toBeDefined();
     expect(abono?.visitaId).not.toBeNull();
 
-    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaDespues = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual + 40);
   });
 
-  it("POST /rutas/:id/visitas sin token -> 401", async () => {
+  it("POST /carteras/:id/visitas sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/visitas`)
+      .post(`/carteras/${carteraId}/visitas`)
       .send({ prestamoId, clienteId, resultado: "no_pago", motivoNoPago: "no_esta" });
 
     expect(res.status).toBe(401);

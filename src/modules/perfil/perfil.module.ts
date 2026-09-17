@@ -2,15 +2,15 @@ import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Cobrador } from "../cobradores/cobrador.entity";
-import { Socio } from "../socios/socio.entity";
+import { Gestor } from "../gestores/gestor.entity";
+import { Propietario } from "../propietarios/propietario.entity";
 import { SecurityModule } from "../security/security.module";
 import { PerfilController } from "./perfil.controller";
 import { PerfilService } from "./perfil.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AdminUser, Cobrador, Socio]),
+    TypeOrmModule.forFeature([AdminUser, Gestor, Propietario]),
     JwtModule.register({}),
     SecurityModule,
   ],

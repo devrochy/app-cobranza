@@ -5,8 +5,8 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Cobrador } from "../cobradores/cobrador.entity";
-import { Socio } from "../socios/socio.entity";
+import { Gestor } from "../gestores/gestor.entity";
+import { Propietario } from "../propietarios/propietario.entity";
 import { Device } from "../sincronizacion-offline/device.entity";
 import { IntentosAccesoService } from "../sincronizacion-offline/intentos-acceso.service";
 import { RefreshTokenRevocado } from "./refresh-token-revocado.entity";
@@ -15,8 +15,8 @@ import { AuthService } from "./auth.service";
 describe("AuthService", () => {
   let service: AuthService;
   let repo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
 
   const PLAIN_PASSWORD = "s3cret-password";
   let hash: string;
@@ -25,11 +25,11 @@ describe("AuthService", () => {
     findOne: jest.fn(),
   };
 
-  const mockSocioRepo = {
+  const mockPropietarioRepo = {
     findOne: jest.fn(),
   };
 
-  const mockCobradorRepo = {
+  const mockGestorRepo = {
     findOne: jest.fn(),
   };
 
@@ -73,10 +73,10 @@ describe("AuthService", () => {
     } as AdminUser;
   }
 
-  function socioFixture(overrides: Partial<Socio> = {}): Socio {
+  function propietarioFixture(overrides: Partial<Propietario> = {}): Propietario {
     return {
       id: 10,
-      usuario: "socio1",
+      usuario: "propietario1",
       passwordHash: hash,
       estatus: "activo",
       nombre: "Juan",
@@ -87,14 +87,14 @@ describe("AuthService", () => {
       moneda: "BOB",
       createdAt: new Date(),
       ...overrides,
-    } as Socio;
+    } as Propietario;
   }
 
-  function cobradorFixture(overrides: Partial<Cobrador> = {}): Cobrador {
+  function gestorFixture(overrides: Partial<Gestor> = {}): Gestor {
     return {
       id: 20,
-      socioId: 10,
-      usuario: "cobrador1",
+      propietarioId: 10,
+      usuario: "gestor1",
       passwordHash: hash,
       nombre: "Carlos",
       apellido: "López",
@@ -104,7 +104,7 @@ describe("AuthService", () => {
       estatus: "activo",
       createdAt: new Date(),
       ...overrides,
-    } as Cobrador;
+    } as Gestor;
   }
 
   beforeAll(async () => {
@@ -120,8 +120,8 @@ describe("AuthService", () => {
       providers: [
         AuthService,
         { provide: getRepositoryToken(AdminUser), useValue: mockRepo },
-        { provide: getRepositoryToken(Socio), useValue: mockSocioRepo },
-        { provide: getRepositoryToken(Cobrador), useValue: mockCobradorRepo },
+        { provide: getRepositoryToken(Propietario), useValue: mockPropietarioRepo },
+        { provide: getRepositoryToken(Gestor), useValue: mockGestorRepo },
         { provide: getRepositoryToken(Device), useValue: mockDeviceRepo },
         { provide: getRepositoryToken(RefreshTokenRevocado), useValue: mockRevocadoRepo },
         { provide: IntentosAccesoService, useValue: mockIntentosAcceso },
@@ -133,8 +133,8 @@ describe("AuthService", () => {
 
     service = module.get(AuthService);
     repo = module.get(getRepositoryToken(AdminUser));
-    socioRepo = module.get(getRepositoryToken(Socio));
-    cobradorRepo = module.get(getRepositoryToken(Cobrador));
+    propietarioRepo = module.get(getRepositoryToken(Propietario));
+    gestorRepo = module.get(getRepositoryToken(Gestor));
   });
 
   async function decodeToken(token: string): Promise<Record<string, unknown>> {
@@ -191,128 +191,128 @@ describe("AuthService", () => {
     });
   });
 
-  describe("loginSocio", () => {
-    it("devuelve tokens con rol socio para credenciales válidas de un socio activo", async () => {
-      (socioRepo.findOne as jest.Mock).mockResolvedValue(socioFixture());
+  describe("loginPropietario", () => {
+    it("devuelve tokens con rol propietario para credenciales válidas de un propietario activo", async () => {
+      (propietarioRepo.findOne as jest.Mock).mockResolvedValue(propietarioFixture());
 
-      const result = await service.loginSocio("socio1", PLAIN_PASSWORD);
+      const result = await service.loginPropietario("propietario1", PLAIN_PASSWORD);
 
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
 
       const accessPayload = await decodeToken(result.accessToken);
       expect(accessPayload.sub).toBe(10);
-      expect(accessPayload.usuario).toBe("socio1");
+      expect(accessPayload.usuario).toBe("propietario1");
       expect(accessPayload.tipo).toBe("access");
-      expect(accessPayload.rol).toBe("socio");
+      expect(accessPayload.rol).toBe("propietario");
 
       const refreshPayload = await decodeToken(result.refreshToken);
-      expect(refreshPayload.rol).toBe("socio");
+      expect(refreshPayload.rol).toBe("propietario");
 
-      expect(result.socio.usuario).toBe("socio1");
+      expect(result.propietario.usuario).toBe("propietario1");
     });
 
     it("rechaza con contraseña incorrecta", async () => {
-      (socioRepo.findOne as jest.Mock).mockResolvedValue(socioFixture());
+      (propietarioRepo.findOne as jest.Mock).mockResolvedValue(propietarioFixture());
 
-      await expect(service.loginSocio("socio1", "wrong-password")).rejects.toThrow(
+      await expect(service.loginPropietario("propietario1", "wrong-password")).rejects.toThrow(
         "Credenciales inválidas",
       );
     });
 
     it("rechaza con el mismo error si el usuario no existe", async () => {
-      (socioRepo.findOne as jest.Mock).mockResolvedValue(null);
+      (propietarioRepo.findOne as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.loginSocio("ghost", PLAIN_PASSWORD)).rejects.toThrow(
+      await expect(service.loginPropietario("ghost", PLAIN_PASSWORD)).rejects.toThrow(
         "Credenciales inválidas",
       );
     });
 
-    it("rechaza a un socio bloqueado", async () => {
-      (socioRepo.findOne as jest.Mock).mockResolvedValue(
-        socioFixture({ estatus: "bloqueado" }),
+    it("rechaza a un propietario bloqueado", async () => {
+      (propietarioRepo.findOne as jest.Mock).mockResolvedValue(
+        propietarioFixture({ estatus: "bloqueado" }),
       );
 
-      await expect(service.loginSocio("socio1", PLAIN_PASSWORD)).rejects.toThrow(
+      await expect(service.loginPropietario("propietario1", PLAIN_PASSWORD)).rejects.toThrow(
         "Credenciales inválidas",
       );
     });
   });
 
-  describe("loginCobrador", () => {
-    it("devuelve tokens con rol cobrador para credenciales válidas de un cobrador activo", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+  describe("loginGestor", () => {
+    it("devuelve tokens con rol gestor para credenciales válidas de un gestor activo", async () => {
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(gestorFixture());
 
-      const result = await service.loginCobrador("cobrador1", PLAIN_PASSWORD);
+      const result = await service.loginGestor("gestor1", PLAIN_PASSWORD);
 
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
 
       const accessPayload = await decodeToken(result.accessToken);
       expect(accessPayload.sub).toBe(20);
-      expect(accessPayload.usuario).toBe("cobrador1");
+      expect(accessPayload.usuario).toBe("gestor1");
       expect(accessPayload.tipo).toBe("access");
-      expect(accessPayload.rol).toBe("cobrador");
+      expect(accessPayload.rol).toBe("gestor");
 
       const refreshPayload = await decodeToken(result.refreshToken);
-      expect(refreshPayload.rol).toBe("cobrador");
+      expect(refreshPayload.rol).toBe("gestor");
 
-      expect(result.cobrador.usuario).toBe("cobrador1");
+      expect(result.gestor.usuario).toBe("gestor1");
     });
 
     it("rechaza con contraseña incorrecta", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(gestorFixture());
 
       await expect(
-        service.loginCobrador("cobrador1", "wrong-password"),
+        service.loginGestor("gestor1", "wrong-password"),
       ).rejects.toThrow("Credenciales inválidas");
     });
 
-    it("rechaza con el mismo error si el cobrador no existe", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(null);
+    it("rechaza con el mismo error si el gestor no existe", async () => {
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.loginCobrador("ghost", PLAIN_PASSWORD),
+        service.loginGestor("ghost", PLAIN_PASSWORD),
       ).rejects.toThrow("Credenciales inválidas");
     });
 
-    it("rechaza a un cobrador bloqueado", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(
-        cobradorFixture({ estatus: "bloqueado" }),
+    it("rechaza a un gestor bloqueado", async () => {
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(
+        gestorFixture({ estatus: "bloqueado" }),
       );
 
       await expect(
-        service.loginCobrador("cobrador1", PLAIN_PASSWORD),
+        service.loginGestor("gestor1", PLAIN_PASSWORD),
       ).rejects.toThrow("Credenciales inválidas");
     });
 
-    it("permite el login si el cobrador aún no tiene device vinculado", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+    it("permite el login si el gestor aún no tiene device vinculado", async () => {
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(gestorFixture());
       mockDeviceRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.loginCobrador("cobrador1", PLAIN_PASSWORD);
+      const result = await service.loginGestor("gestor1", PLAIN_PASSWORD);
 
       expect(result.accessToken).toBeDefined();
     });
 
     it("rechaza el login si el IMEI/WhatsApp no coincide con el device vinculado", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(gestorFixture());
       mockDeviceRepo.findOne.mockResolvedValue({
-        cobradorId: 20,
+        gestorId: 20,
         imei: "imei-registrado",
         whatsappNumber: "+59171111111",
         estado: "activo",
       } as Device);
 
       await expect(
-        service.loginCobrador("cobrador1", PLAIN_PASSWORD, {
+        service.loginGestor("gestor1", PLAIN_PASSWORD, {
           imei: "imei-distinto",
           whatsappNumber: "+59171111111",
         }),
       ).rejects.toThrow("Dispositivo no autorizado");
 
       expect(mockIntentosAcceso.registrar).toHaveBeenCalledWith({
-        cobradorId: 20,
+        gestorId: 20,
         imei: "imei-distinto",
         whatsappNumber: "+59171111111",
         motivo: "imei_no_coincide",
@@ -320,15 +320,15 @@ describe("AuthService", () => {
     });
 
     it("permite el login si el IMEI y WhatsApp coinciden con el device vinculado", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(gestorFixture());
       mockDeviceRepo.findOne.mockResolvedValue({
-        cobradorId: 20,
+        gestorId: 20,
         imei: "imei-registrado",
         whatsappNumber: "+59171111111",
         estado: "activo",
       } as Device);
 
-      const result = await service.loginCobrador("cobrador1", PLAIN_PASSWORD, {
+      const result = await service.loginGestor("gestor1", PLAIN_PASSWORD, {
         imei: "imei-registrado",
         whatsappNumber: "+59171111111",
       });
@@ -418,31 +418,31 @@ describe("AuthService", () => {
       );
     });
 
-    it("rota un token de socio consultando la tabla de socios y preservando rol", async () => {
-      (socioRepo.findOne as jest.Mock).mockResolvedValue(socioFixture());
+    it("rota un token de propietario consultando la tabla de propietarios y preservando rol", async () => {
+      (propietarioRepo.findOne as jest.Mock).mockResolvedValue(propietarioFixture());
       const jwt = new JwtService();
       const validRefresh = jwt.sign(
-        { sub: 10, rol: "socio", tipo: "refresh", jti: "abc" },
+        { sub: 10, rol: "propietario", tipo: "refresh", jti: "abc" },
         { secret: "test-refresh-secret", expiresIn: "7d" },
       );
 
       const rotated = await service.refresh(validRefresh);
 
-      expect(socioRepo.findOne).toHaveBeenCalled();
+      expect(propietarioRepo.findOne).toHaveBeenCalled();
       const newAccess = await decodeToken(rotated.accessToken);
       const newRefresh = await decodeToken(rotated.refreshToken);
-      expect(newAccess.rol).toBe("socio");
+      expect(newAccess.rol).toBe("propietario");
       expect(newAccess.sub).toBe(10);
-      expect(newRefresh.rol).toBe("socio");
+      expect(newRefresh.rol).toBe("propietario");
     });
 
-    it("rechaza el refresh de un socio bloqueado", async () => {
-      (socioRepo.findOne as jest.Mock).mockResolvedValue(
-        socioFixture({ estatus: "bloqueado" }),
+    it("rechaza el refresh de un propietario bloqueado", async () => {
+      (propietarioRepo.findOne as jest.Mock).mockResolvedValue(
+        propietarioFixture({ estatus: "bloqueado" }),
       );
       const jwt = new JwtService();
       const validRefresh = jwt.sign(
-        { sub: 10, rol: "socio", tipo: "refresh", jti: "abc" },
+        { sub: 10, rol: "propietario", tipo: "refresh", jti: "abc" },
         { secret: "test-refresh-secret", expiresIn: "7d" },
       );
 
@@ -451,31 +451,31 @@ describe("AuthService", () => {
       );
     });
 
-    it("rota un token de cobrador consultando la tabla de cobradores y preservando rol", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(cobradorFixture());
+    it("rota un token de gestor consultando la tabla de gestores y preservando rol", async () => {
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(gestorFixture());
       const jwt = new JwtService();
       const validRefresh = jwt.sign(
-        { sub: 20, rol: "cobrador", tipo: "refresh", jti: "abc" },
+        { sub: 20, rol: "gestor", tipo: "refresh", jti: "abc" },
         { secret: "test-refresh-secret", expiresIn: "7d" },
       );
 
       const rotated = await service.refresh(validRefresh);
 
-      expect(cobradorRepo.findOne).toHaveBeenCalled();
+      expect(gestorRepo.findOne).toHaveBeenCalled();
       const newAccess = await decodeToken(rotated.accessToken);
       const newRefresh = await decodeToken(rotated.refreshToken);
-      expect(newAccess.rol).toBe("cobrador");
+      expect(newAccess.rol).toBe("gestor");
       expect(newAccess.sub).toBe(20);
-      expect(newRefresh.rol).toBe("cobrador");
+      expect(newRefresh.rol).toBe("gestor");
     });
 
-    it("rechaza el refresh de un cobrador bloqueado", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(
-        cobradorFixture({ estatus: "bloqueado" }),
+    it("rechaza el refresh de un gestor bloqueado", async () => {
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(
+        gestorFixture({ estatus: "bloqueado" }),
       );
       const jwt = new JwtService();
       const validRefresh = jwt.sign(
-        { sub: 20, rol: "cobrador", tipo: "refresh", jti: "abc" },
+        { sub: 20, rol: "gestor", tipo: "refresh", jti: "abc" },
         { secret: "test-refresh-secret", expiresIn: "7d" },
       );
 
@@ -484,11 +484,11 @@ describe("AuthService", () => {
       );
     });
 
-    it("rechaza el refresh si el cobrador ya no existe", async () => {
-      (cobradorRepo.findOne as jest.Mock).mockResolvedValue(null);
+    it("rechaza el refresh si el gestor ya no existe", async () => {
+      (gestorRepo.findOne as jest.Mock).mockResolvedValue(null);
       const jwt = new JwtService();
       const validRefresh = jwt.sign(
-        { sub: 999, rol: "cobrador", tipo: "refresh", jti: "abc" },
+        { sub: 999, rol: "gestor", tipo: "refresh", jti: "abc" },
         { secret: "test-refresh-secret", expiresIn: "7d" },
       );
 

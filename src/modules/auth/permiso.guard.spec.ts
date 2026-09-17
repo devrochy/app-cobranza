@@ -1,14 +1,14 @@
 import { ExecutionContext, ForbiddenException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
-import { PermisosSocioService } from "../socios/permisos-socio.service";
+import { PermisosPropietarioService } from "../propietarios/permisos-propietario.service";
 import { AuthTokenPayload } from "./auth.service";
 import { PermisoRequerido } from "./permiso-requerido.decorator";
 import { PermisoGuard } from "./permiso.guard";
 
 describe("PermisoGuard", () => {
   let guard: PermisoGuard;
-  let permisosSocio: { tienePermiso: jest.Mock };
+  let permisosPropietario: { tienePermiso: jest.Mock };
 
   function handler(permiso?: Parameters<typeof PermisoRequerido>[0]): () => void {
     const fn = (): void => undefined;
@@ -29,56 +29,56 @@ describe("PermisoGuard", () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    permisosSocio = { tienePermiso: jest.fn() };
+    permisosPropietario = { tienePermiso: jest.fn() };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PermisoGuard,
         Reflector,
-        { provide: PermisosSocioService, useValue: permisosSocio },
+        { provide: PermisosPropietarioService, useValue: permisosPropietario },
       ],
     }).compile();
 
     guard = module.get(PermisoGuard);
   });
 
-  it("permite a un admin en ruta admin-only", async () => {
+  it("permite a un admin en cartera admin-only", async () => {
     await expect(
       guard.canActivate(contexto(handler(), { sub: 1, rol: "admin", tipo: "access" })),
     ).resolves.toBe(true);
   });
 
-  it("permite a un admin en ruta con permiso (bypass)", async () => {
+  it("permite a un admin en cartera con permiso (bypass)", async () => {
     await expect(
       guard.canActivate(
-        contexto(handler("registrar_socio"), { sub: 1, rol: "admin", tipo: "access" }),
+        contexto(handler("registrar_propietario"), { sub: 1, rol: "admin", tipo: "access" }),
       ),
     ).resolves.toBe(true);
   });
 
-  it("permite a un socio con el permiso habilitado", async () => {
-    permisosSocio.tienePermiso.mockResolvedValue(true);
+  it("permite a un propietario con el permiso habilitado", async () => {
+    permisosPropietario.tienePermiso.mockResolvedValue(true);
 
     await expect(
       guard.canActivate(
-        contexto(handler("registrar_socio"), { sub: 10, rol: "socio", tipo: "access" }),
+        contexto(handler("registrar_propietario"), { sub: 10, rol: "propietario", tipo: "access" }),
       ),
     ).resolves.toBe(true);
-    expect(permisosSocio.tienePermiso).toHaveBeenCalledWith(10, "registrar_socio");
+    expect(permisosPropietario.tienePermiso).toHaveBeenCalledWith(10, "registrar_propietario");
   });
 
-  it("rechaza a un socio sin el permiso habilitado", async () => {
-    permisosSocio.tienePermiso.mockResolvedValue(false);
+  it("rechaza a un propietario sin el permiso habilitado", async () => {
+    permisosPropietario.tienePermiso.mockResolvedValue(false);
 
     await expect(
       guard.canActivate(
-        contexto(handler("registrar_socio"), { sub: 10, rol: "socio", tipo: "access" }),
+        contexto(handler("registrar_propietario"), { sub: 10, rol: "propietario", tipo: "access" }),
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it("rechaza a un socio en ruta admin-only (sin @PermisoRequerido)", async () => {
+  it("rechaza a un propietario en cartera admin-only (sin @PermisoRequerido)", async () => {
     await expect(
-      guard.canActivate(contexto(handler(), { sub: 10, rol: "socio", tipo: "access" })),
+      guard.canActivate(contexto(handler(), { sub: 10, rol: "propietario", tipo: "access" })),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -91,7 +91,7 @@ describe("PermisoGuard", () => {
   it("rechaza un token sin rol", async () => {
     await expect(
       guard.canActivate(
-        contexto(handler("registrar_socio"), { sub: 10, tipo: "access" } as Partial<AuthTokenPayload>),
+        contexto(handler("registrar_propietario"), { sub: 10, tipo: "access" } as Partial<AuthTokenPayload>),
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });

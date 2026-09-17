@@ -25,14 +25,14 @@ describe("AplicarOfflineJob", () => {
     job = module.get(AplicarOfflineJob);
   });
 
-  it("reintenta los pendientes de cada dispositivo activo con ruta", async () => {
+  it("reintenta los pendientes de cada dispositivo activo con cartera", async () => {
     deviceRepo.find.mockResolvedValue([{ id: 1 }, { id: 2 }]);
     aplicarService.aplicarPendientesDeDispositivo.mockResolvedValue(undefined);
 
     await job.reintentarPendientes();
 
     expect(deviceRepo.find).toHaveBeenCalledWith({
-      where: { estado: "activo", rutaId: expect.anything() },
+      where: { estado: "activo", carteraId: expect.anything() },
     });
     expect(aplicarService.aplicarPendientesDeDispositivo).toHaveBeenCalledTimes(2);
   });

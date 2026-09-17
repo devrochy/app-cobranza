@@ -5,16 +5,16 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { SOCIO_PERMISOS } from "../../src/modules/socios/socio-permiso.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { PROPIETARIO_PERMISOS } from "../../src/modules/propietarios/propietario-permiso.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
-describe("Matriz de permisos por socio (e2e)", () => {
+describe("Matriz de permisos por propietario (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
+  let propietarioRepo: Repository<Propietario>;
   let accessToken: string;
-  let socioId: number;
+  let propietarioId: number;
 
   const ADMIN_USERNAME = "permisos-e2e-admin";
   const ADMIN_PASSWORD = "permisos-e2e-password";
@@ -36,7 +36,7 @@ describe("Matriz de permisos por socio (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -54,69 +54,69 @@ describe("Matriz de permisos por socio (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessToken = login.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-pr-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-pr-1",
       passwordHash: await bcrypt.hash("password-seguro", 4),
       nombre: "Juan",
       apellido: "Pérez",
-      correo: "socio-pr@correo.com",
+      correo: "propietario-pr@correo.com",
       telefono: "+59176666661",
       codigo: "SC-PR-001",
       moneda: "BOB",
       estatus: "activo",
     });
-    socioId = socio.id;
+    propietarioId = propietario.id;
   });
 
   afterAll(async () => {
-    await socioRepo.delete({ id: socioId });
+    await propietarioRepo.delete({ id: propietarioId });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("GET /socios/:id/permisos -> 200 con los 20 permisos en false por defecto", async () => {
+  it("GET /propietarios/:id/permisos -> 200 con los 20 permisos en false por defecto", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/socios/${socioId}/permisos`)
+      .get(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(SOCIO_PERMISOS.length);
+    expect(res.body).toHaveLength(PROPIETARIO_PERMISOS.length);
     expect(res.body.every((p: { habilitado: boolean }) => p.habilitado === false)).toBe(true);
   });
 
-  it("PUT /socios/:id/permisos habilita permisos y GET lo refleja", async () => {
+  it("PUT /propietarios/:id/permisos habilita permisos y GET lo refleja", async () => {
     const put = await request(app.getHttpServer())
-      .put(`/socios/${socioId}/permisos`)
+      .put(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessToken}`)
-      .send({ matriz: { ver_reportes: true, registrar_cobrador: true } });
+      .send({ matriz: { ver_reportes: true, registrar_gestor: true } });
 
     expect(put.status).toBe(200);
     expect(put.body.find((p: { permiso: string }) => p.permiso === "ver_reportes")?.habilitado).toBe(true);
-    expect(put.body.find((p: { permiso: string }) => p.permiso === "eliminar_rutas")?.habilitado).toBe(false);
+    expect(put.body.find((p: { permiso: string }) => p.permiso === "eliminar_carteras")?.habilitado).toBe(false);
 
     const get = await request(app.getHttpServer())
-      .get(`/socios/${socioId}/permisos`)
+      .get(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessToken}`);
 
     expect(get.status).toBe(200);
     expect(get.body.find((p: { permiso: string }) => p.permiso === "ver_reportes")?.habilitado).toBe(true);
-    expect(get.body.find((p: { permiso: string }) => p.permiso === "registrar_cobrador")?.habilitado).toBe(true);
+    expect(get.body.find((p: { permiso: string }) => p.permiso === "registrar_gestor")?.habilitado).toBe(true);
   });
 
-  it("PUT /socios/:id/permisos reemplaza la matriz (permisos ausentes vuelven a false)", async () => {
+  it("PUT /propietarios/:id/permisos reemplaza la matriz (permisos ausentes vuelven a false)", async () => {
     const put = await request(app.getHttpServer())
-      .put(`/socios/${socioId}/permisos`)
+      .put(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessToken}`)
-      .send({ matriz: { eliminar_rutas: true, ver_reportes: false } });
+      .send({ matriz: { eliminar_carteras: true, ver_reportes: false } });
 
     expect(put.status).toBe(200);
-    expect(put.body.find((p: { permiso: string }) => p.permiso === "eliminar_rutas")?.habilitado).toBe(true);
+    expect(put.body.find((p: { permiso: string }) => p.permiso === "eliminar_carteras")?.habilitado).toBe(true);
     expect(put.body.find((p: { permiso: string }) => p.permiso === "ver_reportes")?.habilitado).toBe(false);
   });
 
-  it("PUT /socios/:id/permisos con matriz vacía -> 200 deshabilita todo", async () => {
+  it("PUT /propietarios/:id/permisos con matriz vacía -> 200 deshabilita todo", async () => {
     const put = await request(app.getHttpServer())
-      .put(`/socios/${socioId}/permisos`)
+      .put(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ matriz: {} });
 
@@ -124,43 +124,43 @@ describe("Matriz de permisos por socio (e2e)", () => {
     expect(put.body.every((p: { habilitado: boolean }) => p.habilitado === false)).toBe(true);
   });
 
-  it("PUT /socios/:id/permisos con permiso inválido -> 400", async () => {
+  it("PUT /propietarios/:id/permisos con permiso inválido -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .put(`/socios/${socioId}/permisos`)
+      .put(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ matriz: { permiso_inventado: true } });
 
     expect(res.status).toBe(400);
   });
 
-  it("PUT /socios/:id/permisos con valor no booleano -> 400", async () => {
+  it("PUT /propietarios/:id/permisos con valor no booleano -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .put(`/socios/${socioId}/permisos`)
+      .put(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ matriz: { ver_reportes: "true" } });
 
     expect(res.status).toBe(400);
   });
 
-  it("PUT /socios/:id/permisos con matriz como array -> 400", async () => {
+  it("PUT /propietarios/:id/permisos con matriz como array -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .put(`/socios/${socioId}/permisos`)
+      .put(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ matriz: ["ver_reportes"] });
 
     expect(res.status).toBe(400);
   });
 
-  it("GET /socios/:id/permisos de un socio inexistente -> 404", async () => {
+  it("GET /propietarios/:id/permisos de un propietario inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/socios/999999/permisos`)
+      .get(`/propietarios/999999/permisos`)
       .set("Authorization", `Bearer ${accessToken}`);
 
     expect(res.status).toBe(404);
   });
 
-  it("GET /socios/:id/permisos sin token -> 401", async () => {
-    const res = await request(app.getHttpServer()).get(`/socios/${socioId}/permisos`);
+  it("GET /propietarios/:id/permisos sin token -> 401", async () => {
+    const res = await request(app.getHttpServer()).get(`/propietarios/${propietarioId}/permisos`);
 
     expect(res.status).toBe(401);
   });

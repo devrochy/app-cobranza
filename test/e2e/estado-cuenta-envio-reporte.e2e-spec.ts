@@ -5,35 +5,35 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Abono } from "../../src/modules/cartera/abono.entity";
-import { MensajeIa } from "../../src/modules/cartera/mensaje-ia.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Abono } from "../../src/modules/clientes/abono.entity";
+import { MensajeIa } from "../../src/modules/clientes/mensaje-ia.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
   let abonoRepo: Repository<Abono>;
   let mensajeRepo: Repository<MensajeIa>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
   let prestamoId: number;
 
   const ADMIN_USERNAME = "estado-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Estado2026";
-  const PASSWORD = "Socio#Estado2026";
+  const PASSWORD = "Propietario#Estado2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-estado";
@@ -52,9 +52,9 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
@@ -65,10 +65,10 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
     await abonoRepo.createQueryBuilder().delete().execute();
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.createQueryBuilder().delete().execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id IN (SELECT id FROM rutas WHERE nombre = 'Ruta ESTADO')").execute();
-    await rutaRepo.delete({ nombre: "Ruta ESTADO" });
-    await cobradorRepo.delete({ codigo: "CB-ESTADO-1" });
-    await socioRepo.delete({ codigo: "SC-ESTADO-1" });
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id IN (SELECT id FROM carteras WHERE nombre = 'Cartera ESTADO')").execute();
+    await carteraRepo.delete({ nombre: "Cartera ESTADO" });
+    await gestorRepo.delete({ codigo: "CB-ESTADO-1" });
+    await propietarioRepo.delete({ codigo: "SC-ESTADO-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -86,47 +86,47 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-estado-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-estado-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-estado-1@correo.com",
+      correo: "propietario-estado-1@correo.com",
       telefono: "+59171160170",
       codigo: "SC-ESTADO-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-estado-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-estado-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-estado-1@correo.com",
+      correo: "gestor-estado-1@correo.com",
       telefono: "+59172270170",
       codigo: "CB-ESTADO-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta ESTADO",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera ESTADO",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 3,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Estado",
@@ -141,7 +141,7 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
     clienteId = clienteRes.body.id as number;
 
     const prestamoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId, valor: 300, numCuotas: 3, diasEntreCuotas: 7 });
     prestamoId = prestamoRes.body.id as number;
@@ -153,16 +153,16 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.delete({ id: prestamoId });
     await clienteRepo.delete({ id: clienteId });
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-ESTADO-1" });
-    await socioRepo.delete({ codigo: "SC-ESTADO-1" });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-ESTADO-1" });
+    await propietarioRepo.delete({ codigo: "SC-ESTADO-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
   it("GET .../prestamos/:prestamoId/estado-cuenta devuelve cuotas y totales", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/prestamos/${prestamoId}/estado-cuenta`)
+      .get(`/carteras/${carteraId}/prestamos/${prestamoId}/estado-cuenta`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -178,7 +178,7 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
 
   it("GET .../estado-cuenta con préstamo inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/prestamos/999999/estado-cuenta`)
+      .get(`/carteras/${carteraId}/prestamos/999999/estado-cuenta`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
@@ -186,7 +186,7 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
 
   it("POST .../prestamos/:prestamoId/enviar-reporte persiste el mensaje en el historial", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos/${prestamoId}/enviar-reporte`)
+      .post(`/carteras/${carteraId}/prestamos/${prestamoId}/enviar-reporte`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(201);
@@ -204,33 +204,33 @@ describe("Estado de cuenta del préstamo y envío del reporte (e2e)", () => {
 
   it("GET .../estado-cuenta sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/prestamos/${prestamoId}/estado-cuenta`);
+      .get(`/carteras/${carteraId}/prestamos/${prestamoId}/estado-cuenta`);
 
     expect(res.status).toBe(401);
   });
 
-  it("un socio SIN generar_reporte no puede enviar el reporte -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-estado-2",
+  it("un propietario SIN generar_reporte no puede enviar el reporte -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-estado-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-estado-2@correo.com",
+      correo: "propietario-estado-2@correo.com",
       telefono: "+59171160172",
       codigo: "SC-ESTADO-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-estado-2", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-estado-2", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos/${prestamoId}/enviar-reporte`)
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .post(`/carteras/${carteraId}/prestamos/${prestamoId}/enviar-reporte`)
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 });
