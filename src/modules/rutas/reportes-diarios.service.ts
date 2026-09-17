@@ -101,7 +101,8 @@ export class ReportesDiariosService {
   }
 
   /** Agregados que se guardan en `reportes_diarios` al generar el reporte. */
-  async computarCampos(rutaId: number, fecha: string): Promise<ReporteDiarioCampos> {    const { inicio, fin } = ventanaDiaLocal(fecha);
+  async computarCampos(rutaId: number, fecha: string): Promise<ReporteDiarioCampos> {
+    const { inicio, fin } = ventanaDiaLocal(fecha);
     const totales = await this.liquidacionesService.calcularTotales(rutaId, inicio, fin);
     const visitas = await this.visitasDelDia(rutaId, fecha);
     const { horaInicio, horaFin } = await this.horasDeCuotas(rutaId, inicio, fin);
@@ -125,10 +126,7 @@ export class ReportesDiariosService {
     fecha: string,
     requester: RequesterReportesContext,
   ): Promise<ReporteDiaPublic> {
-    const ruta = await this.validarRuta(rutaId, requester);
-    if (!ruta) {
-      throw new NotFoundException("La ruta no existe");
-    }
+    await this.validarRuta(rutaId, requester);
 
     const { inicio, fin } = ventanaDiaLocal(fecha);
     const semana = ventanaSemanaLocal(fecha);
@@ -144,9 +142,10 @@ export class ReportesDiariosService {
       ]);
 
     const idsVisitados = new Set(visitas.map((v) => v.clienteId));
-    const idsPagaron = new Set(
-      visitas.filter((v) => v.resultado === "pago").map((v) => v.clienteId),
-    );
+    // `pagaron` se deriva de los pagos (igual que `cobradoDia`); un cliente
+    // puede pagar desde el panel sin que se registre una visita.
+    const idsPagaron = await this.clientesQuePagaron(rutaId, inicio, fin);
+    const idsAtendidos = new Set([...idsVisitados, ...idsPagaron]);
     const cobradoDia = totalesDia.totalCobradoPeriodo;
     const totalGastosDia = totalesDia.totalGastos;
     const sinCuentas = await this.contarSinDeudaViva(
@@ -173,7 +172,7 @@ export class ReportesDiariosService {
       totalDia: delDia.length,
       clientesSinCuentas: sinCuentas,
       clientesNotificados: notificados,
-      clientesNoVisitados: delDia.filter((c) => !idsVisitados.has(c.clienteId)),
+      clientesNoVisitados: delDia.filter((c) => !idsAtendidos.has(c.clienteId)),
     };
   }
 
@@ -247,6 +246,25 @@ export class ReportesDiariosService {
     }
     assertOwned(ruta, requester);
     return ruta;
+  }
+
+  private async clientesQuePagaron(
+    rutaId: number,
+    inicio: Date,
+    fin: Date,
+  ): Promise<Set<number>> {
+    const filas = await this.dataSource.manager
+      .createQueryBuilder()
+      .select("DISTINCT pa.cliente_id", "clienteId")
+      .from("pagos", "pa")
+      .innerJoin("cuotas", "c", "c.id = pa.cuota_id")
+      .innerJoin("prestamos", "p", "p.id = c.prestamo_id")
+      .where("p.ruta_id = :rutaId", { rutaId })
+      .andWhere("p.estatus = :vigente", { vigente: "vigente" })
+      .andWhere("pa.fecha_hora >= :inicio", { inicio })
+      .andWhere("pa.fecha_hora <= :fin", { fin })
+      .getRawMany<{ clienteId: string }>();
+    return new Set(filas.map((f) => Number(f.clienteId)));
   }
 
   private async visitasDelDia(rutaId: number, fecha: string): Promise<VisitaDia[]> {

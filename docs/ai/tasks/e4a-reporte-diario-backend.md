@@ -30,6 +30,13 @@ Poblar el reporte diario (`reportes_diarios`) y exponer los KPIs del reporte del
 ## Bug preexistente corregido (bloqueante)
 `LiquidacionesService.qb()` usaba `liquidacionRepo.createQueryBuilder()` cuando no había `manager`, lo que generaba `FROM liquidaciones, pagos ...` (producto cartesiano): los `SUM` de pagos/gastos/cuotas quedaban multiplicados por la cantidad de liquidaciones de la ruta (o en 0 si no había ninguna). Efecto: los totales de `GET /rutas/:id/resumen` y de las liquidaciones eran incorrectos. Se cambió a `(manager ?? dataSource.manager).createQueryBuilder()` (sin alias de entidad) y se agregó un e2e de regresión en `test/e2e/reporte-diario.e2e-spec.ts`.
 
+## Correcciones tras la revisión de código
+- `contarClientesVencidos` filtra `prestamos.estatus = 'vigente'`: un préstamo liquidado por abono deja cuotas `atrasada` colgadas y ya no cuenta como cliente vencido (regresión e2e).
+- `pagaron` se deriva de `pagos` (consistente con `cobradoDia`) y "no visitados" usa la unión de visitas y pagos: un cliente que paga desde el panel (sin visita) ya no aparece como no visitado ni en "faltan" (regresión e2e).
+- `fecha`/`desde`/`hasta` se validan con formato `YYYY-MM-DD` → 400 en vez de 500 (e2e).
+- El snapshot aísla errores por ruta (una ruta con fallo no aborta el job).
+- Se eliminó código muerto y se aclaró el comentario de transacción en `TrayectoriasService`.
+
 ## Resultado final
 - Endpoints: `GET /rutas/:id/reporte-dia?fecha=`, `GET /rutas/:id/reportes-diarios?desde=&hasta=`, `GET /rutas/:id/reportes-diarios/export` (permisos `ver_reportes` / `descargar_reporte`, ownership por socio).
 - DDL: no requiere tablas nuevas (`reportes_diarios` ya existía); se agregó el `numericTransformer` a `cobrado_dia`/`prestado_dia`.

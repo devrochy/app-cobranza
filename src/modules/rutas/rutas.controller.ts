@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -51,6 +52,19 @@ import { ListaClientesDelDiaService } from "./lista-clientes-dia.service";
 import { TrayectoriasService } from "./trayectorias.service";
 import { RegistrarTrayectoriaRealDto } from "./dto/registrar-trayectoria-real.dto";
 import { PosicionCobradorService } from "./posicion-cobrador.service";
+
+const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Valida el formato YYYY-MM-DD de los query params de fecha (400 si no). */
+function validarFecha(valor: string | undefined, campo: string): string | null {
+  if (valor === undefined || valor === "") {
+    return null;
+  }
+  if (!FECHA_RE.test(valor)) {
+    throw new BadRequestException(`${campo} debe tener formato YYYY-MM-DD`);
+  }
+  return valor;
+}
 
 @Controller("rutas")
 export class RutasController {
@@ -432,9 +446,10 @@ export class RutasController {
     @Query("fecha") fecha: string | undefined,
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
+    const fechaValidada = validarFecha(fecha, "fecha");
     return this.reportesDiariosService.reporteDia(
       id,
-      fecha ?? this.reportesDiariosService.fechaDeHoy(),
+      fechaValidada ?? this.reportesDiariosService.fechaDeHoy(),
       { rol: req.user.rol, sub: req.user.sub },
     );
   }
@@ -448,10 +463,12 @@ export class RutasController {
     @Query("hasta") hasta: string | undefined,
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
-    return this.reportesDiariosService.historial(id, desde ?? null, hasta ?? null, {
-      rol: req.user.rol,
-      sub: req.user.sub,
-    });
+    return this.reportesDiariosService.historial(
+      id,
+      validarFecha(desde, "desde"),
+      validarFecha(hasta, "hasta"),
+      { rol: req.user.rol, sub: req.user.sub },
+    );
   }
 
   @Get(":id/reportes-diarios/export")
@@ -466,8 +483,8 @@ export class RutasController {
   ) {
     const { buffer, filename } = await this.reportesDiariosService.exportarHistorial(
       id,
-      desde ?? null,
-      hasta ?? null,
+      validarFecha(desde, "desde"),
+      validarFecha(hasta, "hasta"),
       { rol: req.user.rol, sub: req.user.sub },
     );
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

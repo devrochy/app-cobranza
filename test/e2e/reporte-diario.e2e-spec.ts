@@ -49,6 +49,10 @@ describe("Reporte diario por ruta (e2e)", () => {
   let clienteId: number;
   let prestamoId: number;
   let cuotaId: number;
+  let cliente2Id: number;
+  let prestamo2Id: number;
+  let prestamo3Id: number;
+  let cuota2Id: number;
 
   const ADMIN_USERNAME = "reporte-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Reporte2026";
@@ -223,6 +227,67 @@ describe("Reporte diario por ruta (e2e)", () => {
       aprobadoPor: null,
       estado: "activo",
     });
+
+    // Cliente 2: paga desde el panel (sin visita) y además tiene un préstamo ya
+    // liquidado con una cuota "atrasada" colgada (no debe contar como vencido).
+    const cliente2Res = await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/clientes`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({
+        nombre: "test-Cliente",
+        apellido: "Dos",
+        negocio: "test-Tienda 2",
+        telefonoWhatsapp: "+59171160085",
+        tipoDocumento: "ci",
+        numeroDocumento: "7654322",
+        latitud: -17.79,
+        longitud: -63.19,
+      });
+    cliente2Id = cliente2Res.body.id as number;
+
+    const prestamo2Res = await request(app.getHttpServer())
+      .post(`/rutas/${rutaId}/prestamos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ clienteId: cliente2Id, valor: 600, numCuotas: 2, diasEntreCuotas: 7 });
+    prestamo2Id = prestamo2Res.body.id as number;
+
+    const cuota2 = await cuotaRepo.findOneOrFail({
+      where: { prestamo: { id: prestamo2Id } },
+      order: { numeroCuota: "ASC" },
+    });
+    cuota2Id = cuota2.id;
+    await cuotaRepo.update({ id: cuota2Id }, { fechaVencimiento: fechaLocal() });
+
+    await pagoRepo.save({
+      cuota: { id: cuota2Id },
+      cliente: { id: cliente2Id },
+      valor: 300,
+      metodoPago: "efectivo",
+      liquidado: false,
+    });
+
+    const prestamo3 = await prestamoRepo.save({
+      ruta: { id: rutaId },
+      cliente: { id: cliente2Id },
+      valor: 400,
+      numCuotas: 1,
+      tipoInteres: 20,
+      diasEntreCuotas: 7,
+      fechaOtorgado: new Date(),
+      fiadorNombre: null,
+      fiadorApellido: null,
+      fiadorDocumento: null,
+      fiadorTelefono: null,
+      estatus: "liquidado",
+    });
+    prestamo3Id = prestamo3.id;
+    await cuotaRepo.save({
+      prestamo: { id: prestamo3Id },
+      numeroCuota: 1,
+      valorEsperado: 400,
+      fechaVencimiento: fechaLocal(-5),
+      estatus: "atrasada",
+    });
   });
 
   afterAll(async () => {
@@ -233,8 +298,13 @@ describe("Reporte diario por ruta (e2e)", () => {
     await gastoRepo.createQueryBuilder().delete().execute();
     await reporteRepo.createQueryBuilder().delete().execute();
     await cuotaRepo.delete({ prestamo: { id: prestamoId } });
+    await cuotaRepo.delete({ prestamo: { id: prestamo2Id } });
+    await cuotaRepo.delete({ prestamo: { id: prestamo3Id } });
     await prestamoRepo.delete({ id: prestamoId });
+    await prestamoRepo.delete({ id: prestamo2Id });
+    await prestamoRepo.delete({ id: prestamo3Id });
     await clienteRepo.delete({ id: clienteId });
+    await clienteRepo.delete({ id: cliente2Id });
     await rutaRepo.delete({ id: rutaId });
     await cobradorRepo.delete({ codigo: "CB-REP-1" });
     await socioRepo.delete({ codigo: "SC-REP-1" });
@@ -249,17 +319,19 @@ describe("Reporte diario por ruta (e2e)", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.rutaId).toBe(rutaId);
-    expect(res.body.cobradoDia).toBe(300);
-    expect(res.body.cajaDiaSinGastos).toBe(300);
+    expect(res.body.cobradoDia).toBe(600);
+    expect(res.body.cajaDiaSinGastos).toBe(600);
     expect(res.body.totalGastosDia).toBe(50);
-    expect(res.body.cajaDiaConGastos).toBe(250);
+    expect(res.body.cajaDiaConGastos).toBe(550);
     expect(res.body.horaPrimeraCuota).toMatch(/^\d{2}:\d{2}$/);
     expect(res.body.horaUltimaCuota).toMatch(/^\d{2}:\d{2}$/);
     expect(typeof res.body.porcentajeCobrarSemanal).toBe("number");
-    expect(res.body.pagaron).toBe(1);
-    expect(res.body.totalDia).toBeGreaterThanOrEqual(1);
+    expect(res.body.pagaron).toBe(2);
+    expect(res.body.totalDia).toBeGreaterThanOrEqual(2);
     expect(res.body.faltan).toBe(res.body.totalDia - res.body.pagaron);
     expect(typeof res.body.clientesSinCuentas).toBe("number");
+    // El cliente 2 pagó desde el panel (sin visita): no debe salir como no visitado.
+    expect(res.body.clientesNoVisitados).toEqual([]);
     expect(res.body.clientesNotificados).toHaveLength(1);
     expect(res.body.clientesNotificados[0]).toEqual(
       expect.objectContaining({ clienteId, hora: expect.stringMatching(/^\d{2}:\d{2}$/) }),
@@ -278,9 +350,9 @@ describe("Reporte diario por ruta (e2e)", () => {
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.cobradoPeriodo).toBe(300);
+    expect(res.body.cobradoPeriodo).toBe(600);
     expect(res.body.gastosPeriodo).toBe(50);
-    expect(res.body.prestadoPeriodo).toBe(1000);
+    expect(res.body.prestadoPeriodo).toBe(2000);
   });
 
   it("GET /rutas/:id/reportes-diarios devuelve el historial mapeado", async () => {
@@ -329,6 +401,23 @@ describe("Reporte diario por ruta (e2e)", () => {
     const res = await request(app.getHttpServer()).get(`/rutas/${rutaId}/reporte-dia`);
 
     expect(res.status).toBe(401);
+  });
+
+  it("no cuenta como vencido un cliente con préstamo liquidado y cuota atrasada", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/rutas/${rutaId}/estadisticas`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.actual.clientesVencidos).toBe(0);
+  });
+
+  it("GET /rutas/:id/reporte-dia con fecha inválida -> 400", async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/rutas/${rutaId}/reporte-dia?fecha=abc`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`);
+
+    expect(res.status).toBe(400);
   });
 
   it("un socio SIN ver_reportes no puede ver el reporte -> 403", async () => {

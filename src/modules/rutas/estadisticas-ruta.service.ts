@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { assertOwned } from "../../common/ownership";
@@ -36,6 +36,8 @@ export interface RequesterEstadisticasContext {
  */
 @Injectable()
 export class EstadisticasRutaService {
+  private readonly logger = new Logger(EstadisticasRutaService.name);
+
   constructor(
     @InjectRepository(Ruta)
     private readonly rutaRepo: Repository<Ruta>,
@@ -134,13 +136,20 @@ export class EstadisticasRutaService {
     return this.snapshotRepo.save(snapshot);
   }
 
-  /** Persiste el snapshot de todas las rutas; devuelve cuántas se guardaron. */
+  /**
+   * Persiste el snapshot de todas las rutas; devuelve cuántas se guardaron.
+   * Aisla los errores por ruta para que una ruta con problemas no aborte el job.
+   */
   async persistirTodasLasRutas(fecha: string): Promise<number> {
     const rutas = await this.rutaRepo.find({ select: { id: true } });
     let guardadas = 0;
     for (const ruta of rutas) {
-      await this.persistirSnapshot(ruta.id, fecha);
-      guardadas += 1;
+      try {
+        await this.persistirSnapshot(ruta.id, fecha);
+        guardadas += 1;
+      } catch (err) {
+        this.logger.error(`Snapshot de estadísticas falló para la ruta ${ruta.id}`, err as Error);
+      }
     }
     return guardadas;
   }
@@ -193,7 +202,10 @@ export class EstadisticasRutaService {
       .from("clientes", "c")
       .innerJoin("prestamos", "p", "p.cliente_id = c.id AND p.ruta_id = :rutaId", { rutaId })
       .innerJoin("cuotas", "cu", "cu.prestamo_id = p.id AND cu.estatus = 'atrasada'")
-      .where("c.ruta_id = :rutaId", { rutaId })
+      // Solo préstamos vigentes: un préstamo liquidado por abono deja cuotas
+      // "atrasada" sin tocar y no debe contar como cliente vencido (HU-48).
+      .where("p.estatus = 'vigente'")
+      .andWhere("c.ruta_id = :rutaId", { rutaId })
       .andWhere("c.estatus = 'activo'")
       .getRawOne<{ total: string }>();
     return Number(row?.total ?? 0);

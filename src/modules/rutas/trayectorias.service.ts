@@ -65,7 +65,8 @@ export class TrayectoriasService {
       const guardado = await logRepo.save(log);
 
       // Consolida el reporte del día en la misma transacción (HU-49): si falla,
-      // se revierte el log para no dejar un registro huérfano sin reporte.
+      // se revierte el log para no dejar un registro huérfano sin reporte. Los
+      // agregados (totales/visitas/horas) se leen de datos ya confirmados.
       await this.generarReporteDiario(rutaId, requester, manager);
       return guardado;
     });
