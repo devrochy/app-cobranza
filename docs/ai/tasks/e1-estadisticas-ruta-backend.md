@@ -30,4 +30,5 @@ comparación.
 
 ## Resultado final
 - Endpoint `GET /rutas/:id/estadisticas` (permiso `ver_reportes`, ownership por socio).
+- Endpoint `GET /cobrador/rutas/:rutaId/estadisticas` (permiso `ver_cartera`, ownership por cobrador) para el APK — bloque E3.
 - Comandos: `npx eslint src test`, `npx tsc --noEmit`, `npx jest` (unit), `npx jest --config test/jest-e2e.config.js`.

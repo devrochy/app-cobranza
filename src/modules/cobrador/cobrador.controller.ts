@@ -37,6 +37,7 @@ import { RegistrarTrayectoriaRealDto } from "../rutas/dto/registrar-trayectoria-
 import { evidenciasMulterOptions } from "../rutas/evidencia-upload";
 import { clienteFotosMulterOptions } from "../cartera/cliente-foto-upload";
 import { RequesterOwned } from "../../common/ownership";
+import { EstadisticasRutaService } from "../rutas/estadisticas-ruta.service";
 import { CobradorService } from "./cobrador.service";
 
 /**
@@ -48,7 +49,10 @@ import { CobradorService } from "./cobrador.service";
 @Controller("cobrador")
 @UseGuards(JwtAuthGuard, CobradorPermisoGuard)
 export class CobradorController {
-  constructor(private readonly cobradorService: CobradorService) {}
+  constructor(
+    private readonly cobradorService: CobradorService,
+    private readonly estadisticasRutaService: EstadisticasRutaService,
+  ) {}
 
   private requester(req: Request & { user: AuthTokenPayload }): RequesterOwned {
     return { rol: req.user.rol, sub: req.user.sub };
@@ -103,6 +107,15 @@ export class CobradorController {
     @Req() req: Request & { user: AuthTokenPayload },
   ) {
     return this.cobradorService.dia(rutaId, this.requester(req));
+  }
+
+  @Get("rutas/:rutaId/estadisticas")
+  @CobradorPermisoRequerido("ver_cartera")
+  estadisticas(
+    @Param("rutaId", ParseIntPipe) rutaId: number,
+    @Req() req: Request & { user: AuthTokenPayload },
+  ) {
+    return this.estadisticasRutaService.obtener(rutaId, this.requester(req));
   }
 
   @Post("rutas/:rutaId/trayecto")

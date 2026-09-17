@@ -11,6 +11,7 @@ import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.ser
 import { PermisosSocioService } from "../socios/permisos-socio.service";
 import { RegistrarVisitaDto } from "../cartera/dto/registrar-visita.dto";
 import { EditarCuotaDto } from "../cartera/dto/editar-cuota.dto";
+import { EstadisticasRutaService } from "../rutas/estadisticas-ruta.service";
 import { CobradorService } from "./cobrador.service";
 import { CobradorController } from "./cobrador.controller";
 
@@ -37,6 +38,10 @@ describe("CobradorController", () => {
     crearNota: jest.fn(),
   };
 
+  const mockEstadisticasRutaService = {
+    obtener: jest.fn(),
+  };
+
   function req(sub = 20): Request & { user: AuthTokenPayload } {
     return {
       user: { sub, rol: "cobrador", tipo: "access", usuario: "cobrador1" },
@@ -49,6 +54,7 @@ describe("CobradorController", () => {
       controllers: [CobradorController],
       providers: [
         { provide: CobradorService, useValue: mockService },
+        { provide: EstadisticasRutaService, useValue: mockEstadisticasRutaService },
         JwtAuthGuard,
         CobradorPermisoGuard,
         { provide: JwtService, useValue: new JwtService() },
@@ -79,6 +85,22 @@ describe("CobradorController", () => {
       trayectos: null,
     });
     expect(service.dia).toHaveBeenCalledWith(6, { rol: "cobrador", sub: 20 });
+  });
+
+  it("estadisticas delega con la ruta y el requester del token", async () => {
+    mockEstadisticasRutaService.obtener.mockResolvedValue({
+      rutaId: 6,
+      actual: { totalClientes: 0 },
+    });
+
+    await expect(controller.estadisticas(6, req())).resolves.toEqual({
+      rutaId: 6,
+      actual: { totalClientes: 0 },
+    });
+    expect(mockEstadisticasRutaService.obtener).toHaveBeenCalledWith(6, {
+      rol: "cobrador",
+      sub: 20,
+    });
   });
 
   it("visitas/pago fija resultado pago y delega", async () => {

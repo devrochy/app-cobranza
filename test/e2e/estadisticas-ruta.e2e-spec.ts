@@ -28,6 +28,7 @@ describe("Estadísticas de ruta (e2e)", () => {
   let snapshotRepo: Repository<RutaEstadisticasSnapshot>;
   let accessTokenAdmin: string;
   let rutaId: number;
+  let cobradorId: number;
 
   const ADMIN_USERNAME = "estad-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Estad2026";
@@ -99,6 +100,12 @@ describe("Estadísticas de ruta (e2e)", () => {
       codigo: "CB-ESTAD-1",
       estatus: "activo",
     });
+    cobradorId = cobrador.id;
+
+    await request(app.getHttpServer())
+      .put(`/cobradores/${cobradorId}/permisos`)
+      .set("Authorization", `Bearer ${accessTokenAdmin}`)
+      .send({ matriz: { ver_cartera: true } });
 
     const rutaRes = await request(app.getHttpServer())
       .post("/rutas")
@@ -214,5 +221,46 @@ describe("Estadísticas de ruta (e2e)", () => {
 
     expect(res.status).toBe(403);
     await socioRepo.delete({ id: socioSinPermiso.id });
+  });
+
+  it("GET /cobrador/rutas/:rutaId/estadisticas devuelve las estadísticas al cobrador de la ruta", async () => {
+    const login = await request(app.getHttpServer())
+      .post("/auth/cobrador/login")
+      .send({ usuario: "cobrador-estad-1", password: PASSWORD });
+    const tokenCobrador = login.body.accessToken as string;
+
+    const res = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${rutaId}/estadisticas`)
+      .set("Authorization", `Bearer ${tokenCobrador}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.rutaId).toBe(rutaId);
+    expect(res.body.actual.totalClientes).toBe(0);
+    expect(res.body.deltas.totalClientes).toBeNull();
+  });
+
+  it("GET /cobrador/rutas/:rutaId/estadisticas sin ver_cartera -> 403", async () => {
+    const cobradorSinPermiso = await cobradorRepo.save({
+      socio: { id: (await socioRepo.findOneOrFail({ where: { codigo: "SC-ESTAD-1" } })).id },
+      usuario: "cobrador-estad-2",
+      passwordHash: await bcrypt.hash(PASSWORD, 4),
+      nombre: "C2",
+      apellido: "E2E",
+      correo: "cobrador-estad-2@correo.com",
+      telefono: "+59172270081",
+      codigo: "CB-ESTAD-2",
+      estatus: "activo",
+    });
+    const login = await request(app.getHttpServer())
+      .post("/auth/cobrador/login")
+      .send({ usuario: "cobrador-estad-2", password: PASSWORD });
+    const tokenCobrador = login.body.accessToken as string;
+
+    const res = await request(app.getHttpServer())
+      .get(`/cobrador/rutas/${rutaId}/estadisticas`)
+      .set("Authorization", `Bearer ${tokenCobrador}`);
+
+    expect(res.status).toBe(403);
+    await cobradorRepo.delete({ id: cobradorSinPermiso.id });
   });
 });
