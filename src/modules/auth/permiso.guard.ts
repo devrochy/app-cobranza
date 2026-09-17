@@ -6,8 +6,8 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
-import { PermisosSocioService } from "../socios/permisos-socio.service";
-import { SocioPermisoNombre } from "../socios/socio-permiso.entity";
+import { PermisosPropietarioService } from "../propietarios/permisos-propietario.service";
+import { PropietarioPermisoNombre } from "../propietarios/propietario-permiso.entity";
 import { AuthTokenPayload } from "./auth.service";
 import { PERMISO_REQUERIDO_KEY } from "./permiso-requerido.decorator";
 import { ACCESO_DENEGADO } from "../../common/ownership";
@@ -15,16 +15,16 @@ import { ACCESO_DENEGADO } from "../../common/ownership";
 /**
  * Autorización por rol/permiso. Debe ejecutarse después de JwtAuthGuard
  * (que adjunta el payload en request.user).
- * - Sin @PermisoRequerido en la ruta: solo rol admin.
- * - Con @PermisoRequerido(X): admin pasa siempre; socio necesita X habilitado
- *   en su matriz socio_permisos (si no → 403). Los cobradores se autorizan con
- *   CobradorPermisoGuard (ver src/modules/auth/cobrador-permiso.guard.ts).
+ * - Sin @PermisoRequerido en la cartera: solo rol admin.
+ * - Con @PermisoRequerido(X): admin pasa siempre; propietario necesita X habilitado
+ *   en su matriz propietario_permisos (si no → 403). Los gestores se autorizan con
+ *   GestorPermisoGuard (ver src/modules/auth/gestor-permiso.guard.ts).
  */
 @Injectable()
 export class PermisoGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly permisosSocio: PermisosSocioService,
+    private readonly permisosPropietario: PermisosPropietarioService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,7 +38,7 @@ export class PermisoGuard implements CanActivate {
     }
 
     const permisoRequerido =
-      this.reflector.getAllAndOverride<SocioPermisoNombre | undefined>(
+      this.reflector.getAllAndOverride<PropietarioPermisoNombre | undefined>(
         PERMISO_REQUERIDO_KEY,
         [context.getHandler(), context.getClass()],
       );
@@ -46,14 +46,14 @@ export class PermisoGuard implements CanActivate {
     if (user.rol === "admin") {
       return true;
     }
-    if (user.rol !== "socio") {
+    if (user.rol !== "propietario") {
       throw new ForbiddenException(ACCESO_DENEGADO);
     }
     if (!permisoRequerido) {
       throw new ForbiddenException(ACCESO_DENEGADO);
     }
 
-    const tienePermiso = await this.permisosSocio.tienePermiso(
+    const tienePermiso = await this.permisosPropietario.tienePermiso(
       user.sub,
       permisoRequerido,
     );

@@ -5,25 +5,25 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Caja } from "../../src/modules/rutas/caja.entity";
-import { Gasto } from "../../src/modules/rutas/gasto.entity";
-import { GastoEvidencia } from "../../src/modules/rutas/gasto-evidencia.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Caja } from "../../src/modules/carteras/caja.entity";
+import { Gasto } from "../../src/modules/carteras/gasto.entity";
+import { GastoEvidencia } from "../../src/modules/carteras/gasto-evidencia.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Registro y aprobación de gastos (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let gastoRepo: Repository<Gasto>;
   let evidenciaRepo: Repository<GastoEvidencia>;
   let cajaRepo: Repository<Caja>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
 
   const ADMIN_USERNAME = "gastos-e2e-admin";
   const ADMIN_PASSWORD = "gastos-e2e-password";
@@ -46,18 +46,18 @@ describe("Registro y aprobación de gastos (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     gastoRepo = moduleFixture.get(getRepositoryToken(Gasto));
     evidenciaRepo = moduleFixture.get(getRepositoryToken(GastoEvidencia));
     cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
 
     await evidenciaRepo.createQueryBuilder().delete().execute();
     await gastoRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-GASTOS-1" });
-    await socioRepo.delete({ codigo: "SC-GASTOS-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-GASTOS-1" });
+    await propietarioRepo.delete({ codigo: "SC-GASTOS-1" });
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -75,59 +75,59 @@ describe("Registro y aprobación de gastos (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-gastos-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-gastos-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-gastos-1@correo.com",
+      correo: "propietario-gastos-1@correo.com",
       telefono: "+59171160032",
       codigo: "SC-GASTOS-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-gastos-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-gastos-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-gastos-1@correo.com",
+      correo: "gestor-gastos-1@correo.com",
       telefono: "+59172270032",
       codigo: "CB-GASTOS-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta GASTOS",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera GASTOS",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
   });
 
   afterAll(async () => {
     await evidenciaRepo.createQueryBuilder().delete().execute();
     await gastoRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-GASTOS-1" });
-    await socioRepo.delete({ codigo: "SC-GASTOS-1" });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-GASTOS-1" });
+    await propietarioRepo.delete({ codigo: "SC-GASTOS-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("POST /rutas/:id/gastos registra el gasto pendiente con evidencia", async () => {
+  it("POST /carteras/:id/gastos registra el gasto pendiente con evidencia", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/gastos`)
+      .post(`/carteras/${carteraId}/gastos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .field("descripcion", "Combustible")
       .field("valor", "50")
@@ -143,50 +143,50 @@ describe("Registro y aprobación de gastos (e2e)", () => {
   });
 
   it("no descuenta la caja al registrar (pendiente)", async () => {
-    const caja = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const caja = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(caja?.saldoActual).toBe(1000);
   });
 
-  it("PATCH /rutas/:id/gastos/:gastoId/aprobar aprueba y descuenta la caja", async () => {
+  it("PATCH /carteras/:id/gastos/:gastoId/aprobar aprueba y descuenta la caja", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/gastos`)
+      .post(`/carteras/${carteraId}/gastos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .field("descripcion", "Peaje")
       .field("valor", "30")
       .attach("evidencias", Buffer.from("img"), "peaje.jpg");
 
     const gastoId = res.body.id as number;
-    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaAntes = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
 
     const aprobar = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/gastos/${gastoId}/aprobar`)
+      .patch(`/carteras/${carteraId}/gastos/${gastoId}/aprobar`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(aprobar.status).toBe(200);
     expect(aprobar.body.aprobado).toBe(true);
 
-    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaDespues = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual - 30);
   });
 
-  it("DELETE /rutas/:id/gastos/:gastoId elimina (soft-delete) y revierte la caja si estaba aprobado", async () => {
-    const gasto = await gastoRepo.findOne({ where: { ruta: { id: rutaId }, aprobado: true } });
-    const cajaAntes = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+  it("DELETE /carteras/:id/gastos/:gastoId elimina (soft-delete) y revierte la caja si estaba aprobado", async () => {
+    const gasto = await gastoRepo.findOne({ where: { cartera: { id: carteraId }, aprobado: true } });
+    const cajaAntes = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
 
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaId}/gastos/${gasto!.id}`)
+      .delete(`/carteras/${carteraId}/gastos/${gasto!.id}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
     expect(res.body.estado).toBe("eliminado");
 
-    const cajaDespues = await cajaRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const cajaDespues = await cajaRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(cajaDespues?.saldoActual).toBe(cajaAntes!.saldoActual + gasto!.valor);
   });
 
-  it("GET /rutas/:id/gastos lista los gastos activos con sus evidencias", async () => {
+  it("GET /carteras/:id/gastos lista los gastos activos con sus evidencias", async () => {
     const crear = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/gastos`)
+      .post(`/carteras/${carteraId}/gastos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .field("descripcion", "Listable")
       .field("valor", "15")
@@ -194,7 +194,7 @@ describe("Registro y aprobación de gastos (e2e)", () => {
     expect(crear.status).toBe(201);
 
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/gastos`)
+      .get(`/carteras/${carteraId}/gastos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -204,9 +204,9 @@ describe("Registro y aprobación de gastos (e2e)", () => {
     expect(gasto.evidencias[0].nombreOriginal).toBe("listable.pdf");
   });
 
-  it("POST /rutas/:id/gastos sin token -> 401", async () => {
+  it("POST /carteras/:id/gastos sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/gastos`)
+      .post(`/carteras/${carteraId}/gastos`)
       .field("descripcion", "X")
       .field("valor", "10");
 

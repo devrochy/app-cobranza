@@ -4,7 +4,7 @@ export interface ParadaGeo {
   longitud: number;
 }
 
-/** Posición conocida del cobrador: permite que la ruta parta de donde está. */
+/** Posición conocida del gestor: permite que la cartera parta de donde está. */
 export interface PuntoInicio {
   latitud: number;
   longitud: number;
@@ -40,7 +40,7 @@ function distanciaEntre(a: PuntoInicio, b: PuntoInicio): number {
 /**
  * Ordena las paradas de un grupo por vecino más cercano (greedy). Sin `inicio`
  * parte de la parada de menor latitud+longitud (ancla determinista); con
- * `inicio` parte de la parada más cercana a la ubicación del cobrador.
+ * `inicio` parte de la parada más cercana a la ubicación del gestor.
  */
 function ordenarPorVecinoMasCercano(paradas: ParadaGeo[], inicio?: PuntoInicio): ParadaGeo[] {
   if (paradas.length <= 1) {
@@ -141,9 +141,9 @@ function subdividir(grupo: ParadaGeo[], maxParadas: number): ParadaGeo[][] {
 }
 
 /**
- * Segmenta la ruta del día en trayectos de hasta `maxParadas` paradas,
+ * Segmenta la cartera del día en trayectos de hasta `maxParadas` paradas,
  * agrupando por cercanía geográfica (K-means) y ordenando cada trayecto por
- * vecino más cercano. Si se conoce la posición del cobrador (`inicio`), la
+ * vecino más cercano. Si se conoce la posición del gestor (`inicio`), la
  * primera parada es la más cercana a esa posición y los trayectos se visitan
  * del más cercano al más lejano. Devuelve un array de trayectos (cada uno es
  * un array de paradas ordenado).

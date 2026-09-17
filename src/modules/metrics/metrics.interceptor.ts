@@ -9,7 +9,7 @@ import { MetricsService } from "./metrics.service";
 
 /**
  * Registra la duración y el conteo de cada request HTTP en Prometheus. Usa el
- * patrón de ruta del router (`req.route.path`) para mantener baja la
+ * patrón de cartera del router (`req.route.path`) para mantener baja la
  * cardinalidad.
  */
 @Injectable()

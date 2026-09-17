@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
 export interface IntentoAccesoAlerta {
-  cobradorId: number | null;
+  gestorId: number | null;
   imei: string | null;
   whatsappNumber: string | null;
   motivo: string;

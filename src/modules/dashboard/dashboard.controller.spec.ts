@@ -4,7 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { DataSource } from "typeorm";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PermisoGuard } from "../auth/permiso.guard";
-import { PermisosSocioService } from "../socios/permisos-socio.service";
+import { PermisosPropietarioService } from "../propietarios/permisos-propietario.service";
 import { PERMISO_REQUERIDO_KEY } from "../auth/permiso-requerido.decorator";
 import { DashboardController } from "./dashboard.controller";
 import { DashboardService } from "./dashboard.service";
@@ -28,7 +28,7 @@ describe("DashboardController", () => {
         JwtAuthGuard,
         { provide: DataSource, useValue: {} },
         PermisoGuard,
-        { provide: PermisosSocioService, useValue: { tienePermiso: jest.fn() } },
+        { provide: PermisosPropietarioService, useValue: { tienePermiso: jest.fn() } },
         { provide: JwtService, useValue: new JwtService() },
         { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
@@ -47,15 +47,15 @@ describe("DashboardController", () => {
     expect(dashboard.obtener).toHaveBeenCalled();
   });
 
-  it("pasa rutaId y socioId del query al servicio para rol admin", async () => {
+  it("pasa carteraId y propietarioId del query al servicio para rol admin", async () => {
     await controller.dashboard(
-      { rutaId: 6, socioId: 3 } as never,
+      { carteraId: 6, propietarioId: 3 } as never,
       { user: { rol: "admin", sub: 1 } } as never,
     );
 
     expect(dashboard.obtener).toHaveBeenCalledWith(
       expect.any(Date),
-      { rutaId: 6, socioId: 3 },
+      { carteraId: 6, propietarioId: 3 },
     );
   });
 
@@ -68,18 +68,18 @@ describe("DashboardController", () => {
     expect(dashboard.obtener).toHaveBeenCalledWith(expect.any(Date), {});
   });
 
-  it("para rol socio fuerza socioId = sub e ignora rutaId/socioId del query", async () => {
+  it("para rol propietario fuerza propietarioId = sub e ignora carteraId/propietarioId del query", async () => {
     await controller.dashboard(
-      { rutaId: 6, socioId: 9 } as never,
-      { user: { rol: "socio", sub: 3 } } as never,
+      { carteraId: 6, propietarioId: 9 } as never,
+      { user: { rol: "propietario", sub: 3 } } as never,
     );
 
     expect(dashboard.obtener).toHaveBeenCalledWith(expect.any(Date), {
-      socioId: 3,
+      propietarioId: 3,
     });
   });
 
-  it("exige ver_reportes para que un socio pueda acceder a su dashboard", () => {
+  it("exige ver_reportes para que un propietario pueda acceder a su dashboard", () => {
     const permiso = Reflect.getMetadata(
       PERMISO_REQUERIDO_KEY,
       DashboardController.prototype.dashboard,
@@ -99,24 +99,24 @@ describe("DashboardController", () => {
 
   it("series pasa dias y filtros del query para admin", async () => {
     await controller.series(
-      { rutaId: 6, socioId: 3, dias: 30 } as never,
+      { carteraId: 6, propietarioId: 3, dias: 30 } as never,
       { user: { rol: "admin", sub: 1 } } as never,
     );
 
     expect(dashboard.series).toHaveBeenCalledWith(expect.any(Date), {
-      rutaId: 6,
-      socioId: 3,
+      carteraId: 6,
+      propietarioId: 3,
     }, 30);
   });
 
-  it("series para rol socio fuerza socioId = sub e ignora el query", async () => {
+  it("series para rol propietario fuerza propietarioId = sub e ignora el query", async () => {
     await controller.series(
-      { rutaId: 6, socioId: 9, dias: 7 } as never,
-      { user: { rol: "socio", sub: 3 } } as never,
+      { carteraId: 6, propietarioId: 9, dias: 7 } as never,
+      { user: { rol: "propietario", sub: 3 } } as never,
     );
 
     expect(dashboard.series).toHaveBeenCalledWith(expect.any(Date), {
-      socioId: 3,
+      propietarioId: 3,
     }, 7);
   });
 

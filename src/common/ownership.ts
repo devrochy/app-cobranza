@@ -9,19 +9,19 @@ export interface RequesterOwned {
 }
 
 /**
- * Verifica que un requester socio/cobrador sea dueño del recurso (ruta) antes
+ * Verifica que un requester propietario/gestor sea dueño del recurso (cartera) antes
  * de operar sobre él. Los administradores siempre pasan.
- * - socio: la ruta debe pertenecer a su socioId.
- * - cobrador: la ruta debe estar asignada a su cobradorId (APK).
+ * - propietario: la cartera debe pertenecer a su propietarioId.
+ * - gestor: la cartera debe estar asignada a su gestorId (APK).
  */
 export function assertOwned(
-  ruta: { socioId: number; cobradorId?: number },
+  cartera: { propietarioId: number; gestorId?: number },
   requester: RequesterOwned,
 ): void {
-  if (requester.rol === "socio" && ruta.socioId !== requester.sub) {
+  if (requester.rol === "propietario" && cartera.propietarioId !== requester.sub) {
     throw new ForbiddenException(ACCESO_DENEGADO);
   }
-  if (requester.rol === "cobrador" && ruta.cobradorId !== requester.sub) {
+  if (requester.rol === "gestor" && cartera.gestorId !== requester.sub) {
     throw new ForbiddenException(ACCESO_DENEGADO);
   }
 }

@@ -5,27 +5,27 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { ClienteEvidencia } from "../../src/modules/cartera/cliente-evidencia.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { ClienteEvidencia } from "../../src/modules/clientes/cliente-evidencia.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let evidenciaRepo: Repository<ClienteEvidencia>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
 
   const ADMIN_USERNAME = "ampliar-e2e-admin";
@@ -49,9 +49,9 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     evidenciaRepo = moduleFixture.get(getRepositoryToken(ClienteEvidencia));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
@@ -61,9 +61,9 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-AMPLIAR-1" });
-    await socioRepo.delete({ codigo: "SC-AMPLIAR-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-AMPLIAR-1" });
+    await propietarioRepo.delete({ codigo: "SC-AMPLIAR-1" });
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -81,44 +81,44 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-ampliar-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-ampliar-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-ampliar-1@correo.com",
+      correo: "propietario-ampliar-1@correo.com",
       telefono: "+59171160042",
       codigo: "SC-AMPLIAR-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-ampliar-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-ampliar-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-ampliar-1@correo.com",
+      correo: "gestor-ampliar-1@correo.com",
       telefono: "+59172270042",
       codigo: "CB-AMPLIAR-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta AMPLIAR",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera AMPLIAR",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
   });
 
   afterAll(async () => {
@@ -126,16 +126,16 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-AMPLIAR-1" });
-    await socioRepo.delete({ codigo: "SC-AMPLIAR-1" });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-AMPLIAR-1" });
+    await propietarioRepo.delete({ codigo: "SC-AMPLIAR-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
   it("registra cliente con tope de deuda, domicilio y foto facial", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .field("nombre", "Juan")
       .field("apellido", "Cliente")
@@ -161,7 +161,7 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
 
   it("rechaza crear préstamo que excede el tope de deuda del cliente -> 409", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId, valor: 9000, numCuotas: 4, diasEntreCuotas: 7 });
 
@@ -170,7 +170,7 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
 
   it("registra préstamo con fiador y fecha dentro del rango", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         clienteId,
@@ -193,7 +193,7 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
     const fechaLejana = new Date();
     fechaLejana.setDate(fechaLejana.getDate() + 60);
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         clienteId,
@@ -206,9 +206,9 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /rutas/:id/clientes sin token -> 401", async () => {
+  it("POST /carteras/:id/clientes sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .field("nombre", "X")
       .field("apellido", "Y")
       .field("telefonoWhatsapp", "+59171160044")
@@ -222,9 +222,9 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
 
 
   describe("listados de cartera (GET clientes / prestamos / cambios + PATCH estatus)", () => {
-    it("GET /rutas/:id/clientes devuelve el cliente creado", async () => {
+    it("GET /carteras/:id/clientes devuelve el cliente creado", async () => {
       const res = await request(app.getHttpServer())
-        .get(`/rutas/${rutaId}/clientes`)
+        .get(`/carteras/${carteraId}/clientes`)
         .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
       expect(res.status).toBe(200);
@@ -232,9 +232,9 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
       expect(ids).toContain(clienteId);
     });
 
-    it("GET /rutas/:id/clientes/:clienteId/prestamos devuelve el préstamo con cuotas", async () => {
+    it("GET /carteras/:id/clientes/:clienteId/prestamos devuelve el préstamo con cuotas", async () => {
       const res = await request(app.getHttpServer())
-        .get(`/rutas/${rutaId}/clientes/${clienteId}/prestamos`)
+        .get(`/carteras/${carteraId}/clientes/${clienteId}/prestamos`)
         .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
       expect(res.status).toBe(200);
@@ -242,18 +242,18 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
       expect(res.body[0].cuotas.length).toBeGreaterThan(0);
     });
 
-    it("GET /rutas/:id/cambios-cliente devuelve la lista (sin cambios)", async () => {
+    it("GET /carteras/:id/cambios-cliente devuelve la lista (sin cambios)", async () => {
       const res = await request(app.getHttpServer())
-        .get(`/rutas/${rutaId}/cambios-cliente`)
+        .get(`/carteras/${carteraId}/cambios-cliente`)
         .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
 
-    it("PATCH /rutas/:id/clientes/:clienteId/estatus bloquea el cliente", async () => {
+    it("PATCH /carteras/:id/clientes/:clienteId/estatus bloquea el cliente", async () => {
       const res = await request(app.getHttpServer())
-        .patch(`/rutas/${rutaId}/clientes/${clienteId}/estatus`)
+        .patch(`/carteras/${carteraId}/clientes/${clienteId}/estatus`)
         .set("Authorization", `Bearer ${accessTokenAdmin}`)
         .send({ estatus: "bloqueado" });
 
@@ -261,9 +261,9 @@ describe("Registro ampliado de cliente y préstamo (HU-14, e2e)", () => {
       expect(res.body.estatus).toBe("bloqueado");
     });
 
-    it("GET /rutas/:id/cambios-cliente con estado inválido -> 400", async () => {
+    it("GET /carteras/:id/cambios-cliente con estado inválido -> 400", async () => {
       const res = await request(app.getHttpServer())
-        .get(`/rutas/${rutaId}/cambios-cliente`)
+        .get(`/carteras/${carteraId}/cambios-cliente`)
         .set("Authorization", `Bearer ${accessTokenAdmin}`)
         .query({ estado: "invalido" });
 

@@ -3,7 +3,7 @@ import { resolve, sep } from "path";
 import { NotFoundException } from "@nestjs/common";
 
 export interface DatosDescargaEvidencia {
-  rutaArchivo: string;
+  carteraArchivo: string;
   mimetype: string;
   nombreOriginal: string;
   /** Directorio dentro del cual debe vivir el archivo (anti path-traversal). */
@@ -12,7 +12,7 @@ export interface DatosDescargaEvidencia {
 }
 
 export interface DescargaEvidenciaPreparada {
-  rutaAbsoluta: string;
+  carteraAbsoluta: string;
   headers: Record<string, string>;
 }
 
@@ -25,7 +25,7 @@ export function pideDescarga(valor: string | undefined): boolean {
 
 /** Datos mínimos de una evidencia para poder descargarla. */
 export interface EvidenciaArchivo {
-  rutaArchivo: string;
+  carteraArchivo: string;
   mimetype: string;
   nombreOriginal: string;
 }
@@ -50,7 +50,7 @@ export function sanearNombreArchivo(nombre: string): string {
 export function prepararDescargaEvidencia(
   datos: DatosDescargaEvidencia,
 ): DescargaEvidenciaPreparada {
-  const objetivo = resolve(datos.rutaArchivo);
+  const objetivo = resolve(datos.carteraArchivo);
   const base = resolve(datos.baseDir);
 
   if (!estaDentro(objetivo, base)) {
@@ -60,7 +60,7 @@ export function prepararDescargaEvidencia(
     throw new NotFoundException("La evidencia no existe");
   }
 
-  // Resuelve symlinks para que un enlace dentro del base no escape a otra ruta.
+  // Resuelve symlinks para que un enlace dentro del base no escape a otra cartera.
   let real: string;
   try {
     real = realpathSync(objetivo);
@@ -75,7 +75,7 @@ export function prepararDescargaEvidencia(
   const disposicion = datos.descargar ? "attachment" : "inline";
 
   return {
-    rutaAbsoluta: objetivo,
+    carteraAbsoluta: objetivo,
     headers: {
       "Content-Type": datos.mimetype,
       "Content-Disposition": `${disposicion}; filename="${sanearNombreArchivo(

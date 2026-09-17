@@ -6,17 +6,17 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { toPositiveInt } from "../../config/db-options";
 import { SecurityModule } from "../security/security.module";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Cobrador } from "../cobradores/cobrador.entity";
-import { CobradoresModule } from "../cobradores/cobradores.module";
-import { Socio } from "../socios/socio.entity";
-import { SociosModule } from "../socios/socios.module";
+import { Gestor } from "../gestores/gestor.entity";
+import { GestoresModule } from "../gestores/gestores.module";
+import { Propietario } from "../propietarios/propietario.entity";
+import { PropietariosModule } from "../propietarios/propietarios.module";
 import { Device } from "../sincronizacion-offline/device.entity";
 import { SincronizacionOfflineModule } from "../sincronizacion-offline/sincronizacion-offline.module";
 import { RefreshTokenRevocado } from "./refresh-token-revocado.entity";
 import { RefreshTokenPurgeService } from "./refresh-token-purge.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { CobradorPermisoGuard } from "./cobrador-permiso.guard";
+import { GestorPermisoGuard } from "./gestor-permiso.guard";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { PermisoGuard } from "./permiso.guard";
 
@@ -36,15 +36,15 @@ import { PermisoGuard } from "./permiso.guard";
         ],
       }),
     }),
-    TypeOrmModule.forFeature([AdminUser, Socio, Cobrador, Device, RefreshTokenRevocado]),
+    TypeOrmModule.forFeature([AdminUser, Propietario, Gestor, Device, RefreshTokenRevocado]),
     JwtModule.register({}),
     SecurityModule,
-    SociosModule,
-    CobradoresModule,
+    PropietariosModule,
+    GestoresModule,
     SincronizacionOfflineModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, RefreshTokenPurgeService, JwtAuthGuard, PermisoGuard, CobradorPermisoGuard],
-  exports: [AuthService, JwtModule, TypeOrmModule, PermisoGuard, CobradorPermisoGuard],
+  providers: [AuthService, RefreshTokenPurgeService, JwtAuthGuard, PermisoGuard, GestorPermisoGuard],
+  exports: [AuthService, JwtModule, TypeOrmModule, PermisoGuard, GestorPermisoGuard],
 })
 export class AuthModule {}

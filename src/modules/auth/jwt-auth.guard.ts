@@ -10,15 +10,15 @@ import { InjectDataSource } from "@nestjs/typeorm";
 import type { Request } from "express";
 import { DataSource } from "typeorm";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Cobrador } from "../cobradores/cobrador.entity";
-import { Socio } from "../socios/socio.entity";
+import { Gestor } from "../gestores/gestor.entity";
+import { Propietario } from "../propietarios/propietario.entity";
 import { AuthTokenPayload } from "./auth.service";
 
 export const UNAUTHORIZED_GUARD_MESSAGE = "No autorizado";
 
 /**
  * Valida el access token y revalida el estado del usuario en cada petición
- * (HU-05/HU-61): un usuario bloqueado (admin, socio o cobrador) deja de tener
+ * (HU-05/HU-61): un usuario bloqueado (admin, propietario o gestor) deja de tener
  * acceso de inmediato, aunque su token aún no haya expirado.
  * La consulta se hace contra la tabla correspondiente según `rol` usando el
  * DataSource (disponible de forma global), evitando depender de repositorios
@@ -76,18 +76,18 @@ export class JwtAuthGuard implements CanActivate {
         select: { id: true },
       });
       activo = admin !== null;
-    } else if (payload.rol === "socio") {
-      const socio = await this.dataSource.getRepository(Socio).findOne({
+    } else if (payload.rol === "propietario") {
+      const propietario = await this.dataSource.getRepository(Propietario).findOne({
         where: { id: payload.sub, estatus: "activo" },
         select: { id: true },
       });
-      activo = socio !== null;
-    } else if (payload.rol === "cobrador") {
-      const cobrador = await this.dataSource.getRepository(Cobrador).findOne({
+      activo = propietario !== null;
+    } else if (payload.rol === "gestor") {
+      const gestor = await this.dataSource.getRepository(Gestor).findOne({
         where: { id: payload.sub, estatus: "activo" },
         select: { id: true },
       });
-      activo = cobrador !== null;
+      activo = gestor !== null;
     }
 
     if (!activo) {

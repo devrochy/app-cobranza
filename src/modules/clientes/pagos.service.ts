@@ -1,0 +1,244 @@
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { DataSource, EntityManager, Not, Repository } from "typeorm";
+import { assertOwned } from "../../common/ownership";
+import { MetodoPago } from "../../domain/metodo-pago";
+import { ReautenticacionService } from "../security/reautenticacion.service";
+import { Cartera } from "../carteras/cartera.entity";
+import { CajaService, TipoMovimientoCaja } from "../carteras/caja.service";
+import { Cuota } from "./cuota.entity";
+import { Pago } from "./pago.entity";
+import { AuditoriaCartera } from "./auditoria-cartera.entity";
+import { NotificacionesService } from "./notificaciones.service";
+import { ColorRiesgoService } from "./color-riesgo.service";
+import { RolUsuario } from "../auth/auth.service";
+
+export interface RegistrarPagoCuotaInput {
+  cuotaId: number;
+  valor: number;
+  metodoPago: MetodoPago;
+}
+
+export interface RegistrarPagoCuotaOptions {
+  manager?: EntityManager;
+  visitaId?: number | null;
+}
+
+export interface RequesterPagoContext {
+  rol: RolUsuario;
+  sub: number;
+}
+
+export interface PagoPublic {
+  id: number;
+  cuotaId: number | null;
+  clienteId: number;
+  valor: number;
+  metodoPago: MetodoPago;
+  fechaHora: Date;
+}
+
+@Injectable()
+export class PagosService {
+  private readonly logger = new Logger(PagosService.name);
+
+  constructor(
+    @InjectRepository(Cartera)
+    private readonly carteraRepo: Repository<Cartera>,
+    @InjectRepository(Cuota)
+    private readonly cuotaRepo: Repository<Cuota>,
+    @InjectRepository(Pago)
+    private readonly pagoRepo: Repository<Pago>,
+    @InjectRepository(AuditoriaCartera)
+    private readonly auditoriaRepo: Repository<AuditoriaCartera>,
+    private readonly dataSource: DataSource,
+    private readonly cajaService: CajaService,
+    private readonly notificacionesService: NotificacionesService,
+    private readonly reautenticacion: ReautenticacionService,
+    private readonly colorRiesgo: ColorRiesgoService,
+  ) {}
+
+  async registrarPagoDeCuota(
+    carteraId: number,
+    input: RegistrarPagoCuotaInput,
+    requester: RequesterPagoContext,
+    options: RegistrarPagoCuotaOptions = {},
+  ): Promise<PagoPublic> {
+    const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
+    if (!cartera) {
+      throw new NotFoundException("La cartera no existe");
+    }
+    assertOwned(cartera, requester);
+
+    const cuota = await this.cuotaRepo.findOne({
+      where: { id: input.cuotaId, prestamo: { cartera: { id: carteraId } } },
+      relations: { prestamo: { cliente: true } },
+    });
+    if (!cuota) {
+      throw new NotFoundException("La cuota no existe en esta cartera");
+    }
+    if (cuota.estatus === "pagada") {
+      throw new BadRequestException("La cuota ya está pagada");
+    }
+    if (input.valor !== cuota.valorEsperado) {
+      throw new BadRequestException(
+        `El valor del pago debe coincidir con el valor de la cuota (${cuota.valorEsperado})`,
+      );
+    }
+
+    const clienteId = cuota.prestamo.cliente.id;
+    const prestamoId = cuota.prestamoId;
+    const visitaId = options.visitaId ?? null;
+
+    const ejecutar = async (manager: EntityManager): Promise<Pago> => {
+      const cuotaRepo = manager.getRepository(Cuota);
+      const pagoRepo = manager.getRepository(Pago);
+
+      // UPDATE condicional: evita el doble pago ante POST concurrentes.
+      const resultado = await cuotaRepo.update(
+        { id: cuota.id, estatus: Not("pagada") },
+        { estatus: "pagada" },
+      );
+      if (resultado.affected === 0) {
+        throw new BadRequestException("La cuota ya está pagada");
+      }
+
+      const pagoNuevo = pagoRepo.create({
+        cuota: { id: cuota.id } as Pago["cuota"],
+        cuotaId: cuota.id,
+        cliente: { id: clienteId } as Pago["cliente"],
+        clienteId,
+        visitaId,
+        valor: input.valor,
+        metodoPago: input.metodoPago,
+        registradoPor: requester.sub,
+      });
+      const saved = await pagoRepo.save(pagoNuevo);
+
+      await this.cajaService.aplicarMovimiento(
+        carteraId,
+        input.valor,
+        TipoMovimientoCaja.PAGO,
+        requester,
+        `cuota ${cuota.numeroCuota} (prestamo ${prestamoId})`,
+        manager,
+      );
+
+      // HU-13: el pago reduce el atraso → recalcula el color del cliente.
+      await this.colorRiesgo.recalcularSeguro(clienteId, carteraId, manager);
+      return saved;
+    };
+
+    const pago = options.manager
+      ? await ejecutar(options.manager)
+      : await this.dataSource.transaction(ejecutar);
+
+    // HU-52: confirmación al cliente al registrarse el pago (no bloqueante;
+    // un fallo del canal no debe romper el registro del pago ya commiteado).
+    if (cuota.prestamo.cliente) {
+      try {
+        await this.notificacionesService.enviarConfirmacionPago(
+          cuota.prestamo.cliente,
+          pago.valor,
+        );
+      } catch (error) {
+        this.logger.warn(`No se pudo enviar la confirmación de pago: ${String(error)}`);
+      }
+    }
+
+    return this.toPublic(pago, clienteId);
+  }
+
+  /**
+   * Elimina un pago (APK/gestor). Solo se permite borrar pagos que NO hayan
+   * sido liquidados al cierre del día (liquidacion). Requiere reautenticación
+   * (password) y motivo; revierte el movimiento de caja y audita.
+   */
+  async eliminarPago(
+    carteraId: number,
+    pagoId: number,
+    ctx: { password: string; motivo: string },
+    requester: RequesterPagoContext,
+  ): Promise<{ id: number }> {
+    const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
+    if (!cartera) {
+      throw new NotFoundException("La cartera no existe");
+    }
+    assertOwned(cartera, requester);
+    await this.reautenticacion.validar(requester, ctx.password);
+    if (!ctx.motivo?.trim()) {
+      throw new BadRequestException("El motivo es obligatorio");
+    }
+
+    const pago = await this.pagoRepo.findOne({
+      where: { id: pagoId, cuota: { prestamo: { cartera: { id: carteraId } } } },
+      relations: { cuota: true },
+    });
+    if (!pago) {
+      throw new NotFoundException("El pago no existe en esta cartera");
+    }
+    if (pago.liquidado) {
+      throw new BadRequestException("No se puede borrar un pago ya liquidado");
+    }
+
+    const antes = { valor: pago.valor, metodoPago: pago.metodoPago };
+    await this.dataSource.transaction(async (manager) => {
+      const pagoRepo = manager.getRepository(Pago);
+      const auditoriaRepo = manager.getRepository(AuditoriaCartera);
+
+      const resultado = await pagoRepo.delete({ id: pago.id });
+      if (resultado.affected === 0) {
+        return; // otro request lo eliminó concurrentemente; no revertir caja
+      }
+      // Reabre la cuota asociada: sin el pago, la cuota vuelve a estar pendiente
+      // (el job de mora la marcará "atrasada" si su vencimiento ya pasó).
+      if (pago.cuotaId !== null) {
+        const cuotaRepo = manager.getRepository(Cuota);
+        await cuotaRepo.update(
+          { id: pago.cuotaId, estatus: "pagada" },
+          { estatus: "pendiente" },
+        );
+      }
+      await this.cajaService.aplicarMovimiento(
+        carteraId,
+        -pago.valor,
+        TipoMovimientoCaja.PAGO,
+        requester,
+        `reversión por eliminación de pago ${pago.id}`,
+        manager,
+      );
+      const fila = auditoriaRepo.create({
+        entidad: "pago",
+        entidadId: pago.id,
+        operacion: "eliminar",
+        valoresAntes: antes,
+        valoresDespues: {},
+        actorRol: requester.rol,
+        actorId: requester.sub,
+        motivo: ctx.motivo,
+      });
+      await auditoriaRepo.save(fila);
+
+      // HU-13: al reabrir la cuota, el atraso del cliente puede cambiar.
+      await this.colorRiesgo.recalcularSeguro(pago.clienteId, carteraId, manager);
+    });
+
+    return { id: pagoId };
+  }
+
+  private toPublic(pago: Pago, clienteId: number): PagoPublic {
+    return {
+      id: pago.id,
+      cuotaId: pago.cuotaId,
+      clienteId,
+      valor: pago.valor,
+      metodoPago: pago.metodoPago,
+      fechaHora: pago.fechaHora,
+    };
+  }
+}

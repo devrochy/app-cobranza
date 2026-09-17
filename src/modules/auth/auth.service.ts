@@ -6,8 +6,8 @@ import { randomUUID } from "crypto";
 import { Repository } from "typeorm";
 import { PasswordService } from "../security/password.service";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Cobrador } from "../cobradores/cobrador.entity";
-import { Socio } from "../socios/socio.entity";
+import { Gestor } from "../gestores/gestor.entity";
+import { Propietario } from "../propietarios/propietario.entity";
 import { Device } from "../sincronizacion-offline/device.entity";
 import { IntentosAccesoService } from "../sincronizacion-offline/intentos-acceso.service";
 import { RefreshTokenRevocado } from "./refresh-token-revocado.entity";
@@ -26,8 +26,8 @@ export interface LoginResult extends AuthTokenPair {
   };
 }
 
-export interface SocioLoginResult extends AuthTokenPair {
-  socio: {
+export interface PropietarioLoginResult extends AuthTokenPair {
+  propietario: {
     id: number;
     usuario: string;
     nombre: string;
@@ -35,8 +35,8 @@ export interface SocioLoginResult extends AuthTokenPair {
   };
 }
 
-export interface CobradorLoginResult extends AuthTokenPair {
-  cobrador: {
+export interface GestorLoginResult extends AuthTokenPair {
+  gestor: {
     id: number;
     usuario: string;
     nombre: string;
@@ -44,7 +44,7 @@ export interface CobradorLoginResult extends AuthTokenPair {
   };
 }
 
-export type RolUsuario = "admin" | "socio" | "cobrador";
+export type RolUsuario = "admin" | "propietario" | "gestor";
 
 export interface AuthTokenPayload {
   sub: number;
@@ -74,10 +74,10 @@ export class AuthService {
   constructor(
     @InjectRepository(AdminUser)
     private readonly repo: Repository<AdminUser>,
-    @InjectRepository(Socio)
-    private readonly socioRepo: Repository<Socio>,
-    @InjectRepository(Cobrador)
-    private readonly cobradorRepo: Repository<Cobrador>,
+    @InjectRepository(Propietario)
+    private readonly propietarioRepo: Repository<Propietario>,
+    @InjectRepository(Gestor)
+    private readonly gestorRepo: Repository<Gestor>,
     @InjectRepository(Device)
     private readonly deviceRepo: Repository<Device>,
     @InjectRepository(RefreshTokenRevocado)
@@ -123,8 +123,8 @@ export class AuthService {
     };
   }
 
-  async loginSocio(usuario: string, password: string): Promise<SocioLoginResult> {
-    const socio = await this.socioRepo.findOne({
+  async loginPropietario(usuario: string, password: string): Promise<PropietarioLoginResult> {
+    const propietario = await this.propietarioRepo.findOne({
       where: { usuario },
       select: {
         id: true,
@@ -136,34 +136,34 @@ export class AuthService {
       },
     });
 
-    if (!socio) {
+    if (!propietario) {
       await this.password.compare(password, DUMMY_PASSWORD_HASH);
       throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
     }
 
-    const passwordOk = await this.password.compare(password, socio.passwordHash);
-    if (socio.estatus !== "activo" || !passwordOk) {
+    const passwordOk = await this.password.compare(password, propietario.passwordHash);
+    if (propietario.estatus !== "activo" || !passwordOk) {
       throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
     }
 
-    const tokens = await this.issueTokens("socio", socio);
+    const tokens = await this.issueTokens("propietario", propietario);
     return {
       ...tokens,
-      socio: {
-        id: socio.id,
-        usuario: socio.usuario,
-        nombre: socio.nombre,
-        apellido: socio.apellido,
+      propietario: {
+        id: propietario.id,
+        usuario: propietario.usuario,
+        nombre: propietario.nombre,
+        apellido: propietario.apellido,
       },
     };
   }
 
-  async loginCobrador(
+  async loginGestor(
     usuario: string,
     password: string,
     device?: { imei?: string; whatsappNumber?: string },
-  ): Promise<CobradorLoginResult> {
-    const cobrador = await this.cobradorRepo.findOne({
+  ): Promise<GestorLoginResult> {
+    const gestor = await this.gestorRepo.findOne({
       where: { usuario },
       select: {
         id: true,
@@ -175,21 +175,21 @@ export class AuthService {
       },
     });
 
-    if (!cobrador) {
+    if (!gestor) {
       await this.password.compare(password, DUMMY_PASSWORD_HASH);
       throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
     }
 
-    const passwordOk = await this.password.compare(password, cobrador.passwordHash);
-    if (cobrador.estatus !== "activo" || !passwordOk) {
+    const passwordOk = await this.password.compare(password, gestor.passwordHash);
+    if (gestor.estatus !== "activo" || !passwordOk) {
       throw new UnauthorizedException(UNAUTHORIZED_MESSAGE);
     }
 
-    // HU-39: si el cobrador tiene un dispositivo vinculado, el login debe venir
+    // HU-39: si el gestor tiene un dispositivo vinculado, el login debe venir
     // de ese dispositivo (IMEI + WhatsApp). Si aún no tiene, se permite el login
     // para que el administrador pueda vincularlo después.
     const registrado = await this.deviceRepo.findOne({
-      where: { cobradorId: cobrador.id, estado: "activo" },
+      where: { gestorId: gestor.id, estado: "activo" },
     });
     if (registrado) {
       const coincide =
@@ -198,25 +198,25 @@ export class AuthService {
       if (!coincide) {
         // HU-42: registrar el intento no autorizado antes de rechazar.
         await this.intentosAcceso.registrar({
-          cobradorId: cobrador.id,
+          gestorId: gestor.id,
           imei: device?.imei ?? null,
           whatsappNumber: device?.whatsappNumber ?? null,
           motivo: "imei_no_coincide",
         });
         throw new ForbiddenException(
-          "Dispositivo no autorizado para este cobrador",
+          "Dispositivo no autorizado para este gestor",
         );
       }
     }
 
-    const tokens = await this.issueTokens("cobrador", cobrador);
+    const tokens = await this.issueTokens("gestor", gestor);
     return {
       ...tokens,
-      cobrador: {
-        id: cobrador.id,
-        usuario: cobrador.usuario,
-        nombre: cobrador.nombre,
-        apellido: cobrador.apellido,
+      gestor: {
+        id: gestor.id,
+        usuario: gestor.usuario,
+        nombre: gestor.nombre,
+        apellido: gestor.apellido,
       },
     };
   }
@@ -244,26 +244,26 @@ export class AuthService {
       }
     }
 
-    if (payload.rol === "socio") {
-      const socio = await this.socioRepo.findOne({
+    if (payload.rol === "propietario") {
+      const propietario = await this.propietarioRepo.findOne({
         where: { id: payload.sub },
         select: { id: true, usuario: true, estatus: true },
       });
-      if (!socio || socio.estatus !== "activo") {
+      if (!propietario || propietario.estatus !== "activo") {
         throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
       }
-      return this.rotarYemitir(payload, "socio", socio);
+      return this.rotarYemitir(payload, "propietario", propietario);
     }
 
-    if (payload.rol === "cobrador") {
-      const cobrador = await this.cobradorRepo.findOne({
+    if (payload.rol === "gestor") {
+      const gestor = await this.gestorRepo.findOne({
         where: { id: payload.sub },
         select: { id: true, usuario: true, estatus: true },
       });
-      if (!cobrador || cobrador.estatus !== "activo") {
+      if (!gestor || gestor.estatus !== "activo") {
         throw new UnauthorizedException(INVALID_REFRESH_MESSAGE);
       }
-      return this.rotarYemitir(payload, "cobrador", cobrador);
+      return this.rotarYemitir(payload, "gestor", gestor);
     }
 
     const admin = await this.repo.findOne({

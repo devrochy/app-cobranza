@@ -5,35 +5,35 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { ConversacionIa } from "../../src/modules/cartera/conversacion-ia.entity";
-import { MensajeIa } from "../../src/modules/cartera/mensaje-ia.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { ConversacionIa } from "../../src/modules/clientes/conversacion-ia.entity";
+import { MensajeIa } from "../../src/modules/clientes/mensaje-ia.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Consulta de saldo por WhatsApp (e2e, HU-27)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
   let conversacionRepo: Repository<ConversacionIa>;
   let mensajeRepo: Repository<MensajeIa>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
   let conversacionId: number;
 
   const ADMIN_USERNAME = "saldo-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Saldo2026";
-  const PASSWORD = "Socio#Saldo2026";
+  const PASSWORD = "Propietario#Saldo2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-saldo";
@@ -52,9 +52,9 @@ describe("Consulta de saldo por WhatsApp (e2e, HU-27)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
@@ -63,12 +63,12 @@ describe("Consulta de saldo por WhatsApp (e2e, HU-27)", () => {
 
     await mensajeRepo.createQueryBuilder().delete().execute();
     await conversacionRepo.createQueryBuilder().delete().execute();
-    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE ruta_id IN (SELECT id FROM rutas WHERE nombre = 'Ruta SALDO'))").execute();
-    await prestamoRepo.createQueryBuilder().delete().where("ruta_id IN (SELECT id FROM rutas WHERE nombre = 'Ruta SALDO')").execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id IN (SELECT id FROM rutas WHERE nombre = 'Ruta SALDO')").execute();
-    await rutaRepo.delete({ nombre: "Ruta SALDO" });
-    await cobradorRepo.delete({ codigo: "CB-SALDO-1" });
-    await socioRepo.delete({ codigo: "SC-SALDO-1" });
+    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE cartera_id IN (SELECT id FROM carteras WHERE nombre = 'Cartera SALDO'))").execute();
+    await prestamoRepo.createQueryBuilder().delete().where("cartera_id IN (SELECT id FROM carteras WHERE nombre = 'Cartera SALDO')").execute();
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id IN (SELECT id FROM carteras WHERE nombre = 'Cartera SALDO')").execute();
+    await carteraRepo.delete({ nombre: "Cartera SALDO" });
+    await gestorRepo.delete({ codigo: "CB-SALDO-1" });
+    await propietarioRepo.delete({ codigo: "SC-SALDO-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -86,47 +86,47 @@ describe("Consulta de saldo por WhatsApp (e2e, HU-27)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-saldo-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-saldo-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-saldo-1@correo.com",
+      correo: "propietario-saldo-1@correo.com",
       telefono: "+59171160150",
       codigo: "SC-SALDO-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-saldo-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-saldo-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-saldo-1@correo.com",
+      correo: "gestor-saldo-1@correo.com",
       telefono: "+59172270150",
       codigo: "CB-SALDO-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta SALDO",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera SALDO",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Saldo",
@@ -141,7 +141,7 @@ describe("Consulta de saldo por WhatsApp (e2e, HU-27)", () => {
     clienteId = clienteRes.body.id as number;
 
     await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId, valor: 400, numCuotas: 2, diasEntreCuotas: 7 });
 
@@ -160,12 +160,12 @@ describe("Consulta de saldo por WhatsApp (e2e, HU-27)", () => {
   afterAll(async () => {
     await mensajeRepo.createQueryBuilder().delete().execute();
     await conversacionRepo.createQueryBuilder().delete().execute();
-    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE ruta_id = :rutaId)", { rutaId }).execute();
-    await prestamoRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-SALDO-1" });
-    await socioRepo.delete({ codigo: "SC-SALDO-1" });
+    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE cartera_id = :carteraId)", { carteraId }).execute();
+    await prestamoRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-SALDO-1" });
+    await propietarioRepo.delete({ codigo: "SC-SALDO-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });

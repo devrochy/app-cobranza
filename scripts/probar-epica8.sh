@@ -2,9 +2,9 @@
 #
 # Prueba end-to-end de la Épica 8 (seguridad de dispositivos) contra el backend
 # local. Cubre:
-#   - HU-39: vincular device↔cobrador + login que valida IMEI/WhatsApp.
+#   - HU-39: vincular device↔gestor + login que valida IMEI/WhatsApp.
 #   - HU-40: snapshot del día cifrado (X25519+HKDF+AES-256-GCM) y descifrado.
-#   - HU-41: apertura de ruta (timestamp + coordenadas).
+#   - HU-41: apertura de cartera (timestamp + coordenadas).
 #   - HU-42: intento de acceso no autorizado (403 + registro + consulta).
 #   - HU-43: revocación del device (login vuelve a permitirse sin device activo).
 #
@@ -13,20 +13,20 @@
 # Uso:
 #   bash scripts/probar-epica8.sh
 #   BASE_URL=http://localhost:3000 ADMIN_USER=admin ADMIN_PASS=secreto \
-#     COBRADOR_USER=test-cobrador-1 COBRADOR_PASS=test-password \
+#     GESTOR_USER=test-gestor-1 GESTOR_PASS=test-password \
 #     bash scripts/probar-epica8.sh
 #
 # Credenciales del admin: se toman de ADMIN_USER/ADMIN_PASS o, si no, de
-# ADMIN_INITIAL_USERNAME/ADMIN_INITIAL_PASSWORD (de .env). El cobrador necesita
-# un device vinculado y una ruta (el seed con SEED_TEST_DATA=true los crea).
+# ADMIN_INITIAL_USERNAME/ADMIN_INITIAL_PASSWORD (de .env). El gestor necesita
+# un device vinculado y una cartera (el seed con SEED_TEST_DATA=true los crea).
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 BASE_URL="${BASE_URL:-http://localhost:3000}"
-COBRADOR_USER="${COBRADOR_USER:-test-cobrador-1}"
-COBRADOR_PASS="${COBRADOR_PASS:-test-password}"
+GESTOR_USER="${GESTOR_USER:-test-gestor-1}"
+GESTOR_PASS="${GESTOR_PASS:-test-password}"
 IMEI="${IMEI:-imei-epica8-$(date +%s)}"
 WHATSAPP="${WHATSAPP:-}"
 
@@ -56,9 +56,9 @@ ok()    { printf "${VERDE}  ✓ %s${SIN}\n" "$1"; }
 info()  { printf "${GRIS}    %s${SIN}\n" "$1"; }
 fallo() { printf "${ROJO}  ✗ %s${SIN}\n" "$1" >&2; exit 1; }
 
-api() { # api METODO RUTA [TOKEN] [JSON]
-  local metodo="$1" ruta="$2" token="${3:-}" cuerpo="${4:-}"
-  local args=(-s -X "$metodo" "$BASE_URL$ruta" -H 'Content-Type: application/json' -w $'\n%{http_code}')
+api() { # api METODO CARTERA [TOKEN] [JSON]
+  local metodo="$1" cartera="$2" token="${3:-}" cuerpo="${4:-}"
+  local args=(-s -X "$metodo" "$BASE_URL$cartera" -H 'Content-Type: application/json' -w $'\n%{http_code}')
   [ -n "$token" ] && args+=(-H "Authorization: Bearer $token")
   [ -n "$cuerpo" ] && args+=(-d "$cuerpo")
   curl "${args[@]}"
@@ -81,15 +81,15 @@ TOKEN=$(cuerpo "$login" | jq -r .accessToken)
 ok "token admin obtenido"
 
 # ---------------------------------------------------------------------------
-paso "2. Localizar cobrador y ruta"
-cobradores=$(api GET /cobradores "$TOKEN")
-COBRADOR_ID=$(cuerpo "$cobradores" | jq -r --arg u "$COBRADOR_USER" '.[] | select(.usuario==$u) | .id' | head -1)
-[ -n "$COBRADOR_ID" ] && [ "$COBRADOR_ID" != "null" ] || fallo "No existe el cobrador '$COBRADOR_USER' (¿SEED_TEST_DATA=true?)."
-TELEFONO=$(cuerpo "$cobradores" | jq -r --arg u "$COBRADOR_USER" '.[] | select(.usuario==$u) | .telefono // empty' | head -1)
+paso "2. Localizar gestor y cartera"
+gestores=$(api GET /gestores "$TOKEN")
+GESTOR_ID=$(cuerpo "$gestores" | jq -r --arg u "$GESTOR_USER" '.[] | select(.usuario==$u) | .id' | head -1)
+[ -n "$GESTOR_ID" ] && [ "$GESTOR_ID" != "null" ] || fallo "No existe el gestor '$GESTOR_USER' (¿SEED_TEST_DATA=true?)."
+TELEFONO=$(cuerpo "$gestores" | jq -r --arg u "$GESTOR_USER" '.[] | select(.usuario==$u) | .telefono // empty' | head -1)
 [ -n "$WHATSAPP" ] || WHATSAPP="$TELEFONO"
 [ -n "$WHATSAPP" ] || WHATSAPP="+59170000002"
-RUTA_ID=$(cuerpo "$(api GET /rutas "$TOKEN")" | jq -r --argjson c "$COBRADOR_ID" '.[] | select(.cobradorId==$c) | .id' | head -1)
-ok "cobradorId=$COBRADOR_ID  whatsapp=$WHATSAPP  rutaId=${RUTA_ID:-<ninguna>}"
+CARTERA_ID=$(cuerpo "$(api GET /carteras "$TOKEN")" | jq -r --argjson c "$GESTOR_ID" '.[] | select(.gestorId==$c) | .id' | head -1)
+ok "gestorId=$GESTOR_ID  whatsapp=$WHATSAPP  carteraId=${CARTERA_ID:-<ninguna>}"
 
 # ---------------------------------------------------------------------------
 paso "3. Generar clave X25519 del dispositivo (HU-40)"
@@ -105,8 +105,8 @@ PRIV_D=$(printf '%s' "$llaves" | jq -r .d)
 ok "par de claves generado"
 
 # ---------------------------------------------------------------------------
-paso "4. Vincular device al cobrador (HU-39)"
-reg=$(api POST /devices "$TOKEN" "{\"cobradorId\":$COBRADOR_ID,\"imei\":\"$IMEI\",\"whatsappNumber\":\"$WHATSAPP\",\"publicKey\":\"$PUB\"}")
+paso "4. Vincular device al gestor (HU-39)"
+reg=$(api POST /devices "$TOKEN" "{\"gestorId\":$GESTOR_ID,\"imei\":\"$IMEI\",\"whatsappNumber\":\"$WHATSAPP\",\"publicKey\":\"$PUB\"}")
 [ "$(estado "$reg")" = "201" ] || { info "respuesta: $(cuerpo "$reg")"; fallo "no se pudo vincular el device."; }
 APIKEY=$(cuerpo "$reg" | jq -r .apiKey)
 DEVICE_ID=$(cuerpo "$(api GET /devices "$TOKEN")" | jq -r --arg i "$IMEI" '.[] | select(.imei==$i) | .id' | head -1)
@@ -115,26 +115,26 @@ info "apiKey=$APIKEY"
 
 # ---------------------------------------------------------------------------
 paso "5. Login con device INCORRECTO → 403 + registro (HU-42)"
-malo=$(api POST /auth/cobrador/login "" "{\"usuario\":\"$COBRADOR_USER\",\"password\":\"$COBRADOR_PASS\",\"imei\":\"imei-intruso\",\"whatsappNumber\":\"$WHATSAPP\"}")
+malo=$(api POST /auth/gestor/login "" "{\"usuario\":\"$GESTOR_USER\",\"password\":\"$GESTOR_PASS\",\"imei\":\"imei-intruso\",\"whatsappNumber\":\"$WHATSAPP\"}")
 [ "$(estado "$malo")" = "403" ] || { info "respuesta: $(cuerpo "$malo")"; fallo "se esperaba 403 con device incorrecto."; }
 ok "rechazado con 403: $(cuerpo "$malo" | jq -r .message)"
 
 intentos=$(api GET /intentos-acceso "$TOKEN")
-ultimo=$(cuerpo "$intentos" | jq -c --argjson c "$COBRADOR_ID" '[.[] | select(.cobradorId==$c)] | .[0] // empty')
+ultimo=$(cuerpo "$intentos" | jq -c --argjson c "$GESTOR_ID" '[.[] | select(.gestorId==$c)] | .[0] // empty')
 [ -n "$ultimo" ] || fallo "no se registró el intento en /intentos-acceso."
 ok "intento registrado: $ultimo"
 
 # ---------------------------------------------------------------------------
 paso "6. Login CORRECTO → 200 (HU-39)"
-bueno=$(api POST /auth/cobrador/login "" "{\"usuario\":\"$COBRADOR_USER\",\"password\":\"$COBRADOR_PASS\",\"imei\":\"$IMEI\",\"whatsappNumber\":\"$WHATSAPP\"}")
+bueno=$(api POST /auth/gestor/login "" "{\"usuario\":\"$GESTOR_USER\",\"password\":\"$GESTOR_PASS\",\"imei\":\"$IMEI\",\"whatsappNumber\":\"$WHATSAPP\"}")
 [ "$(estado "$bueno")" = "201" ] || [ "$(estado "$bueno")" = "200" ] || { info "respuesta: $(cuerpo "$bueno")"; fallo "el login válido falló."; }
-COBRADOR_TOKEN=$(cuerpo "$bueno" | jq -r .accessToken)
+GESTOR_TOKEN=$(cuerpo "$bueno" | jq -r .accessToken)
 ok "login válido OK"
 
 # ---------------------------------------------------------------------------
 paso "7. Snapshot del día (HU-40)"
-if [ -n "${RUTA_ID:-}" ] && [ "$RUTA_ID" != "null" ]; then
-  snap=$(curl -s "$BASE_URL/sync-offline/dia?rutaId=$RUTA_ID" -H "x-device-key: $APIKEY")
+if [ -n "${CARTERA_ID:-}" ] && [ "$CARTERA_ID" != "null" ]; then
+  snap=$(curl -s "$BASE_URL/sync-offline/dia?carteraId=$CARTERA_ID" -H "x-device-key: $APIKEY")
   if [ "$(printf '%s' "$snap" | jq -r '.cifrado // false')" = "true" ]; then
     ok "snapshot CIFRADO (algoritmo: $(printf '%s' "$snap" | jq -r .algoritmo))"
     descifrado=$(PRIV_X="$PRIV_X" PRIV_D="$PRIV_D" node -e '
@@ -148,27 +148,27 @@ const b=Buffer.from(r.datos,"base64"),tag=b.subarray(b.length-16),ct=b.subarray(
 const dec=c.createDecipheriv("aes-256-gcm",key,Buffer.from(r.nonce,"base64"));dec.setAuthTag(tag);
 process.stdout.write(Buffer.concat([dec.update(ct),dec.final()]).toString("utf8"));
 ' <<< "$snap")
-    info "descifrado: $(printf '%s' "$descifrado" | jq -c '{ruta, clientes: (.clientes|length)}')"
+    info "descifrado: $(printf '%s' "$descifrado" | jq -c '{cartera, clientes: (.clientes|length)}')"
     ok "descifrado con la clave privada del dispositivo"
   else
-    info "snapshot en claro (esta rama aún no tiene el cifrado de HU-40): $(printf '%s' "$snap" | jq -c '{ruta, clientes:(.clientes|length)}')"
+    info "snapshot en claro (esta rama aún no tiene el cifrado de HU-40): $(printf '%s' "$snap" | jq -c '{cartera, clientes:(.clientes|length)}')"
   fi
 else
-  info "sin ruta asignada al cobrador; se omite el snapshot"
+  info "sin cartera asignada al gestor; se omite el snapshot"
 fi
 
 # ---------------------------------------------------------------------------
-paso "8. Apertura de ruta con coordenadas (HU-41)"
-if [ -n "${RUTA_ID:-}" ] && [ "$RUTA_ID" != "null" ]; then
-  ap=$(api POST "/cobrador/rutas/$RUTA_ID/apertura" "$COBRADOR_TOKEN" '{"latitud":-17.78,"longitud":-63.18}')
+paso "8. Apertura de cartera con coordenadas (HU-41)"
+if [ -n "${CARTERA_ID:-}" ] && [ "$CARTERA_ID" != "null" ]; then
+  ap=$(api POST "/gestor/carteras/$CARTERA_ID/apertura" "$GESTOR_TOKEN" '{"latitud":-17.78,"longitud":-63.18}')
   codigo=$(estado "$ap")
   if [ "$codigo" = "201" ] || [ "$codigo" = "200" ]; then
-    ok "apertura registrada: $(cuerpo "$ap" | jq -c '{rutaId, fecha, horaInicio, latitud, longitud}')"
+    ok "apertura registrada: $(cuerpo "$ap" | jq -c '{carteraId, fecha, horaInicio, latitud, longitud}')"
   else
     info "respuesta ($codigo): $(cuerpo "$ap")"
   fi
 else
-  info "sin ruta; se omite la apertura"
+  info "sin cartera; se omite la apertura"
 fi
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ rev=$(api PATCH "/devices/$DEVICE_ID/revocar" "$TOKEN")
 [ "$(estado "$rev")" = "200" ] || { info "respuesta: $(cuerpo "$rev")"; fallo "no se pudo revocar el device."; }
 ok "device revocado (estado=$(cuerpo "$rev" | jq -r .estado))"
 
-sinDevice=$(api POST /auth/cobrador/login "" "{\"usuario\":\"$COBRADOR_USER\",\"password\":\"$COBRADOR_PASS\"}")
+sinDevice=$(api POST /auth/gestor/login "" "{\"usuario\":\"$GESTOR_USER\",\"password\":\"$GESTOR_PASS\"}")
 if [ "$(estado "$sinDevice")" = "201" ] || [ "$(estado "$sinDevice")" = "200" ]; then
   ok "login sin device permitido (no hay device activo)"
 else

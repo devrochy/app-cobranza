@@ -5,35 +5,35 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { PromesaPago } from "../../src/modules/cartera/promesa-pago.entity";
-import { AuditoriaCartera } from "../../src/modules/cartera/auditoria-cartera.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { PromesaPago } from "../../src/modules/clientes/promesa-pago.entity";
+import { AuditoriaCartera } from "../../src/modules/clientes/auditoria-cartera.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
   let promesaRepo: Repository<PromesaPago>;
   let auditoriaRepo: Repository<AuditoriaCartera>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let prestamoId: number;
   let promesaId: number;
 
   const ADMIN_USERNAME = "promaud-e2e-admin";
   const ADMIN_PASSWORD = "Admin#PromAud2026";
-  const PASSWORD = "Socio#PromAud2026";
+  const PASSWORD = "Propietario#PromAud2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-promaud";
@@ -52,9 +52,9 @@ describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
@@ -63,13 +63,13 @@ describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
 
     await promesaRepo.createQueryBuilder().delete().execute();
     await auditoriaRepo.createQueryBuilder().delete().execute();
-    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE ruta_id IN (SELECT id FROM rutas WHERE nombre = 'Ruta PROMAUD'))").execute();
-    await prestamoRepo.createQueryBuilder().delete().where("ruta_id IN (SELECT id FROM rutas WHERE nombre = 'Ruta PROMAUD')").execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id IN (SELECT id FROM rutas WHERE nombre = 'Ruta PROMAUD')").execute();
-    await rutaRepo.delete({ nombre: "Ruta PROMAUD" });
-    await cobradorRepo.delete({ codigo: "CB-PROMAUD-1" });
-    await socioRepo.delete({ codigo: "SC-PROMAUD-1" });
-    await socioRepo.delete({ codigo: "SC-PROMAUD-2" });
+    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE cartera_id IN (SELECT id FROM carteras WHERE nombre = 'Cartera PROMAUD'))").execute();
+    await prestamoRepo.createQueryBuilder().delete().where("cartera_id IN (SELECT id FROM carteras WHERE nombre = 'Cartera PROMAUD')").execute();
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id IN (SELECT id FROM carteras WHERE nombre = 'Cartera PROMAUD')").execute();
+    await carteraRepo.delete({ nombre: "Cartera PROMAUD" });
+    await gestorRepo.delete({ codigo: "CB-PROMAUD-1" });
+    await propietarioRepo.delete({ codigo: "SC-PROMAUD-1" });
+    await propietarioRepo.delete({ codigo: "SC-PROMAUD-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -87,47 +87,47 @@ describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-promaud-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-promaud-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-promaud-1@correo.com",
+      correo: "propietario-promaud-1@correo.com",
       telefono: "+59171160150",
       codigo: "SC-PROMAUD-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-promaud-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-promaud-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-promaud-1@correo.com",
+      correo: "gestor-promaud-1@correo.com",
       telefono: "+59172270150",
       codigo: "CB-PROMAUD-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta PROMAUD",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera PROMAUD",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "PromAud",
@@ -142,7 +142,7 @@ describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
     const clienteId = clienteRes.body.id as number;
 
     const prestamoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId, valor: 400, numCuotas: 2, diasEntreCuotas: 7 });
     prestamoId = prestamoRes.body.id as number;
@@ -162,20 +162,20 @@ describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
   afterAll(async () => {
     await promesaRepo.createQueryBuilder().delete().execute();
     await auditoriaRepo.createQueryBuilder().delete().execute();
-    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE ruta_id = :rutaId)", { rutaId }).execute();
-    await prestamoRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-PROMAUD-1" });
-    await socioRepo.delete({ codigo: "SC-PROMAUD-1" });
-    await socioRepo.delete({ codigo: "SC-PROMAUD-2" });
+    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE cartera_id = :carteraId)", { carteraId }).execute();
+    await prestamoRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-PROMAUD-1" });
+    await propietarioRepo.delete({ codigo: "SC-PROMAUD-1" });
+    await propietarioRepo.delete({ codigo: "SC-PROMAUD-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
   it("GET .../prestamos/:prestamoId/promesas devuelve el historial del préstamo", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/prestamos/${prestamoId}/promesas`)
+      .get(`/carteras/${carteraId}/prestamos/${prestamoId}/promesas`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -192,14 +192,14 @@ describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
 
   it("GET .../promesas sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/prestamos/${prestamoId}/promesas`);
+      .get(`/carteras/${carteraId}/prestamos/${prestamoId}/promesas`);
 
     expect(res.status).toBe(401);
   });
 
   it("PATCH .../promesas/:promesaId/estado transiciona y registra la auditoría", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/promesas/${promesaId}/estado`)
+      .patch(`/carteras/${carteraId}/promesas/${promesaId}/estado`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ estado: "cumplida", motivo: "el cliente pagó su cuota" });
 
@@ -219,7 +219,7 @@ describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
 
   it("PATCH .../estado con motivo vacío -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/promesas/${promesaId}/estado`)
+      .patch(`/carteras/${carteraId}/promesas/${promesaId}/estado`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ estado: "incumplida", motivo: "" });
 
@@ -228,36 +228,36 @@ describe("Promesas/acuerdos como entidades auditables (e2e, HU-34)", () => {
 
   it("PATCH .../estado con estado inválido -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/promesas/${promesaId}/estado`)
+      .patch(`/carteras/${carteraId}/promesas/${promesaId}/estado`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ estado: "pagada", motivo: "prueba" });
 
     expect(res.status).toBe(400);
   });
 
-  it("un socio sin generar_reporte no puede transicionar -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-promaud-2",
+  it("un propietario sin generar_reporte no puede transicionar -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-promaud-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-promaud-2@correo.com",
+      correo: "propietario-promaud-2@correo.com",
       telefono: "+59171160152",
       codigo: "SC-PROMAUD-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-promaud-2", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-promaud-2", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/promesas/${promesaId}/estado`)
-      .set("Authorization", `Bearer ${tokenSocio}`)
+      .patch(`/carteras/${carteraId}/promesas/${promesaId}/estado`)
+      .set("Authorization", `Bearer ${tokenPropietario}`)
       .send({ estado: "incumplida", motivo: "prueba" });
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 });

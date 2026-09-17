@@ -3,38 +3,38 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Socio } from "../socios/socio.entity";
-import { SociosService } from "../socios/socios.service";
-import { PermisosSocioService } from "../socios/permisos-socio.service";
-import { Cobrador } from "../cobradores/cobrador.entity";
-import { CobradoresService } from "../cobradores/cobradores.service";
-import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
+import { Propietario } from "../propietarios/propietario.entity";
+import { PropietariosService } from "../propietarios/propietarios.service";
+import { PermisosPropietarioService } from "../propietarios/permisos-propietario.service";
+import { Gestor } from "../gestores/gestor.entity";
+import { GestoresService } from "../gestores/gestores.service";
+import { GestoresPermisosService } from "../gestores/gestores-permisos.service";
 import { PasswordService } from "../security/password.service";
 import { Device } from "../sincronizacion-offline/device.entity";
-import { Ruta } from "../rutas/ruta.entity";
-import { RutasService } from "../rutas/rutas.service";
-import { RutaConfigService } from "../rutas/ruta-config.service";
-import { RutaOptimizacionService } from "../rutas/ruta-optimizacion.service";
-import { GastosService } from "../rutas/gastos.service";
-import { InyeccionesService } from "../rutas/inyecciones.service";
-import { RutasNotasService } from "../rutas/rutas-notas.service";
-import { LiquidacionesService } from "../rutas/liquidaciones.service";
-import { TrayectoriasService } from "../rutas/trayectorias.service";
-import { ClienteService } from "../cartera/cliente.service";
-import { PrestamoService } from "../cartera/prestamo.service";
-import { PagosService } from "../cartera/pagos.service";
-import { AbonosService } from "../cartera/abonos.service";
-import { Cuota } from "../cartera/cuota.entity";
-import { Prestamo } from "../cartera/prestamo.entity";
-import { ArchivoSubido } from "../cartera/cliente.service";
+import { Cartera } from "../carteras/cartera.entity";
+import { CarterasService } from "../carteras/carteras.service";
+import { CarteraConfigService } from "../carteras/cartera-config.service";
+import { CarteraOptimizacionService } from "../carteras/cartera-optimizacion.service";
+import { GastosService } from "../carteras/gastos.service";
+import { InyeccionesService } from "../carteras/inyecciones.service";
+import { CarterasNotasService } from "../carteras/carteras-notas.service";
+import { LiquidacionesService } from "../carteras/liquidaciones.service";
+import { TrayectoriasService } from "../carteras/trayectorias.service";
+import { ClienteService } from "../clientes/cliente.service";
+import { PrestamoService } from "../clientes/prestamo.service";
+import { PagosService } from "../clientes/pagos.service";
+import { AbonosService } from "../clientes/abonos.service";
+import { Cuota } from "../clientes/cuota.entity";
+import { Prestamo } from "../clientes/prestamo.entity";
+import { ArchivoSubido } from "../clientes/cliente.service";
 
 const PASSWORD_PRUEBA = "test-password";
-const MARCADOR_SOCIO = "test-socio-1";
+const MARCADOR_PROPIETARIO = "test-propietario-1";
 
 /**
- * Matriz de permisos de la APK para los cobradores de prueba (ver_cartera +
+ * Matriz de permisos de la APK para los gestores de prueba (ver_cartera +
  * operaciones de campo). Sin ellos, la APK recibe 403 en sus endpoints
- * (matriz cobrador_permisos vacía → todo deshabilitado).
+ * (matriz gestor_permisos vacía → todo deshabilitado).
  */
 const PERMISOS_APK = {
   registrar_prestamo: true,
@@ -42,7 +42,7 @@ const PERMISOS_APK = {
   registrar_abono: true,
   registrar_gasto: true,
   registrar_no_pago: true,
-  anotar_notas_ruta: true,
+  anotar_notas_cartera: true,
   actualizar_cliente: true,
   eliminar_prestamo: true,
   eliminar_pago: true,
@@ -56,7 +56,7 @@ const PERMISOS_APK = {
 /**
  * Seed de datos de prueba para desarrollo local (pruebas visuales del panel).
  * - Gate: solo corre si `SEED_TEST_DATA=true` (nunca en producción).
- * - Idempotente: si ya existe el socio marcador `test-socio-1`, se omite.
+ * - Idempotente: si ya existe el propietario marcador `test-propietario-1`, se omite.
  * - Usa los servicios reales del dominio (generación de cuotas, caja, geography,
  *   hash de password) para que los datos sean coherentes con la operación.
  * - Todos los datos son sintéticos con prefijos `test-`.
@@ -69,35 +69,35 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     private readonly config: ConfigService,
     @InjectRepository(AdminUser)
     private readonly adminRepo: Repository<AdminUser>,
-    @InjectRepository(Socio)
-    private readonly socioRepo: Repository<Socio>,
+    @InjectRepository(Propietario)
+    private readonly propietarioRepo: Repository<Propietario>,
     @InjectRepository(Cuota)
     private readonly cuotaRepo: Repository<Cuota>,
-    @InjectRepository(Cobrador)
-    private readonly cobradorRepo: Repository<Cobrador>,
-    @InjectRepository(Ruta)
-    private readonly rutaRepo: Repository<Ruta>,
+    @InjectRepository(Gestor)
+    private readonly gestorRepo: Repository<Gestor>,
+    @InjectRepository(Cartera)
+    private readonly carteraRepo: Repository<Cartera>,
     @InjectRepository(Prestamo)
     private readonly prestamoRepo: Repository<Prestamo>,
     @InjectRepository(Device)
     private readonly deviceRepo: Repository<Device>,
     private readonly password: PasswordService,
-    private readonly sociosService: SociosService,
-    private readonly permisosSocio: PermisosSocioService,
-    private readonly cobradoresService: CobradoresService,
-    private readonly cobradoresPermisos: CobradoresPermisosService,
-    private readonly rutasService: RutasService,
-    private readonly rutaConfigService: RutaConfigService,
+    private readonly propietariosService: PropietariosService,
+    private readonly permisosPropietario: PermisosPropietarioService,
+    private readonly gestoresService: GestoresService,
+    private readonly gestoresPermisos: GestoresPermisosService,
+    private readonly carterasService: CarterasService,
+    private readonly carteraConfigService: CarteraConfigService,
     private readonly clienteService: ClienteService,
     private readonly prestamoService: PrestamoService,
     private readonly pagosService: PagosService,
     private readonly abonosService: AbonosService,
     private readonly gastosService: GastosService,
     private readonly inyeccionesService: InyeccionesService,
-    private readonly notasService: RutasNotasService,
+    private readonly notasService: CarterasNotasService,
     private readonly liquidacionesService: LiquidacionesService,
     private readonly trayectoriasService: TrayectoriasService,
-    private readonly rutaOptimizacionService: RutaOptimizacionService,
+    private readonly carteraOptimizacionService: CarteraOptimizacionService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -124,15 +124,15 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       );
       return;
     }
-    const existe = await this.socioRepo.findOne({ where: { usuario: MARCADOR_SOCIO } });
+    const existe = await this.propietarioRepo.findOne({ where: { usuario: MARCADOR_PROPIETARIO } });
     if (!existe) {
       const requester = { rol: "admin" as const, sub: admin.id };
       await this.semilla(requester);
-      this.logger.log("Data de prueba cargada (socios, cobradores, rutas, cartera, operación).");
+      this.logger.log("Data de prueba cargada (propietarios, gestores, carteras, cartera, operación).");
       return;
     }
 
-    // El socio marcador ya existe: re-sincroniza los permisos de la APK y
+    // El propietario marcador ya existe: re-sincroniza los permisos de la APK y
     // siembra la cartera de prueba (préstamos + pagos + abonos) si falta.
     const requester = { rol: "admin" as const, sub: admin.id };
     await this.sincronizarDataDePrueba(requester);
@@ -140,58 +140,58 @@ export class TestDataSeedService implements OnApplicationBootstrap {
   }
 
   private async sincronizarDataDePrueba(requester: { rol: "admin"; sub: number }): Promise<void> {
-    const socio = await this.socioRepo.findOne({ where: { usuario: MARCADOR_SOCIO } });
-    if (!socio) {
+    const propietario = await this.propietarioRepo.findOne({ where: { usuario: MARCADOR_PROPIETARIO } });
+    if (!propietario) {
       return;
     }
 
-    // Permisos APK habilitados para todos los cobradores del socio de prueba.
-    const cobradores = await this.cobradorRepo.find({
-      where: { socio: { id: socio.id } },
+    // Permisos APK habilitados para todos los gestores del propietario de prueba.
+    const gestores = await this.gestorRepo.find({
+      where: { propietario: { id: propietario.id } },
     });
-    for (const cobrador of cobradores) {
-      await this.cobradoresPermisos.setMatriz(cobrador.id, PERMISOS_APK);
+    for (const gestor of gestores) {
+      await this.gestoresPermisos.setMatriz(gestor.id, PERMISOS_APK);
     }
 
-    // Cartera: préstamos + pagos + abonos si la ruta aún no tiene préstamos.
-    const rutas = await this.rutaRepo.find({
-      where: { socio: { id: socio.id } },
+    // Cartera: préstamos + pagos + abonos si la cartera aún no tiene préstamos.
+    const carteras = await this.carteraRepo.find({
+      where: { propietario: { id: propietario.id } },
     });
-    for (const ruta of rutas) {
-      const total = await this.prestamoRepo.count({ where: { ruta: { id: ruta.id } } });
+    for (const cartera of carteras) {
+      const total = await this.prestamoRepo.count({ where: { cartera: { id: cartera.id } } });
       if (total === 0) {
-        const clientes = await this.clienteService.listar(ruta.id, requester);
+        const clientes = await this.clienteService.listar(cartera.id, requester);
         await this.sembrarPrestamosYPagos(
-          ruta.id,
+          cartera.id,
           clientes.map((c) => ({ id: c.id })),
-          ruta.nombre === "test-Ruta Centro",
+          cartera.nombre === "test-Cartera Centro",
           requester,
         );
       }
     }
 
-    // Manizales: crea la ruta demo (COP) si aún no existe.
-    const manizales = rutas.find((r) => r.nombre === "test-Ruta Manizales");
+    // Manizales: crea la cartera demo (COP) si aún no existe.
+    const manizales = carteras.find((r) => r.nombre === "test-Cartera Manizales");
     if (!manizales) {
-      const cobrador = cobradores[0];
-      if (cobrador) {
-        await this.sembrarManizales(cobrador.id, socio.id, requester);
+      const gestor = gestores[0];
+      if (gestor) {
+        await this.sembrarManizales(gestor.id, propietario.id, requester);
       }
     }
 
-    // Ruta inactiva: crea una ruta en estado "bloqueado" si aún no existe, para
-    // que la APK muestre la tarjeta de ruta no activa (roja/opaca).
-    const inactiva = rutas.find((r) => r.nombre === "test-Ruta Inactiva");
+    // Cartera inactiva: crea una cartera en estado "bloqueado" si aún no existe, para
+    // que la APK muestre la tarjeta de cartera no activa (roja/opaca).
+    const inactiva = carteras.find((r) => r.nombre === "test-Cartera Inactiva");
     if (!inactiva) {
-      const cobrador = cobradores[0];
-      if (cobrador) {
-        await this.sembrarRutaInactiva(cobrador.id, socio.id, requester);
+      const gestor = gestores[0];
+      if (gestor) {
+        await this.sembrarCarteraInactiva(gestor.id, propietario.id, requester);
       }
     }
   }
 
   private async sembrarPrestamosYPagos(
-    rutaId: number,
+    carteraId: number,
     clientes: { id: number }[],
     conMora: boolean,
     requester: { rol: "admin"; sub: number },
@@ -200,7 +200,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     const rango = conMora ? clientes.slice(0, 6) : clientes;
     for (const cliente of rango) {
       await this.prestamoService.crear(
-        rutaId,
+        carteraId,
         {
           clienteId: cliente.id,
           valor: conMora
@@ -214,72 +214,72 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       );
     }
 
-    await this.pagarAlgunasCuotas(rutaId, requester);
-    await this.registrarAbonoParcial(rutaId, requester);
+    await this.pagarAlgunasCuotas(carteraId, requester);
+    await this.registrarAbonoParcial(carteraId, requester);
   }
 
   private async semilla(requester: { rol: "admin"; sub: number }): Promise<void> {
-    const socio = await this.sociosService.create({
-      usuario: MARCADOR_SOCIO,
+    const propietario = await this.propietariosService.create({
+      usuario: MARCADOR_PROPIETARIO,
       password: PASSWORD_PRUEBA,
-      nombre: "test-Socio",
+      nombre: "test-Propietario",
       apellido: "Demo",
-      correo: "test-socio-1@correo.test",
+      correo: "test-propietario-1@correo.test",
       telefono: "+59170000001",
       codigo: "TEST-SC-001",
       moneda: "BOB",
       estatus: "activo",
     });
-    await this.permisosSocio.setMatriz(socio.id, {
-      configurar_ruta: true,
+    await this.permisosPropietario.setMatriz(propietario.id, {
+      configurar_cartera: true,
       ver_reportes: true,
       generar_reporte: true,
       descargar_reporte: true,
       registrar_gasto: true,
       eliminar_gastos: true,
       eliminar_inyeccion: true,
-      anotar_notas_ruta: true,
+      anotar_notas_cartera: true,
       actualizar_cliente: true,
-      registrar_ruta: true,
-      registrar_cobrador: true,
+      registrar_cartera: true,
+      registrar_gestor: true,
     });
 
-    const cobradorA = await this.cobradoresService.create({
-      socioId: socio.id,
-      usuario: "test-cobrador-1",
+    const gestorA = await this.gestoresService.create({
+      propietarioId: propietario.id,
+      usuario: "test-gestor-1",
       password: PASSWORD_PRUEBA,
       nombre: "test-Carlos",
       apellido: "Lopez",
-      correo: "test-cobrador-1@correo.test",
+      correo: "test-gestor-1@correo.test",
       telefono: "+59170000002",
       codigo: "TEST-CB-001",
       estatus: "activo",
     });
-    const cobradorB = await this.cobradoresService.create({
-      socioId: socio.id,
-      usuario: "test-cobrador-2",
+    const gestorB = await this.gestoresService.create({
+      propietarioId: propietario.id,
+      usuario: "test-gestor-2",
       password: PASSWORD_PRUEBA,
       nombre: "test-Pedro",
       apellido: "Gomez",
-      correo: "test-cobrador-2@correo.test",
+      correo: "test-gestor-2@correo.test",
       telefono: "+59170000003",
       codigo: "TEST-CB-002",
       estatus: "activo",
     });
 
-    // Permisos de la APK para los cobradores de prueba (ver_cartera y
+    // Permisos de la APK para los gestores de prueba (ver_cartera y
     // operaciones de campo). Sin ellos, la APK recibe 403 en todos sus
-    // endpoints (matriz cobrador_permisos vacía → todo deshabilitado).
-    await this.cobradoresPermisos.setMatriz(cobradorA.id, PERMISOS_APK);
-    await this.cobradoresPermisos.setMatriz(cobradorB.id, PERMISOS_APK);
+    // endpoints (matriz gestor_permisos vacía → todo deshabilitado).
+    await this.gestoresPermisos.setMatriz(gestorA.id, PERMISOS_APK);
+    await this.gestoresPermisos.setMatriz(gestorB.id, PERMISOS_APK);
 
-    // Ruta A: fotos de cliente requeridas + fechas editables (préstamos atrasados → mora).
-    const rutaA = await this.rutasService.create(
+    // Cartera A: fotos de cliente requeridas + fechas editables (préstamos atrasados → mora).
+    const carteraA = await this.carterasService.create(
       {
-        nombre: "test-Ruta Centro",
-        descripcion: "Ruta demo céntrica",
-        socioId: socio.id,
-        cobradorId: cobradorA.id,
+        nombre: "test-Cartera Centro",
+        descripcion: "Cartera demo céntrica",
+        propietarioId: propietario.id,
+        gestorId: gestorA.id,
         tipoInteres: 20,
         numCuotas: 8,
         moneda: "BOB",
@@ -288,8 +288,8 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       },
       requester,
     );
-    await this.rutaConfigService.setMatriz(
-      rutaA.id,
+    await this.carteraConfigService.setMatriz(
+      carteraA.id,
       {
         reconocimientoFacialActivo: true,
         registroDocumentoCliente: true,
@@ -301,7 +301,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       requester,
     );
 
-    // Dispositivo vinculado al cobrador A para probar el modo offline de la APK
+    // Dispositivo vinculado al gestor A para probar el modo offline de la APK
     // (HU-64). API key conocida: <codigo>.<secreto> — el codigo es fijo para que
     // la APK de prueba pueda usarla desde .env.local.
     const deviceCodigo = "00000000-0000-4000-8000-000000000001";
@@ -310,8 +310,8 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       this.deviceRepo.create({
         codigo: deviceCodigo,
         apiKeyHash: await this.password.hash(deviceSecreto),
-        cobradorId: cobradorA.id,
-        rutaId: rutaA.id,
+        gestorId: gestorA.id,
+        carteraId: carteraA.id,
         estado: "activo",
         fechaVinculacion: new Date(),
       }),
@@ -320,12 +320,12 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       `Device de prueba APK: api key = ${deviceCodigo}.${deviceSecreto}`,
     );
 
-    const rutaB = await this.rutasService.create(
+    const carteraB = await this.carterasService.create(
       {
-        nombre: "test-Ruta Norte",
-        descripcion: "Ruta demo norte",
-        socioId: socio.id,
-        cobradorId: cobradorB.id,
+        nombre: "test-Cartera Norte",
+        descripcion: "Cartera demo norte",
+        propietarioId: propietario.id,
+        gestorId: gestorB.id,
         tipoInteres: 15,
         numCuotas: 6,
         moneda: "BOB",
@@ -335,12 +335,12 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       requester,
     );
 
-    const clientesA = await this.seedClientes(rutaA.id, "A", 8, requester);
-    const clientesB = await this.seedClientes(rutaB.id, "B", 8, requester);
+    const clientesA = await this.seedClientes(carteraA.id, "A", 8, requester);
+    const clientesB = await this.seedClientes(carteraB.id, "B", 8, requester);
 
     // Norte también habilita borrar pagos/abonos y generar reportes en la APK.
-    await this.rutaConfigService.setMatriz(
-      rutaB.id,
+    await this.carteraConfigService.setMatriz(
+      carteraB.id,
       {
         eliminarPagosApk: true,
         eliminarAbonosApk: true,
@@ -349,63 +349,63 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       requester,
     );
 
-    // Préstamos con mora (hace ~25 días) en ruta A; recientes en ruta B.
+    // Préstamos con mora (hace ~25 días) en cartera A; recientes en cartera B.
     // Pagos "de hoy" de algunas cuotas + abono parcial FIFO (canvas de cuotas).
-    await this.sembrarPrestamosYPagos(rutaA.id, clientesA, true, requester);
-    await this.sembrarPrestamosYPagos(rutaB.id, clientesB, false, requester);
+    await this.sembrarPrestamosYPagos(carteraA.id, clientesA, true, requester);
+    await this.sembrarPrestamosYPagos(carteraB.id, clientesB, false, requester);
 
     // Gastos (uno con evidencia, uno aprobado) + inyecciones + notas.
     const gasto = await this.gastosService.registrar(
-      rutaA.id,
+      carteraA.id,
       { descripcion: "test-Combustible", valor: 120 },
       [this.evidenciaPlaceholder("factura-test.pdf")],
       requester,
     );
-    await this.gastosService.aprobar(rutaA.id, gasto.id, requester);
+    await this.gastosService.aprobar(carteraA.id, gasto.id, requester);
     await this.gastosService.registrar(
-      rutaA.id,
+      carteraA.id,
       { descripcion: "test-Limpieza", valor: 40 },
       [],
       requester,
     );
     await this.inyeccionesService.crear(
-      rutaA.id,
+      carteraA.id,
       { valor: 1500, comentario: "test-Aporte inicial" },
       requester,
     );
     await this.inyeccionesService.crear(
-      rutaB.id,
+      carteraB.id,
       { valor: 900, comentario: "test-Aporte semanal" },
       requester,
     );
-    await this.notasService.crear(rutaA.id, { nota: "test-Nota: cliente X amplió plazo" }, requester);
+    await this.notasService.crear(carteraA.id, { nota: "test-Nota: cliente X amplió plazo" }, requester);
 
     await this.liquidacionesService.generar(
-      rutaA.id,
+      carteraA.id,
       { comentario: "test-liquidacion demo" },
       requester,
     );
-    await this.trayectoriasService.generarReporteDiario(rutaA.id, requester);
+    await this.trayectoriasService.generarReporteDiario(carteraA.id, requester);
 
-    // Ruta de prueba en Manizales (COP) con clientes de nombres reales,
+    // Cartera de prueba en Manizales (COP) con clientes de nombres reales,
     // multi-préstamo y trayecto planificado generado (pruebas de trayectos/día).
-    await this.sembrarManizales(cobradorA.id, socio.id, requester);
+    await this.sembrarManizales(gestorA.id, propietario.id, requester);
 
-    // Ruta inactiva (bloqueada) para ver la tarjeta no activa en la APK.
-    await this.sembrarRutaInactiva(cobradorA.id, socio.id, requester);
+    // Cartera inactiva (bloqueada) para ver la tarjeta no activa en la APK.
+    await this.sembrarCarteraInactiva(gestorA.id, propietario.id, requester);
   }
 
   private async sembrarManizales(
-    cobradorId: number,
-    socioId: number,
+    gestorId: number,
+    propietarioId: number,
     requester: { rol: "admin"; sub: number },
   ): Promise<void> {
-    const ruta = await this.rutasService.create(
+    const cartera = await this.carterasService.create(
       {
-        nombre: "test-Ruta Manizales",
-        descripcion: "Ruta demo Manizales (COP)",
-        socioId,
-        cobradorId,
+        nombre: "test-Cartera Manizales",
+        descripcion: "Cartera demo Manizales (COP)",
+        propietarioId,
+        gestorId,
         tipoInteres: 22,
         numCuotas: 6,
         moneda: "COP",
@@ -414,8 +414,8 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       },
       requester,
     );
-    await this.rutaConfigService.setMatriz(
-      ruta.id,
+    await this.carteraConfigService.setMatriz(
+      cartera.id,
       {
         reconocimientoFacialActivo: true,
         registroDocumentoCliente: true,
@@ -442,7 +442,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     for (let i = 0; i < datosClientes.length; i++) {
       const dato = datosClientes[i];
       const cliente = await this.clienteService.crear(
-        ruta.id,
+        cartera.id,
         {
           nombre: dato.nombre,
           apellido: dato.apellido,
@@ -464,7 +464,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     // - id % 3 === 2: segundo cancelado + tercero vigente (3 préstamos).
     for (const cliente of clientes) {
       const prestamo = await this.prestamoService.crear(
-        ruta.id,
+        cartera.id,
         {
           clienteId: cliente.id,
           valor: 500000 + (Math.round(cliente.id * 137) % 300000),
@@ -475,7 +475,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       );
       if (cliente.id % 3 === 1) {
         const extra = await this.prestamoService.crear(
-          ruta.id,
+          cartera.id,
           {
             clienteId: cliente.id,
             valor: 200000,
@@ -492,7 +492,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         }
       } else if (cliente.id % 3 === 2) {
         const extra = await this.prestamoService.crear(
-          ruta.id,
+          cartera.id,
           {
             clienteId: cliente.id,
             valor: 250000,
@@ -507,28 +507,28 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       }
     }
 
-    await this.pagarAlgunasCuotas(ruta.id, requester);
-    await this.registrarAbonoParcial(ruta.id, requester);
-    await this.rutaOptimizacionService.generar(ruta.id, requester);
+    await this.pagarAlgunasCuotas(cartera.id, requester);
+    await this.registrarAbonoParcial(cartera.id, requester);
+    await this.carteraOptimizacionService.generar(cartera.id, requester);
   }
 
-  private async sembrarRutaInactiva(
-    cobradorId: number,
-    socioId: number,
+  private async sembrarCarteraInactiva(
+    gestorId: number,
+    propietarioId: number,
     requester: { rol: "admin"; sub: number },
   ): Promise<void> {
-    const existente = await this.rutaRepo.findOne({
-      where: { nombre: "test-Ruta Inactiva" },
+    const existente = await this.carteraRepo.findOne({
+      where: { nombre: "test-Cartera Inactiva" },
     });
     if (existente) {
       return;
     }
-    const ruta = await this.rutasService.create(
+    const cartera = await this.carterasService.create(
       {
-        nombre: "test-Ruta Inactiva",
-        descripcion: "Ruta demo inactiva (bloqueada) para pruebas de la APK",
-        socioId,
-        cobradorId,
+        nombre: "test-Cartera Inactiva",
+        descripcion: "Cartera demo inactiva (bloqueada) para pruebas de la APK",
+        propietarioId,
+        gestorId,
         tipoInteres: 18,
         numCuotas: 6,
         moneda: "BOB",
@@ -537,14 +537,14 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       },
       requester,
     );
-    // Marca la ruta como bloqueada: en el dominio no existe "inactivo", el
+    // Marca la cartera como bloqueada: en el dominio no existe "inactivo", el
     // estado no-activo disponible es "bloqueado". La APK la muestra como
     // tarjeta roja/opaca (estatus !== "activo").
-    await this.rutaRepo.update(ruta.id, { estatus: "bloqueado" });
+    await this.carteraRepo.update(cartera.id, { estatus: "bloqueado" });
   }
 
   private async seedClientes(
-    rutaId: number,
+    carteraId: number,
     sufijo: string,
     cantidad: number,
     requester: { rol: "admin"; sub: number },
@@ -552,7 +552,7 @@ export class TestDataSeedService implements OnApplicationBootstrap {
     const clientes: { id: number }[] = [];
     for (let i = 0; i < cantidad; i++) {
       const cliente = await this.clienteService.crear(
-        rutaId,
+        carteraId,
         {
           nombre: `test-Cliente${sufijo}${i + 1}`,
           apellido: "Perez",
@@ -572,17 +572,17 @@ export class TestDataSeedService implements OnApplicationBootstrap {
   }
 
   private async pagarAlgunasCuotas(
-    rutaId: number,
+    carteraId: number,
     requester: { rol: "admin"; sub: number },
   ): Promise<void> {
     const cuotas = await this.cuotaRepo.find({
-      where: { prestamo: { ruta: { id: rutaId } }, estatus: "pendiente" },
+      where: { prestamo: { cartera: { id: carteraId } }, estatus: "pendiente" },
       take: 3,
       order: { id: "ASC" },
     });
     for (const cuota of cuotas) {
       await this.pagosService.registrarPagoDeCuota(
-        rutaId,
+        carteraId,
         { cuotaId: cuota.id, valor: cuota.valorEsperado, metodoPago: "efectivo" },
         requester,
       );
@@ -590,18 +590,18 @@ export class TestDataSeedService implements OnApplicationBootstrap {
   }
 
   private async registrarAbonoParcial(
-    rutaId: number,
+    carteraId: number,
     requester: { rol: "admin"; sub: number },
   ): Promise<void> {
     const cuota = await this.cuotaRepo.findOne({
-      where: { prestamo: { ruta: { id: rutaId } }, estatus: "pendiente" },
+      where: { prestamo: { cartera: { id: carteraId } }, estatus: "pendiente" },
       order: { id: "ASC" },
     });
     if (!cuota) {
       return;
     }
     await this.abonosService.registrarAbono(
-      rutaId,
+      carteraId,
       { prestamoId: cuota.prestamoId, valor: 100, metodoPago: "efectivo" },
       requester,
     );

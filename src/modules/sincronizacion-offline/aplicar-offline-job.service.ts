@@ -22,7 +22,7 @@ export class AplicarOfflineJob {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async reintentarPendientes(): Promise<void> {
     const devices = await this.deviceRepo.find({
-      where: { estado: "activo", rutaId: Not(IsNull()) },
+      where: { estado: "activo", carteraId: Not(IsNull()) },
     });
     for (const device of devices) {
       try {

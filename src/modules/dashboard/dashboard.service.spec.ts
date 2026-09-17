@@ -1,15 +1,15 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Abono } from "../cartera/abono.entity";
-import { Cliente } from "../cartera/cliente.entity";
-import { Cuota } from "../cartera/cuota.entity";
-import { Pago } from "../cartera/pago.entity";
-import { Prestamo } from "../cartera/prestamo.entity";
-import { Gasto } from "../rutas/gasto.entity";
-import { Liquidacion } from "../rutas/liquidacion.entity";
-import { Ruta } from "../rutas/ruta.entity";
-import { Socio } from "../socios/socio.entity";
+import { Abono } from "../clientes/abono.entity";
+import { Cliente } from "../clientes/cliente.entity";
+import { Cuota } from "../clientes/cuota.entity";
+import { Pago } from "../clientes/pago.entity";
+import { Prestamo } from "../clientes/prestamo.entity";
+import { Gasto } from "../carteras/gasto.entity";
+import { Liquidacion } from "../carteras/liquidacion.entity";
+import { Cartera } from "../carteras/cartera.entity";
+import { Propietario } from "../propietarios/propietario.entity";
 import { DashboardService } from "./dashboard.service";
 
 describe("DashboardService", () => {
@@ -19,8 +19,8 @@ describe("DashboardService", () => {
   let abonoRepo: Repository<Abono>;
   let gastoRepo: Repository<Gasto>;
   let liquidacionRepo: Repository<Liquidacion>;
-  let rutaRepo: Repository<Ruta>;
-  let socioRepo: Repository<Socio>;
+  let carteraRepo: Repository<Cartera>;
+  let propietarioRepo: Repository<Propietario>;
 
   const mockRepo = () => ({ sum: jest.fn(), count: jest.fn(), find: jest.fn() });
 
@@ -31,8 +31,8 @@ describe("DashboardService", () => {
     abono: mockRepo(),
     gasto: mockRepo(),
     liquidacion: mockRepo(),
-    ruta: mockRepo(),
-    socio: mockRepo(),
+    cartera: mockRepo(),
+    propietario: mockRepo(),
     cliente: mockRepo(),
   };
 
@@ -47,8 +47,8 @@ describe("DashboardService", () => {
         { provide: getRepositoryToken(Abono), useValue: repos.abono },
         { provide: getRepositoryToken(Gasto), useValue: repos.gasto },
         { provide: getRepositoryToken(Liquidacion), useValue: repos.liquidacion },
-        { provide: getRepositoryToken(Ruta), useValue: repos.ruta },
-        { provide: getRepositoryToken(Socio), useValue: repos.socio },
+        { provide: getRepositoryToken(Cartera), useValue: repos.cartera },
+        { provide: getRepositoryToken(Propietario), useValue: repos.propietario },
         { provide: getRepositoryToken(Cliente), useValue: repos.cliente },
       ],
     }).compile();
@@ -59,8 +59,8 @@ describe("DashboardService", () => {
     abonoRepo = module.get(getRepositoryToken(Abono));
     gastoRepo = module.get(getRepositoryToken(Gasto));
     liquidacionRepo = module.get(getRepositoryToken(Liquidacion));
-    rutaRepo = module.get(getRepositoryToken(Ruta));
-    socioRepo = module.get(getRepositoryToken(Socio));
+    carteraRepo = module.get(getRepositoryToken(Cartera));
+    propietarioRepo = module.get(getRepositoryToken(Propietario));
   });
 
   it("consolida los indicadores financieros", async () => {
@@ -70,8 +70,8 @@ describe("DashboardService", () => {
     (repos.abono.sum as jest.Mock).mockResolvedValue(100);
     (repos.gasto.sum as jest.Mock).mockResolvedValue(200);
     (repos.liquidacion.sum as jest.Mock).mockResolvedValue(80);
-    (repos.ruta.count as jest.Mock).mockResolvedValue(3);
-    (repos.socio.count as jest.Mock).mockResolvedValue(2);
+    (repos.cartera.count as jest.Mock).mockResolvedValue(3);
+    (repos.propietario.count as jest.Mock).mockResolvedValue(2);
     (repos.cliente.count as jest.Mock).mockResolvedValue(50);
     (repos.prestamo.count as jest.Mock).mockResolvedValue(15);
 
@@ -84,8 +84,8 @@ describe("DashboardService", () => {
     expect(result.cobradoSemana).toBe(400);
     expect(result.gastosPeriodo).toBe(200);
     expect(result.comisionesPeriodo).toBe(80);
-    expect(result.rutasActivas).toBe(3);
-    expect(result.sociosActivos).toBe(2);
+    expect(result.carterasActivas).toBe(3);
+    expect(result.propietariosActivos).toBe(2);
     expect(result.clientesActivos).toBe(50);
     expect(result.prestamosVigentes).toBe(15);
   });
@@ -96,8 +96,8 @@ describe("DashboardService", () => {
     (repos.abono.sum as jest.Mock).mockResolvedValue(null);
     (repos.gasto.sum as jest.Mock).mockResolvedValue(null);
     (repos.liquidacion.sum as jest.Mock).mockResolvedValue(null);
-    (repos.ruta.count as jest.Mock).mockResolvedValue(0);
-    (repos.socio.count as jest.Mock).mockResolvedValue(0);
+    (repos.cartera.count as jest.Mock).mockResolvedValue(0);
+    (repos.propietario.count as jest.Mock).mockResolvedValue(0);
     (repos.cliente.count as jest.Mock).mockResolvedValue(0);
     (repos.prestamo.count as jest.Mock).mockResolvedValue(0);
 
@@ -115,8 +115,8 @@ describe("DashboardService", () => {
     (repos.abono.sum as jest.Mock).mockResolvedValue(null);
     (repos.gasto.sum as jest.Mock).mockResolvedValue(null);
     (repos.liquidacion.sum as jest.Mock).mockResolvedValue(null);
-    (repos.ruta.count as jest.Mock).mockResolvedValue(0);
-    (repos.socio.count as jest.Mock).mockResolvedValue(0);
+    (repos.cartera.count as jest.Mock).mockResolvedValue(0);
+    (repos.propietario.count as jest.Mock).mockResolvedValue(0);
     (repos.cliente.count as jest.Mock).mockResolvedValue(0);
     (repos.prestamo.count as jest.Mock).mockResolvedValue(0);
 
@@ -144,8 +144,8 @@ describe("DashboardService", () => {
     (repos.abono.sum as jest.Mock).mockResolvedValue(50);
     (repos.gasto.sum as jest.Mock).mockResolvedValue(30);
     (repos.liquidacion.sum as jest.Mock).mockResolvedValue(10);
-    (repos.ruta.count as jest.Mock).mockResolvedValue(0);
-    (repos.socio.count as jest.Mock).mockResolvedValue(0);
+    (repos.cartera.count as jest.Mock).mockResolvedValue(0);
+    (repos.propietario.count as jest.Mock).mockResolvedValue(0);
     (repos.cliente.count as jest.Mock).mockResolvedValue(0);
     (repos.prestamo.count as jest.Mock).mockResolvedValue(0);
 
@@ -176,8 +176,8 @@ describe("DashboardService", () => {
     (repos.abono.sum as jest.Mock).mockResolvedValue(null);
     (repos.gasto.sum as jest.Mock).mockResolvedValue(null);
     (repos.liquidacion.sum as jest.Mock).mockResolvedValue(null);
-    (repos.ruta.count as jest.Mock).mockResolvedValue(0);
-    (repos.socio.count as jest.Mock).mockResolvedValue(0);
+    (repos.cartera.count as jest.Mock).mockResolvedValue(0);
+    (repos.propietario.count as jest.Mock).mockResolvedValue(0);
     (repos.cliente.count as jest.Mock).mockResolvedValue(0);
     (repos.prestamo.count as jest.Mock).mockResolvedValue(0);
 
@@ -193,70 +193,70 @@ describe("DashboardService", () => {
     expect(inicioSemana?.toISOString()).toBe("2026-08-20T00:00:00.000Z");
   });
 
-  it("filtra por rutaId en todos los agregados", async () => {
+  it("filtra por carteraId en todos los agregados", async () => {
     (repos.cuota.sum as jest.Mock).mockResolvedValue(null);
     (repos.cuota.count as jest.Mock).mockResolvedValue(0);
     (repos.pago.sum as jest.Mock).mockResolvedValue(null);
     (repos.abono.sum as jest.Mock).mockResolvedValue(null);
     (repos.gasto.sum as jest.Mock).mockResolvedValue(null);
     (repos.liquidacion.sum as jest.Mock).mockResolvedValue(null);
-    (repos.ruta.count as jest.Mock).mockResolvedValue(0);
-    (repos.socio.count as jest.Mock).mockResolvedValue(0);
+    (repos.cartera.count as jest.Mock).mockResolvedValue(0);
+    (repos.propietario.count as jest.Mock).mockResolvedValue(0);
     (repos.cliente.count as jest.Mock).mockResolvedValue(0);
     (repos.prestamo.count as jest.Mock).mockResolvedValue(0);
-    (repos.ruta.find as jest.Mock).mockResolvedValue([{ id: 6, socioId: 3 }]);
+    (repos.cartera.find as jest.Mock).mockResolvedValue([{ id: 6, propietarioId: 3 }]);
 
-    await service.obtener(new Date("2026-08-26T00:00:00Z"), { rutaId: 6 });
+    await service.obtener(new Date("2026-08-26T00:00:00Z"), { carteraId: 6 });
 
     expect(cuotaRepo.sum).toHaveBeenCalledWith(
       "valorEsperado",
       expect.objectContaining({
-        prestamo: expect.objectContaining({ ruta: expect.any(Object) }),
+        prestamo: expect.objectContaining({ cartera: expect.any(Object) }),
       }),
     );
     expect(pagoRepo.sum).toHaveBeenCalledWith(
       "valor",
       expect.objectContaining({
-        cliente: expect.objectContaining({ ruta: expect.any(Object) }),
+        cliente: expect.objectContaining({ cartera: expect.any(Object) }),
       }),
     );
     expect(gastoRepo.sum).toHaveBeenCalledWith(
       "valor",
       expect.objectContaining({
-        ruta: expect.any(Object),
+        cartera: expect.any(Object),
         aprobado: true,
         estado: "activo",
       }),
     );
-    expect(rutaRepo.count).toHaveBeenCalledWith(
+    expect(carteraRepo.count).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: expect.any(Object) }),
       }),
     );
   });
 
-  it("filtra por socioId resolviendo sus rutas", async () => {
+  it("filtra por propietarioId resolviendo sus carteras", async () => {
     (repos.cuota.sum as jest.Mock).mockResolvedValue(null);
     (repos.cuota.count as jest.Mock).mockResolvedValue(0);
     (repos.pago.sum as jest.Mock).mockResolvedValue(null);
     (repos.abono.sum as jest.Mock).mockResolvedValue(null);
     (repos.gasto.sum as jest.Mock).mockResolvedValue(null);
     (repos.liquidacion.sum as jest.Mock).mockResolvedValue(null);
-    (repos.ruta.count as jest.Mock).mockResolvedValue(0);
-    (repos.socio.count as jest.Mock).mockResolvedValue(0);
+    (repos.cartera.count as jest.Mock).mockResolvedValue(0);
+    (repos.propietario.count as jest.Mock).mockResolvedValue(0);
     (repos.cliente.count as jest.Mock).mockResolvedValue(0);
     (repos.prestamo.count as jest.Mock).mockResolvedValue(0);
-    (repos.ruta.find as jest.Mock).mockResolvedValue([
-      { id: 6, socioId: 3 },
-      { id: 7, socioId: 3 },
+    (repos.cartera.find as jest.Mock).mockResolvedValue([
+      { id: 6, propietarioId: 3 },
+      { id: 7, propietarioId: 3 },
     ]);
 
-    await service.obtener(new Date("2026-08-26T00:00:00Z"), { socioId: 3 });
+    await service.obtener(new Date("2026-08-26T00:00:00Z"), { propietarioId: 3 });
 
-    expect(repos.ruta.find).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { socio: { id: 3 } } }),
+    expect(repos.cartera.find).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { propietario: { id: 3 } } }),
     );
-    expect(socioRepo.count).toHaveBeenCalledWith(
+    expect(propietarioRepo.count).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ estatus: "activo" }),
       }),
@@ -301,12 +301,12 @@ describe("DashboardService", () => {
       expect(res.dias[13].fecha).toBe("2026-08-26");
     });
 
-    it("acota por rutaId sin resolver rutas del socio", async () => {
-      await service.series(hoy, { rutaId: 5 }, 2);
+    it("acota por carteraId sin resolver carteras del propietario", async () => {
+      await service.series(hoy, { carteraId: 5 }, 2);
 
-      expect(repos.ruta.find).not.toHaveBeenCalled();
+      expect(repos.cartera.find).not.toHaveBeenCalled();
       const arg = (repos.pago.find as jest.Mock).mock.calls[0][0];
-      expect(arg.where.cliente.ruta.id).toBeDefined();
+      expect(arg.where.cliente.cartera.id).toBeDefined();
     });
   });
 });

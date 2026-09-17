@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ConversacionIa } from "../cartera/conversacion-ia.entity";
+import { ConversacionIa } from "../clientes/conversacion-ia.entity";
 
 export interface ConversacionDerivadaPublic {
   id: number;

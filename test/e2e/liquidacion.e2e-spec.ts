@@ -5,27 +5,27 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Liquidacion } from "../../src/modules/rutas/liquidacion.entity";
-import { RutaConfig } from "../../src/modules/rutas/ruta-config.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Liquidacion } from "../../src/modules/carteras/liquidacion.entity";
+import { CarteraConfig } from "../../src/modules/carteras/cartera-config.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
-describe("Generación de liquidación de ruta (e2e)", () => {
+describe("Generación de liquidación de cartera (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
-  let configRepo: Repository<RutaConfig>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
+  let configRepo: Repository<CarteraConfig>;
   let liquidacionRepo: Repository<Liquidacion>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
 
   const ADMIN_USERNAME = "liq-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Liq2026";
-  const PASSWORD = "Socio#Liq2026";
+  const PASSWORD = "Propietario#Liq2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-liq";
@@ -44,16 +44,16 @@ describe("Generación de liquidación de ruta (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
-    configRepo = moduleFixture.get(getRepositoryToken(RutaConfig));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
+    configRepo = moduleFixture.get(getRepositoryToken(CarteraConfig));
     liquidacionRepo = moduleFixture.get(getRepositoryToken(Liquidacion));
 
     await liquidacionRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-LIQ-1" });
-    await socioRepo.delete({ codigo: "SC-LIQ-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-LIQ-1" });
+    await propietarioRepo.delete({ codigo: "SC-LIQ-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -71,74 +71,74 @@ describe("Generación de liquidación de ruta (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-liq-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-liq-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-liq-1@correo.com",
+      correo: "propietario-liq-1@correo.com",
       telefono: "+59171160055",
       codigo: "SC-LIQ-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-liq-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-liq-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-liq-1@correo.com",
+      correo: "gestor-liq-1@correo.com",
       telefono: "+59172270055",
       codigo: "CB-LIQ-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta LIQ",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera LIQ",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     // Config: comisión 10% activa, periodo diario.
     await request(app.getHttpServer())
-      .put(`/rutas/${rutaId}/ruta-config`)
+      .put(`/carteras/${carteraId}/cartera-config`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ comisionActiva: true, comisionPorcentaje: 10, periodoLiquidacion: "diario" });
   });
 
   afterAll(async () => {
     await liquidacionRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-LIQ-1" });
-    await socioRepo.delete({ codigo: "SC-LIQ-1" });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-LIQ-1" });
+    await propietarioRepo.delete({ codigo: "SC-LIQ-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
   it("config acepta periodoLiquidacion", async () => {
-    const fila = await configRepo.findOne({ where: { ruta: { id: rutaId } } });
+    const fila = await configRepo.findOne({ where: { cartera: { id: carteraId } } });
     expect(fila?.periodoLiquidacion).toBe("diario");
   });
 
-  it("POST /rutas/:id/liquidaciones genera el snapshot con caja y comisión", async () => {
+  it("POST /carteras/:id/liquidaciones genera el snapshot con caja y comisión", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/liquidaciones`)
+      .post(`/carteras/${carteraId}/liquidaciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ comentario: "cierre de jornada" });
 
     expect(res.status).toBe(201);
-    expect(res.body.rutaId).toBe(rutaId);
+    expect(res.body.carteraId).toBe(carteraId);
     expect(res.body.cajaAnterior).toBe(1000); // saldo inicial (sin previa)
     expect(res.body.periodo).toBe("diario");
     expect(res.body.comisionPorcentaje).toBe(10);
@@ -150,52 +150,52 @@ describe("Generación de liquidación de ruta (e2e)", () => {
     expect(enDb?.comentario).toBe("cierre de jornada");
   });
 
-  it("POST /rutas/:id/liquidaciones en el mismo periodo -> 409", async () => {
+  it("POST /carteras/:id/liquidaciones en el mismo periodo -> 409", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/liquidaciones`)
+      .post(`/carteras/${carteraId}/liquidaciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({});
 
     expect(res.status).toBe(409);
   });
 
-  it("POST /rutas/:id/liquidaciones sin token -> 401", async () => {
+  it("POST /carteras/:id/liquidaciones sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/liquidaciones`)
+      .post(`/carteras/${carteraId}/liquidaciones`)
       .send({});
 
     expect(res.status).toBe(401);
   });
 
-  it("un socio SIN generar_reporte no puede liquidar -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-liq-2",
+  it("un propietario SIN generar_reporte no puede liquidar -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-liq-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-liq-2@correo.com",
+      correo: "propietario-liq-2@correo.com",
       telefono: "+59171160056",
       codigo: "SC-LIQ-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-liq-2", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-liq-2", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/liquidaciones`)
-      .set("Authorization", `Bearer ${tokenSocio}`)
+      .post(`/carteras/${carteraId}/liquidaciones`)
+      .set("Authorization", `Bearer ${tokenPropietario}`)
       .send({});
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 
-  it("POST /rutas/:id/liquidaciones con ruta inexistente -> 404", async () => {
+  it("POST /carteras/:id/liquidaciones con cartera inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/999999/liquidaciones`)
+      .post(`/carteras/999999/liquidaciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({});
 

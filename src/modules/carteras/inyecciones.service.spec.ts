@@ -1,0 +1,294 @@
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
+import { Cartera } from "./cartera.entity";
+import { Inyeccion } from "./inyeccion.entity";
+import { CreateInyeccionInput, InyeccionesService } from "./inyecciones.service";
+import { CajaService } from "./caja.service";
+
+describe("InyeccionesService", () => {
+  let service: InyeccionesService;
+  let carteraRepo: Repository<Cartera>;
+  let inyRepo: Repository<Inyeccion>;
+
+  const baseInput: CreateInyeccionInput = {
+    valor: 1500,
+    comentario: "Aporte semanal",
+  };
+
+  const adminContext = { rol: "admin" as const, sub: 0 };
+  const propietarioContext = { rol: "propietario" as const, sub: 1 };
+
+  const mockCarteraRepo = { findOne: jest.fn() };
+  const mockInyRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn() };
+  const mockCajaService = {
+    aplicarMovimiento: jest.fn(async () => ({
+      carteraId: 1,
+      saldoInicial: 1000,
+      saldoActual: 2500,
+    })),
+  };
+  const mockDataSource = {
+    transaction: jest.fn(async (fn: (m: { getRepository: (e: unknown) => unknown }) => Promise<unknown>) =>
+      fn({
+        getRepository: (entity: unknown) => (entity === Inyeccion ? mockInyRepo : mockInyRepo),
+      }),
+    ),
+  };
+
+  function carteraFixture(overrides: Partial<Cartera> = {}): Cartera {
+    return {
+      id: 1,
+      propietarioId: 1,
+      gestorId: 1,
+      nombre: "Cartera Centro",
+      descripcion: null,
+      tipoInteres: 20,
+      numCuotas: 8,
+      moneda: "BOB",
+      estatus: "activo",
+      createdAt: new Date(),
+      ...overrides,
+    } as Cartera;
+  }
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockInyRepo.update.mockResolvedValue({ affected: 1 });
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        InyeccionesService,
+        { provide: getRepositoryToken(Cartera), useValue: mockCarteraRepo },
+        { provide: getRepositoryToken(Inyeccion), useValue: mockInyRepo },
+        { provide: CajaService, useValue: mockCajaService },
+        { provide: DataSource, useValue: mockDataSource },
+      ],
+    }).compile();
+
+    service = module.get(InyeccionesService);
+    carteraRepo = module.get(getRepositoryToken(Cartera));
+    inyRepo = module.get(getRepositoryToken(Inyeccion));
+  });
+
+  it("persiste la inyección con estado activa y fechaHora", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    const fecha = new Date();
+    (inyRepo.create as jest.Mock).mockImplementation((e: Partial<Inyeccion>) => ({
+      ...e,
+      fechaHora: fecha,
+    }) as Inyeccion);
+    (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+      id: 1,
+      carteraId: 1,
+      ...e,
+      fechaHora: fecha,
+    }) as Inyeccion);
+
+    const result = await service.crear(1, baseInput, adminContext);
+
+    expect(inyRepo.save).toHaveBeenCalledTimes(1);
+    expect(result.valor).toBe(1500);
+    expect(result.comentario).toBe("Aporte semanal");
+    expect(result.estado).toBe("activa");
+    expect(result.fechaHora).toEqual(fecha);
+    expect(result.carteraId).toBe(1);
+  });
+
+  it("lanza NotFoundException si la cartera no existe", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.crear(999, baseInput, adminContext)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("un propietario no puede registrar una inyección en una cartera ajena -> 403", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture({ propietarioId: 2 }));
+
+    await expect(service.crear(1, baseInput, propietarioContext)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it("un propietario puede registrar en su propia cartera", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (inyRepo.create as jest.Mock).mockImplementation((e: Partial<Inyeccion>) => e as Inyeccion);
+    (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+      id: 1,
+      carteraId: 1,
+      fechaHora: new Date(),
+      ...e,
+    }) as Inyeccion);
+
+    const result = await service.crear(1, baseInput, propietarioContext);
+
+    expect(result.carteraId).toBe(1);
+  });
+
+  it("al crear una inyección aumenta la caja de la cartera (wiring HU-11)", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+    (inyRepo.create as jest.Mock).mockImplementation((e: Partial<Inyeccion>) => e as Inyeccion);
+    (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+      id: 1,
+      carteraId: 1,
+      fechaHora: new Date(),
+      ...e,
+    }) as Inyeccion);
+
+    await service.crear(1, baseInput, adminContext);
+
+    expect(mockCajaService.aplicarMovimiento).toHaveBeenCalledWith(
+      1,
+      1500,
+      "inyeccion",
+      { rol: "admin", sub: 0 },
+      "Aporte semanal",
+      expect.anything(),
+    );
+  });
+
+  describe("eliminar", () => {
+    function inyeccionActual(overrides: Partial<Inyeccion> = {}): Inyeccion {
+      return {
+        id: 10,
+        carteraId: 1,
+        valor: 1500,
+        comentario: "Aporte",
+        fechaHora: new Date("2026-08-12T10:00:00Z"),
+        estado: "activa",
+        ...overrides,
+      } as Inyeccion;
+    }
+
+    it("cambia el estado a eliminada con un UPDATE condicional", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+      const actual = inyeccionActual();
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+
+      const result = await service.eliminar(1, 10, adminContext);
+
+      expect(inyRepo.update).toHaveBeenCalledWith(
+        { id: 10, cartera: { id: 1 }, estado: "activa" },
+        { estado: "eliminada" },
+      );
+      expect(result.estado).toBe("eliminada");
+      expect(result.fechaHora).toEqual(actual.fechaHora);
+    });
+
+    it("es idempotente si la inyección ya estaba eliminada", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+      const actual = inyeccionActual({ estado: "eliminada" });
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+
+      const result = await service.eliminar(1, 10, adminContext);
+
+      expect(result.estado).toBe("eliminada");
+      expect(inyRepo.update).not.toHaveBeenCalled();
+    });
+
+    it("al eliminar una inyección activa disminuye la caja (wiring HU-12)", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+      const actual = inyeccionActual({ estado: "activa" });
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+
+      await service.eliminar(1, 10, adminContext);
+
+      expect(mockCajaService.aplicarMovimiento).toHaveBeenCalledWith(
+        1,
+        -1500,
+        "inyeccion_eliminada",
+        { rol: "admin", sub: 0 },
+        "Aporte",
+        expect.anything(),
+      );
+    });
+
+    it("no revierte la caja si la inyección se eliminó concurrentemente (affected=0)", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+      const actual = inyeccionActual({ estado: "activa" });
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+      (inyRepo.update as jest.Mock).mockResolvedValue({ affected: 0 });
+
+      await service.eliminar(1, 10, adminContext);
+
+      expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
+    });
+
+    it("no revierte la caja si la inyección ya estaba eliminada", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+      const actual = inyeccionActual({ estado: "eliminada" });
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(actual);
+      (inyRepo.save as jest.Mock).mockImplementation(async (e: Partial<Inyeccion>) => ({
+        ...actual,
+        ...e,
+      }) as Inyeccion);
+
+      await service.eliminar(1, 10, adminContext);
+
+      expect(mockCajaService.aplicarMovimiento).not.toHaveBeenCalled();
+    });
+
+    it("lanza NotFoundException si la cartera no existe", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.eliminar(999, 10, adminContext)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("lanza NotFoundException si la inyección no existe o es de otra cartera", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+      (inyRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.eliminar(1, 999, adminContext)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("un propietario no puede eliminar una inyección de una cartera ajena -> 403", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture({ propietarioId: 2 }));
+
+      await expect(service.eliminar(1, 10, propietarioContext)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+  });
+
+  describe("listar", () => {
+    it("lista solo las inyecciones activas DESC", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture());
+      (inyRepo.find as jest.Mock).mockResolvedValue([
+        {
+          id: 1,
+          carteraId: 1,
+          valor: 1500,
+          comentario: "Aporte",
+          fechaHora: new Date("2026-08-12T10:00:00Z"),
+          estado: "activa",
+        },
+      ]);
+
+      const result = await service.listar(1, adminContext);
+
+      expect(inyRepo.find).toHaveBeenCalledWith({
+        where: { cartera: { id: 1 }, estado: "activa" },
+        order: { fechaHora: "DESC" },
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].comentario).toBe("Aporte");
+    });
+
+    it("lanza NotFoundException al listar si la cartera no existe", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.listar(999, adminContext)).rejects.toThrow(NotFoundException);
+    });
+
+    it("un propietario no puede listar inyecciones de una cartera ajena -> 403", async () => {
+      (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraFixture({ propietarioId: 2 }));
+
+      await expect(service.listar(1, propietarioContext)).rejects.toThrow(ForbiddenException);
+    });
+  });
+});

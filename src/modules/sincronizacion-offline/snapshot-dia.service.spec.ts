@@ -3,26 +3,26 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { generateKeyPairSync } from "crypto";
 import { Repository } from "typeorm";
-import { Ruta } from "../rutas/ruta.entity";
-import { ListaClientesDelDiaService } from "../rutas/lista-clientes-dia.service";
-import { RutaOptimizacionService } from "../rutas/ruta-optimizacion.service";
+import { Cartera } from "../carteras/cartera.entity";
+import { ListaClientesDelDiaService } from "../carteras/lista-clientes-dia.service";
+import { CarteraOptimizacionService } from "../carteras/cartera-optimizacion.service";
 import { Device } from "./device.entity";
 import { SnapshotCryptoService } from "./snapshot-crypto.service";
 import { SnapshotDiaPublic, SnapshotDiaService } from "./snapshot-dia.service";
 
 describe("SnapshotDiaService", () => {
   let service: SnapshotDiaService;
-  let rutaRepo: Repository<Ruta>;
+  let carteraRepo: Repository<Cartera>;
   let listaClientes: ListaClientesDelDiaService;
-  let trayectos: RutaOptimizacionService;
+  let trayectos: CarteraOptimizacionService;
 
   const device = (overrides: Partial<Device> = {}): Device =>
-    ({ id: 1, cobradorId: 20, ...overrides }) as Device;
+    ({ id: 1, gestorId: 20, ...overrides }) as Device;
 
-  const rutaDe = (overrides: Partial<Ruta> = {}): Ruta =>
-    ({ id: 5, nombre: "Ruta Centro", cobradorId: 20, ...overrides }) as Ruta;
+  const carteraDe = (overrides: Partial<Cartera> = {}): Cartera =>
+    ({ id: 5, nombre: "Cartera Centro", gestorId: 20, ...overrides }) as Cartera;
 
-  const mockRutaRepo = { findOne: jest.fn() };
+  const mockCarteraRepo = { findOne: jest.fn() };
   const mockLista = { obtener: jest.fn().mockResolvedValue([{ id: 10, nombre: "Ana" }]) };
   const mockTrayectos = { consultar: jest.fn().mockResolvedValue({ trayectos: [] }) };
 
@@ -32,48 +32,48 @@ describe("SnapshotDiaService", () => {
       providers: [
         SnapshotDiaService,
         SnapshotCryptoService,
-        { provide: getRepositoryToken(Ruta), useValue: mockRutaRepo },
+        { provide: getRepositoryToken(Cartera), useValue: mockCarteraRepo },
         { provide: ListaClientesDelDiaService, useValue: mockLista },
-        { provide: RutaOptimizacionService, useValue: mockTrayectos },
+        { provide: CarteraOptimizacionService, useValue: mockTrayectos },
       ],
     }).compile();
 
     service = module.get(SnapshotDiaService);
-    rutaRepo = module.get(getRepositoryToken(Ruta));
+    carteraRepo = module.get(getRepositoryToken(Cartera));
     listaClientes = module.get(ListaClientesDelDiaService);
-    trayectos = module.get(RutaOptimizacionService);
+    trayectos = module.get(CarteraOptimizacionService);
   });
 
-  it("compone ruta + clientes del día + trayectos para una ruta del cobrador", async () => {
-    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaDe());
+  it("compone cartera + clientes del día + trayectos para una cartera del gestor", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraDe());
 
     const result = (await service.obtenerSnapshot(device(), 5)) as SnapshotDiaPublic;
 
-    expect(result.ruta).toEqual({ id: 5, nombre: "Ruta Centro" });
+    expect(result.cartera).toEqual({ id: 5, nombre: "Cartera Centro" });
     expect(result.clientes).toEqual([{ id: 10, nombre: "Ana" }]);
     expect(result.trayectos).toEqual({ trayectos: [] });
     expect(listaClientes.obtener).toHaveBeenCalledWith(5, { rol: "admin", sub: 0 });
     expect(trayectos.consultar).toHaveBeenCalledWith(5, { rol: "admin", sub: 0 });
   });
 
-  it("rechaza si el dispositivo no tiene cobrador vinculado", async () => {
+  it("rechaza si el dispositivo no tiene gestor vinculado", async () => {
     await expect(
-      service.obtenerSnapshot(device({ cobradorId: null }), 5),
+      service.obtenerSnapshot(device({ gestorId: null }), 5),
     ).rejects.toThrow(BadRequestException);
   });
 
-  it("lanza NotFound si la ruta no existe", async () => {
-    (rutaRepo.findOne as jest.Mock).mockResolvedValue(null);
+  it("lanza NotFound si la cartera no existe", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(null);
     await expect(service.obtenerSnapshot(device(), 5)).rejects.toThrow(NotFoundException);
   });
 
-  it("lanza Forbidden si la ruta no es del cobrador del dispositivo", async () => {
-    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaDe({ cobradorId: 99 }));
+  it("lanza Forbidden si la cartera no es del gestor del dispositivo", async () => {
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraDe({ gestorId: 99 }));
     await expect(service.obtenerSnapshot(device(), 5)).rejects.toThrow(ForbiddenException);
   });
 
   it("devuelve trayectos null si no hay trayecto planificado", async () => {
-    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaDe());
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraDe());
     (mockTrayectos.consultar as jest.Mock).mockRejectedValue(new NotFoundException("No hay trayecto"));
 
     const result = (await service.obtenerSnapshot(device(), 5)) as SnapshotDiaPublic;
@@ -83,7 +83,7 @@ describe("SnapshotDiaService", () => {
   });
 
   it("cifra el snapshot cuando el dispositivo tiene clave pública registrada", async () => {
-    (rutaRepo.findOne as jest.Mock).mockResolvedValue(rutaDe());
+    (carteraRepo.findOne as jest.Mock).mockResolvedValue(carteraDe());
     const { publicKey } = generateKeyPairSync("x25519");
     const publicKeyBase64 = Buffer.from(
       publicKey.export({ format: "jwk" }).x as string,

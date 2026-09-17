@@ -9,12 +9,12 @@ export class LoginDto {
   @IsNotEmpty()
   password!: string;
 
-  /** IMEI simulado del dispositivo (Android ID, HU-39). Solo login de cobrador. */
+  /** IMEI simulado del dispositivo (Android ID, HU-39). Solo login de gestor. */
   @IsOptional()
   @IsString()
   imei?: string;
 
-  /** WhatsApp autorizado del cobrador (HU-39). Solo login de cobrador. */
+  /** WhatsApp autorizado del gestor (HU-39). Solo login de gestor. */
   @IsOptional()
   @IsString()
   whatsappNumber?: string;

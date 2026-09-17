@@ -3,7 +3,7 @@ import { collectDefaultMetrics, Counter, Histogram, Registry } from "prom-client
 
 /**
  * Métricas Prometheus del backend: duración y conteo de requests HTTP por
- * método/ruta/status. Las rutas usan el patrón del router (p. ej. `/rutas/:id`)
+ * método/cartera/status. Las carteras usan el patrón del router (p. ej. `/carteras/:id`)
  * para evitar alta cardinalidad.
  */
 @Injectable()

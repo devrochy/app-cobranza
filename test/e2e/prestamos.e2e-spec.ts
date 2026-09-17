@@ -5,25 +5,25 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Registro de préstamos (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
 
   const ADMIN_USERNAME = "prestamos-e2e-admin";
@@ -65,9 +65,9 @@ describe("Registro de préstamos (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
@@ -88,62 +88,62 @@ describe("Registro de préstamos (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-prest-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-prest-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-prest-1@correo.com",
+      correo: "propietario-prest-1@correo.com",
       telefono: "+59171160002",
       codigo: "SC-PREST-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-prest-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-prest-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-prest-1@correo.com",
+      correo: "gestor-prest-1@correo.com",
       telefono: "+59172270001",
       codigo: "CB-PREST-1",
       estatus: "activo",
     });
 
-    const ruta = await rutaRepo.save({
-      socio: { id: socio.id },
-      cobrador: { id: cobrador.id },
-      nombre: "Ruta PREST-1",
+    const cartera = await carteraRepo.save({
+      propietario: { id: propietario.id },
+      gestor: { id: gestor.id },
+      nombre: "Cartera PREST-1",
       descripcion: null,
       tipoInteres: 20,
       numCuotas: 8,
       moneda: "BOB",
       estatus: "activo",
     });
-    rutaId = ruta.id;
+    carteraId = cartera.id;
 
     await request(app.getHttpServer())
-      .put(`/rutas/${rutaId}/ruta-config`)
+      .put(`/carteras/${carteraId}/cartera-config`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ manejoCupoActivo: true, cupoDefault: 1500, cuotasMinimasPrestamo: 2 });
   });
 
   afterAll(async () => {
-    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE ruta_id = :rutaId)", { rutaId }).execute();
-    await prestamoRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-PREST-1" });
-    await socioRepo.delete({ codigo: "SC-PREST-1" });
+    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE cartera_id = :carteraId)", { carteraId }).execute();
+    await prestamoRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-PREST-1" });
+    await propietarioRepo.delete({ codigo: "SC-PREST-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("POST /rutas/:rutaId/clientes -> 201 con color blanco", async () => {
+  it("POST /carteras/:carteraId/clientes -> 201 con color blanco", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send(clienteDto);
 
@@ -156,9 +156,9 @@ describe("Registro de préstamos (e2e)", () => {
     prestamoDto.clienteId = clienteId;
   });
 
-  it("POST /rutas/:rutaId/prestamos -> 201 con cuotas generadas", async () => {
+  it("POST /carteras/:carteraId/prestamos -> 201 con cuotas generadas", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send(prestamoDto);
 
@@ -176,89 +176,89 @@ describe("Registro de préstamos (e2e)", () => {
     expect(cliente?.colorRiesgo).toBe("azul");
   });
 
-  it("POST /rutas/:rutaId/prestamos que excede el cupo -> 409", async () => {
+  it("POST /carteras/:carteraId/prestamos que excede el cupo -> 409", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ ...prestamoDto, valor: 1000 });
 
     expect(res.status).toBe(409);
   });
 
-  it("POST /rutas/:rutaId/prestamos con numCuotas menor al mínimo -> 400", async () => {
+  it("POST /carteras/:carteraId/prestamos con numCuotas menor al mínimo -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ ...prestamoDto, numCuotas: 1 });
 
     expect(res.status).toBe(400);
   });
 
-  it("POST /rutas/:rutaId/prestamos con datos inválidos -> 400", async () => {
+  it("POST /carteras/:carteraId/prestamos con datos inválidos -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ ...prestamoDto, valor: 0, diasEntreCuotas: 0 });
 
     expect(res.status).toBe(400);
   });
 
-  it("POST /rutas/:rutaId/prestamos con cliente inexistente -> 404", async () => {
+  it("POST /carteras/:carteraId/prestamos con cliente inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ ...prestamoDto, clienteId: 999999 });
 
     expect(res.status).toBe(404);
   });
 
-  it("POST /rutas/999999/prestamos -> 404", async () => {
+  it("POST /carteras/999999/prestamos -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/999999/prestamos`)
+      .post(`/carteras/999999/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send(prestamoDto);
 
     expect(res.status).toBe(404);
   });
 
-  it("POST /rutas/:rutaId/prestamos con campo desconocido -> 400 (forbidNonWhitelisted)", async () => {
+  it("POST /carteras/:carteraId/prestamos con campo desconocido -> 400 (forbidNonWhitelisted)", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ ...prestamoDto, campo_inventado: true });
 
     expect(res.status).toBe(400);
   });
 
-  it("un socio sin permiso no puede registrar préstamos -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-prest-2",
+  it("un propietario sin permiso no puede registrar préstamos -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-prest-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-prest-2@correo.com",
+      correo: "propietario-prest-2@correo.com",
       telefono: "+59171160003",
       codigo: "SC-PREST-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-prest-2", password: PASSWORD });
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-prest-2", password: PASSWORD });
     const token = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${token}`)
       .send(prestamoDto);
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 
-  it("POST /rutas/:rutaId/prestamos sin token -> 401", async () => {
+  it("POST /carteras/:carteraId/prestamos sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .send(prestamoDto);
 
     expect(res.status).toBe(401);

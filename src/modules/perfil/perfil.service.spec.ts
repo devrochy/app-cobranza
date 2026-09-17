@@ -2,8 +2,8 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Cobrador } from "../cobradores/cobrador.entity";
-import { Socio } from "../socios/socio.entity";
+import { Gestor } from "../gestores/gestor.entity";
+import { Propietario } from "../propietarios/propietario.entity";
 import { PasswordService } from "../security/password.service";
 import { PerfilService } from "./perfil.service";
 
@@ -11,8 +11,8 @@ describe("PerfilService", () => {
   let service: PerfilService;
 
   const adminRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
-  const cobradorRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
-  const socioRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
+  const gestorRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
+  const propietarioRepo = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
   const passwordService = { compare: jest.fn(), hash: jest.fn() };
 
   beforeEach(async () => {
@@ -21,8 +21,8 @@ describe("PerfilService", () => {
       providers: [
         PerfilService,
         { provide: getRepositoryToken(AdminUser), useValue: adminRepo },
-        { provide: getRepositoryToken(Cobrador), useValue: cobradorRepo },
-        { provide: getRepositoryToken(Socio), useValue: socioRepo },
+        { provide: getRepositoryToken(Gestor), useValue: gestorRepo },
+        { provide: getRepositoryToken(Propietario), useValue: propietarioRepo },
         { provide: PasswordService, useValue: passwordService },
       ],
     }).compile();
@@ -30,23 +30,23 @@ describe("PerfilService", () => {
     service = module.get(PerfilService);
   });
 
-  it("actualiza nombre y apellido de un cobrador", async () => {
-    const cobrador = {
+  it("actualiza nombre y apellido de un gestor", async () => {
+    const gestor = {
       id: 7,
       usuario: "cob1",
       nombre: "Viejo",
       apellido: "Anterior",
     };
-    cobradorRepo.findOne.mockResolvedValue(cobrador);
-    cobradorRepo.save.mockImplementation(async (e: unknown) => e);
+    gestorRepo.findOne.mockResolvedValue(gestor);
+    gestorRepo.save.mockImplementation(async (e: unknown) => e);
 
-    const res = await service.actualizar("cobrador", 7, {
+    const res = await service.actualizar("gestor", 7, {
       nombre: "Nuevo",
       apellido: "Pérez",
     });
 
-    expect(cobradorRepo.findOne).toHaveBeenCalledWith({ where: { id: 7 } });
-    expect(cobradorRepo.save).toHaveBeenCalledWith(
+    expect(gestorRepo.findOne).toHaveBeenCalledWith({ where: { id: 7 } });
+    expect(gestorRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ nombre: "Nuevo", apellido: "Pérez" }),
     );
     expect(res).toEqual({
@@ -57,18 +57,18 @@ describe("PerfilService", () => {
     });
   });
 
-  it("actualiza nombre y apellido de un socio", async () => {
-    const socio = { id: 3, usuario: "soc1", nombre: "A", apellido: "B" };
-    socioRepo.findOne.mockResolvedValue(socio);
-    socioRepo.save.mockImplementation(async (e: unknown) => e);
+  it("actualiza nombre y apellido de un propietario", async () => {
+    const propietario = { id: 3, usuario: "soc1", nombre: "A", apellido: "B" };
+    propietarioRepo.findOne.mockResolvedValue(propietario);
+    propietarioRepo.save.mockImplementation(async (e: unknown) => e);
 
-    const res = await service.actualizar("socio", 3, {
+    const res = await service.actualizar("propietario", 3, {
       nombre: "Ana",
       apellido: "Gómez",
     });
 
-    expect(socioRepo.findOne).toHaveBeenCalledWith({ where: { id: 3 } });
-    expect(socioRepo.save).toHaveBeenCalledWith(
+    expect(propietarioRepo.findOne).toHaveBeenCalledWith({ where: { id: 3 } });
+    expect(propietarioRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ nombre: "Ana", apellido: "Gómez" }),
     );
     expect(res).toEqual({
@@ -101,13 +101,13 @@ describe("PerfilService", () => {
     });
   });
 
-  it("lanza NotFound si el cobrador no existe", async () => {
-    cobradorRepo.findOne.mockResolvedValue(null);
+  it("lanza NotFound si el gestor no existe", async () => {
+    gestorRepo.findOne.mockResolvedValue(null);
 
     await expect(
-      service.actualizar("cobrador", 99, { nombre: "x", apellido: "y" }),
+      service.actualizar("gestor", 99, { nombre: "x", apellido: "y" }),
     ).rejects.toThrow(NotFoundException);
-    expect(cobradorRepo.save).not.toHaveBeenCalled();
+    expect(gestorRepo.save).not.toHaveBeenCalled();
   });
 
   it("lanza NotFound si el admin no existe", async () => {
@@ -136,15 +136,15 @@ describe("PerfilService", () => {
       });
     });
 
-    it("devuelve el perfil de un socio", async () => {
-      socioRepo.findOne.mockResolvedValue({
+    it("devuelve el perfil de un propietario", async () => {
+      propietarioRepo.findOne.mockResolvedValue({
         id: 3,
         usuario: "soc1",
         nombre: "Ana",
         apellido: "Gómez",
       });
 
-      await expect(service.obtener("socio", 3)).resolves.toEqual({
+      await expect(service.obtener("propietario", 3)).resolves.toEqual({
         id: 3,
         usuario: "soc1",
         nombre: "Ana",
@@ -153,9 +153,9 @@ describe("PerfilService", () => {
     });
 
     it("lanza NotFound si el usuario no existe", async () => {
-      cobradorRepo.findOne.mockResolvedValue(null);
+      gestorRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.obtener("cobrador", 99)).rejects.toThrow(
+      await expect(service.obtener("gestor", 99)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -180,33 +180,33 @@ describe("PerfilService", () => {
       );
     });
 
-    it("valida la contraseña actual y guarda la nueva (socio)", async () => {
-      socioRepo.findOne.mockResolvedValue({ id: 3, passwordHash: "hash-socio" });
+    it("valida la contraseña actual y guarda la nueva (propietario)", async () => {
+      propietarioRepo.findOne.mockResolvedValue({ id: 3, passwordHash: "hash-propietario" });
       passwordService.compare.mockResolvedValue(true);
-      passwordService.hash.mockResolvedValue("hash-nueva-socio");
+      passwordService.hash.mockResolvedValue("hash-nueva-propietario");
 
-      await service.cambiarPassword("socio", 3, {
+      await service.cambiarPassword("propietario", 3, {
         passwordActual: "clave-vieja",
         passwordNueva: "clave-nueva",
       });
 
-      expect(socioRepo.update).toHaveBeenCalledWith(
+      expect(propietarioRepo.update).toHaveBeenCalledWith(
         { id: 3 },
-        { passwordHash: "hash-nueva-socio" },
+        { passwordHash: "hash-nueva-propietario" },
       );
     });
 
-    it("valida la contraseña actual y guarda la nueva (cobrador)", async () => {
-      cobradorRepo.findOne.mockResolvedValue({ id: 7, passwordHash: "hash-cob" });
+    it("valida la contraseña actual y guarda la nueva (gestor)", async () => {
+      gestorRepo.findOne.mockResolvedValue({ id: 7, passwordHash: "hash-cob" });
       passwordService.compare.mockResolvedValue(true);
       passwordService.hash.mockResolvedValue("hash-nueva-cob");
 
-      await service.cambiarPassword("cobrador", 7, {
+      await service.cambiarPassword("gestor", 7, {
         passwordActual: "clave-vieja",
         passwordNueva: "clave-nueva",
       });
 
-      expect(cobradorRepo.update).toHaveBeenCalledWith(
+      expect(gestorRepo.update).toHaveBeenCalledWith(
         { id: 7 },
         { passwordHash: "hash-nueva-cob" },
       );

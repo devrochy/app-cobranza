@@ -6,30 +6,30 @@ import request from "supertest";
 import { Repository } from "typeorm";
 import { AppModule } from "../../src/app.module";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 
 describe("Dashboard y monitoreo IA (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
   let accessTokenAdmin: string;
-  let tokenSocio: string;
+  let tokenPropietario: string;
 
   const ADMIN_USERNAME = "dash-e2e-admin";
   const ADMIN_PASSWORD = "dash-e2e-password";
   const PASSWORD = "password-seguro";
 
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
   let prestamoId: number;
 
@@ -47,15 +47,15 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
 
-    await cobradorRepo.delete({ codigo: "CB-DASH-1" });
-    await socioRepo.delete({ codigo: "SC-DASH-1" });
+    await gestorRepo.delete({ codigo: "CB-DASH-1" });
+    await propietarioRepo.delete({ codigo: "SC-DASH-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,
@@ -71,37 +71,37 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-dash-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-dash-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "Ana",
       apellido: "Dash",
-      correo: "socio-dash-1@correo.com",
+      correo: "propietario-dash-1@correo.com",
       telefono: "+59171160070",
       codigo: "SC-DASH-1",
       moneda: "BOB",
       estatus: "activo",
     });
-    const loginSocio = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-dash-1", password: PASSWORD });
-    tokenSocio = loginSocio.body.accessToken as string;
+    const loginPropietario = await request(app.getHttpServer())
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-dash-1", password: PASSWORD });
+    tokenPropietario = loginPropietario.body.accessToken as string;
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-dash-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-dash-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "Carlos",
       apellido: "Dash",
-      correo: "cobrador-dash-1@correo.com",
+      correo: "gestor-dash-1@correo.com",
       telefono: "+59172260070",
       codigo: "CB-DASH-1",
       estatus: "activo",
     });
-    const ruta = await rutaRepo.save({
-      socio: { id: socio.id },
-      cobrador: { id: cobrador.id },
-      nombre: "Ruta DASH-1",
+    const cartera = await carteraRepo.save({
+      propietario: { id: propietario.id },
+      gestor: { id: gestor.id },
+      nombre: "Cartera DASH-1",
       descripcion: null,
       tipoInteres: 20,
       numCuotas: 4,
@@ -109,11 +109,11 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
       costoCobro: 250,
       estatus: "activo",
     });
-    rutaId = ruta.id;
+    carteraId = cartera.id;
 
     const cliente = await clienteRepo.save({
-      ruta: { id: rutaId },
-      rutaId,
+      cartera: { id: carteraId },
+      carteraId,
       nombre: "Luis",
       apellido: "Paga",
       negocio: "Tienda",
@@ -129,8 +129,8 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     const prestamo = await prestamoRepo.save({
       cliente: { id: clienteId },
       clienteId,
-      ruta: { id: rutaId },
-      rutaId,
+      cartera: { id: carteraId },
+      carteraId,
       valor: 1000,
       numCuotas: 4,
       tipoInteres: 20,
@@ -153,9 +153,9 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     await cuotaRepo.delete({ prestamo: { id: prestamoId } });
     await prestamoRepo.delete({ id: prestamoId });
     await clienteRepo.delete({ id: clienteId });
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-DASH-1" });
-    await socioRepo.delete({ codigo: "SC-DASH-1" });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-DASH-1" });
+    await propietarioRepo.delete({ codigo: "SC-DASH-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
@@ -172,22 +172,22 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     expect(typeof res.body.cobradoSemana).toBe("number");
     expect(typeof res.body.gastosPeriodo).toBe("number");
     expect(typeof res.body.comisionesPeriodo).toBe("number");
-    expect(res.body.rutasActivas).toBeGreaterThanOrEqual(1);
+    expect(res.body.carterasActivas).toBeGreaterThanOrEqual(1);
   });
 
-  it("GET /dashboard?rutaId= filtra por ruta (admin)", async () => {
+  it("GET /dashboard?carteraId= filtra por cartera (admin)", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/dashboard?rutaId=${rutaId}`)
+      .get(`/dashboard?carteraId=${carteraId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
     expect(typeof res.body.carteraActiva).toBe("number");
-    expect(res.body.rutasActivas).toBeGreaterThanOrEqual(1);
+    expect(res.body.carterasActivas).toBeGreaterThanOrEqual(1);
   });
 
   it("GET /dashboard/series (admin) devuelve la serie diaria de N días", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/dashboard/series?rutaId=${rutaId}&dias=7`)
+      .get(`/dashboard/series?carteraId=${carteraId}&dias=7`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -214,18 +214,18 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     expect(Array.isArray(res.body.derivadasRecientes)).toBe(true);
   });
 
-  it("GET /dashboard como socio -> 403 (admin-only)", async () => {
+  it("GET /dashboard como propietario -> 403 (admin-only)", async () => {
     const res = await request(app.getHttpServer())
       .get("/dashboard")
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
   });
 
-  it("GET /conversaciones-ia/panel como socio -> 403 (admin-only)", async () => {
+  it("GET /conversaciones-ia/panel como propietario -> 403 (admin-only)", async () => {
     const res = await request(app.getHttpServer())
       .get("/conversaciones-ia/panel")
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
   });
@@ -240,10 +240,10 @@ describe("Dashboard y monitoreo IA (e2e)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("GET /dashboard/series como socio -> 403", async () => {
+  it("GET /dashboard/series como propietario -> 403", async () => {
     const res = await request(app.getHttpServer())
       .get("/dashboard/series")
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
   });

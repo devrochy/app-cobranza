@@ -5,30 +5,30 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Abono } from "../../src/modules/cartera/abono.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Pago } from "../../src/modules/cartera/pago.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Visita } from "../../src/modules/cartera/visita.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { CobradorPermiso } from "../../src/modules/cobradores/cobrador-permiso.entity";
-import { Gasto } from "../../src/modules/rutas/gasto.entity";
-import { GastoEvidencia } from "../../src/modules/rutas/gasto-evidencia.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
+import { Abono } from "../../src/modules/clientes/abono.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Pago } from "../../src/modules/clientes/pago.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Visita } from "../../src/modules/clientes/visita.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { GestorPermiso } from "../../src/modules/gestores/gestor-permiso.entity";
+import { Gasto } from "../../src/modules/carteras/gasto.entity";
+import { GastoEvidencia } from "../../src/modules/carteras/gasto-evidencia.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
 import { Device } from "../../src/modules/sincronizacion-offline/device.entity";
 import { SincronizacionOffline } from "../../src/modules/sincronizacion-offline/sincronizacion-offline.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 import { DEVICE_API_KEY_HEADER } from "../../src/modules/sincronizacion-offline/device-api-key.guard";
 
 describe("Aplicar eventos offline al dominio (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let cobradorPermisoRepo: Repository<CobradorPermiso>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let gestorPermisoRepo: Repository<GestorPermiso>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
@@ -41,7 +41,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
   let syncRepo: Repository<SincronizacionOffline>;
 
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
   let prestamoId: number;
   let deviceKey: string;
@@ -69,10 +69,10 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    cobradorPermisoRepo = moduleFixture.get(getRepositoryToken(CobradorPermiso));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    gestorPermisoRepo = moduleFixture.get(getRepositoryToken(GestorPermiso));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
@@ -94,9 +94,9 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-OFFLINE-1" });
-    await socioRepo.delete({ codigo: "SC-OFFLINE-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-OFFLINE-1" });
+    await propietarioRepo.delete({ codigo: "SC-OFFLINE-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,
@@ -113,53 +113,53 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-offline-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-offline-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-offline-1@correo.com",
+      correo: "propietario-offline-1@correo.com",
       telefono: "+59175550001",
       codigo: "SC-OFFLINE-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-offline-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-offline-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-offline-1@correo.com",
+      correo: "gestor-offline-1@correo.com",
       telefono: "+59176660001",
       codigo: "CB-OFFLINE-1",
       estatus: "activo",
     });
 
-    await cobradorPermisoRepo.save([
-      { cobrador: { id: cobrador.id }, permiso: "registrar_pago", habilitado: true },
-      { cobrador: { id: cobrador.id }, permiso: "registrar_no_pago", habilitado: true },
-      { cobrador: { id: cobrador.id }, permiso: "registrar_gasto", habilitado: true },
+    await gestorPermisoRepo.save([
+      { gestor: { id: gestor.id }, permiso: "registrar_pago", habilitado: true },
+      { gestor: { id: gestor.id }, permiso: "registrar_no_pago", habilitado: true },
+      { gestor: { id: gestor.id }, permiso: "registrar_gasto", habilitado: true },
     ]);
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta OFFLINE",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera OFFLINE",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Juan",
@@ -174,7 +174,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
     clienteId = clienteRes.body.id as number;
 
     const prestamoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         clienteId,
@@ -187,8 +187,8 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
     await deviceRepo.save({
       codigo: DEVICE_CODIGO,
       apiKeyHash: await bcrypt.hash(DEVICE_SECRETO, 4),
-      cobradorId: cobrador.id,
-      rutaId,
+      gestorId: gestor.id,
+      carteraId,
       estado: "activo",
       fechaVinculacion: new Date(),
     });
@@ -206,10 +206,10 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.delete({ id: prestamoId });
     await clienteRepo.delete({ id: clienteId });
-    await rutaRepo.delete({ id: rutaId });
-    // CobradorPermiso se borra en cascada con el cobrador (onDelete: CASCADE).
-    await cobradorRepo.delete({ codigo: "CB-OFFLINE-1" });
-    await socioRepo.delete({ codigo: "SC-OFFLINE-1" });
+    await carteraRepo.delete({ id: carteraId });
+    // GestorPermiso se borra en cascada con el gestor (onDelete: CASCADE).
+    await gestorRepo.delete({ codigo: "CB-OFFLINE-1" });
+    await propietarioRepo.delete({ codigo: "SC-OFFLINE-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
@@ -228,7 +228,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
             eventoIdCliente: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
             tipoEvento: "visita",
             payload: {
-              rutaId,
+              carteraId,
               prestamoId,
               clienteId,
               resultado: "pago",
@@ -264,7 +264,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
           {
             eventoIdCliente: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
             tipoEvento: "visita",
-            payload: { rutaId, prestamoId, clienteId, resultado: "no_pago", motivoNoPago: "no_esta" },
+            payload: { carteraId, prestamoId, clienteId, resultado: "no_pago", motivoNoPago: "no_esta" },
           },
         ],
       });
@@ -286,7 +286,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
             eventoIdCliente: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb01",
             tipoEvento: "gasto",
             payload: {
-              rutaId,
+              carteraId,
               descripcion: "Combustible offline",
               valor: 50,
               evidencias: [
@@ -301,7 +301,7 @@ describe("Aplicar eventos offline al dominio (e2e)", () => {
     expect(res.body[0].estado).toBe("sincronizado");
 
     const gasto = await gastoRepo.findOne({
-      where: { ruta: { id: rutaId }, descripcion: "Combustible offline" },
+      where: { cartera: { id: carteraId }, descripcion: "Combustible offline" },
     });
     expect(gasto).toBeDefined();
     const evidencias = await evidenciaRepo.find({ where: { gasto: { id: gasto!.id } } });

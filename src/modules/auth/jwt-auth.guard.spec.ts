@@ -4,8 +4,8 @@ import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";
 import { DataSource } from "typeorm";
 import { AdminUser } from "../admin-users/admin-user.entity";
-import { Socio } from "../socios/socio.entity";
-import { Cobrador } from "../cobradores/cobrador.entity";
+import { Propietario } from "../propietarios/propietario.entity";
+import { Gestor } from "../gestores/gestor.entity";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 describe("JwtAuthGuard", () => {
@@ -28,8 +28,8 @@ describe("JwtAuthGuard", () => {
     return {
       getRepository: jest.fn((entity: unknown) => {
         if (entity === AdminUser) return repoReturning(byEntity[AdminUser.name] ?? null);
-        if (entity === Socio) return repoReturning(byEntity[Socio.name] ?? null);
-        if (entity === Cobrador) return repoReturning(byEntity[Cobrador.name] ?? null);
+        if (entity === Propietario) return repoReturning(byEntity[Propietario.name] ?? null);
+        if (entity === Gestor) return repoReturning(byEntity[Gestor.name] ?? null);
         return repoReturning(null);
       }),
     };
@@ -83,16 +83,16 @@ describe("JwtAuthGuard", () => {
     });
   });
 
-  it("permite un access token de socio activo", async () => {
-    mockRepoFor(Socio, { id: 10 });
-    const token = sign({ sub: 10, usuario: "socio1", rol: "socio", tipo: "access" });
+  it("permite un access token de propietario activo", async () => {
+    mockRepoFor(Propietario, { id: 10 });
+    const token = sign({ sub: 10, usuario: "propietario1", rol: "propietario", tipo: "access" });
 
     await expect(guard.canActivate(mockContext(`Bearer ${token}`))).resolves.toBe(true);
   });
 
-  it("permite un access token de cobrador activo (rol preparado)", async () => {
-    mockRepoFor(Cobrador, { id: 20 });
-    const token = sign({ sub: 20, usuario: "cobrador1", rol: "cobrador", tipo: "access" });
+  it("permite un access token de gestor activo (rol preparado)", async () => {
+    mockRepoFor(Gestor, { id: 20 });
+    const token = sign({ sub: 20, usuario: "gestor1", rol: "gestor", tipo: "access" });
 
     await expect(guard.canActivate(mockContext(`Bearer ${token}`))).resolves.toBe(true);
   });
@@ -106,18 +106,18 @@ describe("JwtAuthGuard", () => {
     );
   });
 
-  it("rechaza un access token de socio bloqueado o inexistente", async () => {
+  it("rechaza un access token de propietario bloqueado o inexistente", async () => {
     dataSource.getRepository.mockImplementation(() => repoReturning(null));
-    const token = sign({ sub: 10, usuario: "socio1", rol: "socio", tipo: "access" });
+    const token = sign({ sub: 10, usuario: "propietario1", rol: "propietario", tipo: "access" });
 
     await expect(guard.canActivate(mockContext(`Bearer ${token}`))).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
   });
 
-  it("rechaza un access token de cobrador bloqueado o inexistente", async () => {
+  it("rechaza un access token de gestor bloqueado o inexistente", async () => {
     dataSource.getRepository.mockImplementation(() => repoReturning(null));
-    const token = sign({ sub: 20, usuario: "cobrador1", rol: "cobrador", tipo: "access" });
+    const token = sign({ sub: 20, usuario: "gestor1", rol: "gestor", tipo: "access" });
 
     await expect(guard.canActivate(mockContext(`Bearer ${token}`))).rejects.toBeInstanceOf(
       UnauthorizedException,

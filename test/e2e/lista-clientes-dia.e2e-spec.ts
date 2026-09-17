@@ -5,31 +5,31 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { RutaOptimizadaLog } from "../../src/modules/rutas/ruta-optimizada-log.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { CarteraOptimizadaLog } from "../../src/modules/carteras/cartera-optimizada-log.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Lista de clientes del día (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let prestamoRepo: Repository<Prestamo>;
   let cuotaRepo: Repository<Cuota>;
-  let logRepo: Repository<RutaOptimizadaLog>;
+  let logRepo: Repository<CarteraOptimizadaLog>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
 
   const ADMIN_USERNAME = "ldia-e2e-admin";
   const ADMIN_PASSWORD = "Admin#LDia2026";
-  const PASSWORD = "Socio#LDia2026";
+  const PASSWORD = "Propietario#LDia2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-ldia";
@@ -48,21 +48,21 @@ describe("Lista de clientes del día (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     prestamoRepo = moduleFixture.get(getRepositoryToken(Prestamo));
     cuotaRepo = moduleFixture.get(getRepositoryToken(Cuota));
-    logRepo = moduleFixture.get(getRepositoryToken(RutaOptimizadaLog));
+    logRepo = moduleFixture.get(getRepositoryToken(CarteraOptimizadaLog));
 
     await logRepo.createQueryBuilder().delete().execute();
     await cuotaRepo.createQueryBuilder().delete().execute();
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-LDIA-1" });
-    await socioRepo.delete({ codigo: "SC-LDIA-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-LDIA-1" });
+    await propietarioRepo.delete({ codigo: "SC-LDIA-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -80,48 +80,48 @@ describe("Lista de clientes del día (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-ldia-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-ldia-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-ldia-1@correo.com",
+      correo: "propietario-ldia-1@correo.com",
       telefono: "+59171160100",
       codigo: "SC-LDIA-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-ldia-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-ldia-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-ldia-1@correo.com",
+      correo: "gestor-ldia-1@correo.com",
       telefono: "+59172270100",
       codigo: "CB-LDIA-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta LDIA",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera LDIA",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     // Cliente 1 con deuda.
     const c1 = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "ConDeuda",
@@ -135,7 +135,7 @@ describe("Lista de clientes del día (e2e)", () => {
       });
     const c1Id = c1.body.id as number;
     const prestamoConDeuda = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId: c1Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
     // La cuota debe vencer HOY para que el cliente aparezca en la lista del día.
@@ -152,7 +152,7 @@ describe("Lista de clientes del día (e2e)", () => {
 
     // Cliente 2 sin deuda (al día).
     await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "SinDeuda",
@@ -168,7 +168,7 @@ describe("Lista de clientes del día (e2e)", () => {
     // Cliente 4 con préstamo VIGENTE pero cuota FUTURA (no vence hoy): no debe
     // aparecer en la lista del día.
     const cFuturo = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Futuro",
@@ -182,13 +182,13 @@ describe("Lista de clientes del día (e2e)", () => {
       });
     const cFuturoId = cFuturo.body.id as number;
     await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId: cFuturoId, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
 
     // Cliente 3 con préstamo liquidado (sin deuda vigente → esNuevo/blanco).
     const c3 = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Liquidado",
@@ -202,7 +202,7 @@ describe("Lista de clientes del día (e2e)", () => {
       });
     const c3Id = c3.body.id as number;
     const prestamoLiquidado = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/prestamos`)
+      .post(`/carteras/${carteraId}/prestamos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ clienteId: c3Id, valor: 1000, numCuotas: 4, diasEntreCuotas: 7 });
     await prestamoRepo.update(prestamoLiquidado.body.id, { estatus: "liquidado" });
@@ -210,24 +210,24 @@ describe("Lista de clientes del día (e2e)", () => {
 
   afterAll(async () => {
     await logRepo.createQueryBuilder().delete().execute();
-    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE ruta_id = :rutaId)", { rutaId }).execute();
-    await prestamoRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-LDIA-1" });
-    await socioRepo.delete({ codigo: "SC-LDIA-1" });
+    await cuotaRepo.createQueryBuilder().delete().where("prestamo_id IN (SELECT id FROM prestamos WHERE cartera_id = :carteraId)", { carteraId }).execute();
+    await prestamoRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-LDIA-1" });
+    await propietarioRepo.delete({ codigo: "SC-LDIA-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("GET /rutas/:id/dia/clientes solo incluye clientes con cuota de hoy, mora o compromiso", async () => {
+  it("GET /carteras/:id/trayecto-diario/clientes solo incluye clientes con cuota de hoy, mora o compromiso", async () => {
     // Generar trayectos para que el cliente con deuda quede en trayecto.
     await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/dia/trayectos`)
+      .post(`/carteras/${carteraId}/trayecto-diario/trayectos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/dia/clientes`)
+      .get(`/carteras/${carteraId}/trayecto-diario/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -258,42 +258,42 @@ describe("Lista de clientes del día (e2e)", () => {
     expect(futuro).toBeUndefined();
   });
 
-  it("GET /rutas/:id/dia/clientes con ruta inexistente -> 404", async () => {
+  it("GET /carteras/:id/trayecto-diario/clientes con cartera inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/999999/dia/clientes`)
+      .get(`/carteras/999999/trayecto-diario/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
   });
 
-  it("GET /rutas/:id/dia/clientes sin token -> 401", async () => {
-    const res = await request(app.getHttpServer()).get(`/rutas/${rutaId}/dia/clientes`);
+  it("GET /carteras/:id/trayecto-diario/clientes sin token -> 401", async () => {
+    const res = await request(app.getHttpServer()).get(`/carteras/${carteraId}/trayecto-diario/clientes`);
 
     expect(res.status).toBe(401);
   });
 
-  it("un socio SIN ver_reportes no puede ver la lista -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-ldia-2",
+  it("un propietario SIN ver_reportes no puede ver la lista -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-ldia-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-ldia-2@correo.com",
+      correo: "propietario-ldia-2@correo.com",
       telefono: "+59171160103",
       codigo: "SC-LDIA-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-ldia-2", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-ldia-2", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/dia/clientes`)
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .get(`/carteras/${carteraId}/trayecto-diario/clientes`)
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 });

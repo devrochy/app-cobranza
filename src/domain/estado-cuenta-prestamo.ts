@@ -122,7 +122,7 @@ export function construirEstadoCuentaPrestamo(
 /**
  * HU-54: genera el texto plano del reporte de estado de cuenta para enviar por
  * WhatsApp. Incluye datos del préstamo, cada cuota con su estado y saldo, y los
- * totales. La moneda se pasa desde la ruta (el préstamo no guarda moneda propia).
+ * totales. La moneda se pasa desde la cartera (el préstamo no guarda moneda propia).
  */
 export function construirTextoReporte(
   prestamo: { valor: number; numCuotas: number; tipoInteres: number },

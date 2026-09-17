@@ -7,19 +7,19 @@ import { RequestLoggingInterceptor } from "./common/request-logging.interceptor"
 import { buildTypeOrmOptions } from "./config/db-options";
 import { AdminUsersModule } from "./modules/admin-users/admin-users.module";
 import { AuthModule } from "./modules/auth/auth.module";
-import { CarteraModule } from "./modules/cartera/cartera.module";
-import { CobrosSocioModule } from "./modules/cobros-socio/cobros-socio.module";
-import { CobradoresModule } from "./modules/cobradores/cobradores.module";
-import { CobradorModule } from "./modules/cobrador/cobrador.module";
+import { ClientesModule } from "./modules/clientes/clientes.module";
+import { CobrosPropietarioModule } from "./modules/cobros-propietario/cobros-propietario.module";
+import { GestoresModule } from "./modules/gestores/gestores.module";
+import { GestorModule } from "./modules/gestor/gestor.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { HealthModule } from "./modules/health/health.module";
 import { MetricsModule } from "./modules/metrics/metrics.module";
 import { PerfilModule } from "./modules/perfil/perfil.module";
-import { RutasModule } from "./modules/rutas/rutas.module";
+import { CarterasModule } from "./modules/carteras/carteras.module";
 import { ReglasNegociacionIaModule } from "./modules/reglas-negociacion-ia/reglas-negociacion-ia.module";
 import { SecurityModule } from "./modules/security/security.module";
 import { SincronizacionOfflineModule } from "./modules/sincronizacion-offline/sincronizacion-offline.module";
-import { SociosModule } from "./modules/socios/socios.module";
+import { PropietariosModule } from "./modules/propietarios/propietarios.module";
 import { TestDataModule } from "./modules/test-data/test-data.module";
 
 @Module({
@@ -34,12 +34,12 @@ import { TestDataModule } from "./modules/test-data/test-data.module";
     AdminUsersModule,
     AuthModule,
     SecurityModule,
-    SociosModule,
-    CobradoresModule,
-    CobradorModule,
-    RutasModule,
-    CarteraModule,
-    CobrosSocioModule,
+    PropietariosModule,
+    GestoresModule,
+    GestorModule,
+    CarterasModule,
+    ClientesModule,
+    CobrosPropietarioModule,
     ReglasNegociacionIaModule,
     SincronizacionOfflineModule,
     DashboardModule,

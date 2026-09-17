@@ -14,9 +14,9 @@ describe("eliminarArchivosSubidos", () => {
     expect(existsSync(archivo)).toBe(false);
   });
 
-  it("ignora rutas inexistentes y valores vacíos sin lanzar", async () => {
+  it("ignora carteras inexistentes y valores vacíos sin lanzar", async () => {
     await expect(
-      eliminarArchivosSubidos(["/ruta/que/no/existe.jpg", undefined, null, ""]),
+      eliminarArchivosSubidos(["/cartera/que/no/existe.jpg", undefined, null, ""]),
     ).resolves.toBeUndefined();
   });
 });

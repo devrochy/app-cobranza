@@ -5,7 +5,7 @@ import { ThrottlerModule } from "@nestjs/throttler";
 import { Test, TestingModule } from "@nestjs/testing";
 import type { Request } from "express";
 import { DataSource } from "typeorm";
-import { PermisosSocioService } from "../socios/permisos-socio.service";
+import { PermisosPropietarioService } from "../propietarios/permisos-propietario.service";
 import { AuthService, AuthTokenPayload } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtAuthGuard } from "./jwt-auth.guard";
@@ -17,8 +17,8 @@ describe("AuthController", () => {
 
   const mockAuthService = {
     login: jest.fn(),
-    loginSocio: jest.fn(),
-    loginCobrador: jest.fn(),
+    loginPropietario: jest.fn(),
+    loginGestor: jest.fn(),
     refresh: jest.fn(),
     revocar: jest.fn(),
   };
@@ -34,7 +34,7 @@ describe("AuthController", () => {
         { provide: DataSource, useValue: {} },
         PermisoGuard,
         Reflector,
-        { provide: PermisosSocioService, useValue: { tienePermiso: jest.fn() } },
+        { provide: PermisosPropietarioService, useValue: { tienePermiso: jest.fn() } },
         { provide: JwtService, useValue: new JwtService() },
         { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
@@ -57,38 +57,38 @@ describe("AuthController", () => {
     expect(result.accessToken).toBe("a");
   });
 
-  it("loginSocio delega al servicio", async () => {
+  it("loginPropietario delega al servicio", async () => {
     const pair = { accessToken: "a", refreshToken: "r" };
-    (authService.loginSocio as jest.Mock).mockResolvedValue({
+    (authService.loginPropietario as jest.Mock).mockResolvedValue({
       ...pair,
-      socio: { id: 10, usuario: "socio1", nombre: "Juan", apellido: "Pérez" },
+      propietario: { id: 10, usuario: "propietario1", nombre: "Juan", apellido: "Pérez" },
     });
 
-    const result = await controller.loginSocio({ usuario: "socio1", password: "s3cret" });
+    const result = await controller.loginPropietario({ usuario: "propietario1", password: "s3cret" });
 
-    expect(authService.loginSocio).toHaveBeenCalledWith("socio1", "s3cret");
-    expect(result.socio.usuario).toBe("socio1");
+    expect(authService.loginPropietario).toHaveBeenCalledWith("propietario1", "s3cret");
+    expect(result.propietario.usuario).toBe("propietario1");
   });
 
-  it("loginCobrador delega al servicio", async () => {
+  it("loginGestor delega al servicio", async () => {
     const pair = { accessToken: "a", refreshToken: "r" };
-    (authService.loginCobrador as jest.Mock).mockResolvedValue({
+    (authService.loginGestor as jest.Mock).mockResolvedValue({
       ...pair,
-      cobrador: { id: 20, usuario: "cobrador1", nombre: "Carlos", apellido: "López" },
+      gestor: { id: 20, usuario: "gestor1", nombre: "Carlos", apellido: "López" },
     });
 
-    const result = await controller.loginCobrador({
-      usuario: "cobrador1",
+    const result = await controller.loginGestor({
+      usuario: "gestor1",
       password: "s3cret",
       imei: "imei-1",
       whatsappNumber: "+59171111111",
     });
 
-    expect(authService.loginCobrador).toHaveBeenCalledWith("cobrador1", "s3cret", {
+    expect(authService.loginGestor).toHaveBeenCalledWith("gestor1", "s3cret", {
       imei: "imei-1",
       whatsappNumber: "+59171111111",
     });
-    expect(result.cobrador.usuario).toBe("cobrador1");
+    expect(result.gestor.usuario).toBe("gestor1");
   });
 
   it("refresh delega al servicio", async () => {

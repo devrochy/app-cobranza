@@ -5,23 +5,23 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { ClienteEvidencia } from "../../src/modules/cartera/cliente-evidencia.entity";
-import { Cuota } from "../../src/modules/cartera/cuota.entity";
-import { Prestamo } from "../../src/modules/cartera/prestamo.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Gasto } from "../../src/modules/rutas/gasto.entity";
-import { GastoEvidencia } from "../../src/modules/rutas/gasto-evidencia.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { ClienteEvidencia } from "../../src/modules/clientes/cliente-evidencia.entity";
+import { Cuota } from "../../src/modules/clientes/cuota.entity";
+import { Prestamo } from "../../src/modules/clientes/prestamo.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Gasto } from "../../src/modules/carteras/gasto.entity";
+import { GastoEvidencia } from "../../src/modules/carteras/gasto-evidencia.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Descarga de evidencias (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let gastoRepo: Repository<Gasto>;
   let gastoEvidenciaRepo: Repository<GastoEvidencia>;
   let clienteRepo: Repository<Cliente>;
@@ -30,14 +30,14 @@ describe("Descarga de evidencias (e2e)", () => {
   let cuotaRepo: Repository<Cuota>;
 
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let gastoId: number;
   let gastoEvidenciaId: number;
   let clienteId: number;
 
   const ADMIN_USERNAME = "descarga-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Descarga2026";
-  const PASSWORD = "Socio#Descarga2026";
+  const PASSWORD = "Propietario#Descarga2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "descarga-e2e-access-secret";
@@ -56,9 +56,9 @@ describe("Descarga de evidencias (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     gastoRepo = moduleFixture.get(getRepositoryToken(Gasto));
     gastoEvidenciaRepo = moduleFixture.get(getRepositoryToken(GastoEvidencia));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
@@ -72,10 +72,10 @@ describe("Descarga de evidencias (e2e)", () => {
     await prestamoRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
     await gastoRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-DESC-1" });
-    await socioRepo.delete({ codigo: "SC-DESC-1" });
-    await socioRepo.delete({ codigo: "SC-DESC-2" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-DESC-1" });
+    await propietarioRepo.delete({ codigo: "SC-DESC-1" });
+    await propietarioRepo.delete({ codigo: "SC-DESC-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -93,47 +93,47 @@ describe("Descarga de evidencias (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-desc-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-desc-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-desc-1@correo.com",
+      correo: "propietario-desc-1@correo.com",
       telefono: "+59171160050",
       codigo: "SC-DESC-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-desc-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-desc-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-desc-1@correo.com",
+      correo: "gestor-desc-1@correo.com",
       telefono: "+59172270050",
       codigo: "CB-DESC-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta DESCARGA",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera DESCARGA",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const gastoRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/gastos`)
+      .post(`/carteras/${carteraId}/gastos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .field("descripcion", "Combustible")
       .field("valor", "50")
@@ -143,7 +143,7 @@ describe("Descarga de evidencias (e2e)", () => {
     gastoEvidenciaId = evidencia!.id;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .field("nombre", "Juan")
       .field("apellido", "Descarga")
@@ -159,19 +159,19 @@ describe("Descarga de evidencias (e2e)", () => {
   afterAll(async () => {
     await clienteEvidenciaRepo.createQueryBuilder().delete().execute();
     await gastoEvidenciaRepo.createQueryBuilder().delete().execute();
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await gastoRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-DESC-1" });
-    await socioRepo.delete({ codigo: "SC-DESC-1" });
-    await socioRepo.delete({ codigo: "SC-DESC-2" });
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await gastoRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-DESC-1" });
+    await propietarioRepo.delete({ codigo: "SC-DESC-1" });
+    await propietarioRepo.delete({ codigo: "SC-DESC-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
   it("GET evidencia de gasto devuelve el archivo inline", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/gastos/${gastoId}/evidencias/${gastoEvidenciaId}`)
+      .get(`/carteras/${carteraId}/gastos/${gastoId}/evidencias/${gastoEvidenciaId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .buffer(true)
       .parse((response, callback) => {
@@ -189,7 +189,7 @@ describe("Descarga de evidencias (e2e)", () => {
 
   it("GET evidencia de gasto con ?descargar=1 fuerza attachment", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/gastos/${gastoId}/evidencias/${gastoEvidenciaId}?descargar=1`)
+      .get(`/carteras/${carteraId}/gastos/${gastoId}/evidencias/${gastoEvidenciaId}?descargar=1`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -199,7 +199,7 @@ describe("Descarga de evidencias (e2e)", () => {
 
   it("GET evidencia de gasto inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/gastos/${gastoId}/evidencias/999999`)
+      .get(`/carteras/${carteraId}/gastos/${gastoId}/evidencias/999999`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
@@ -207,7 +207,7 @@ describe("Descarga de evidencias (e2e)", () => {
 
   it("GET evidencia de gasto sin token -> 401", async () => {
     const res = await request(app.getHttpServer()).get(
-      `/rutas/${rutaId}/gastos/${gastoId}/evidencias/${gastoEvidenciaId}`,
+      `/carteras/${carteraId}/gastos/${gastoId}/evidencias/${gastoEvidenciaId}`,
     );
 
     expect(res.status).toBe(401);
@@ -215,7 +215,7 @@ describe("Descarga de evidencias (e2e)", () => {
 
   it("GET foto de cliente devuelve el archivo", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/evidencias/foto_facial`)
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/evidencias/foto_facial`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .buffer(true)
       .parse((response, callback) => {
@@ -231,7 +231,7 @@ describe("Descarga de evidencias (e2e)", () => {
 
   it("GET evidencia de cliente sin token -> 401", async () => {
     const res = await request(app.getHttpServer()).get(
-      `/rutas/${rutaId}/clientes/${clienteId}/evidencias/foto_facial`,
+      `/carteras/${carteraId}/clientes/${clienteId}/evidencias/foto_facial`,
     );
 
     expect(res.status).toBe(401);
@@ -239,34 +239,34 @@ describe("Descarga de evidencias (e2e)", () => {
 
   it("GET evidencia de cliente con tipo inválido -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/evidencias/otro`)
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/evidencias/otro`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
   });
 
-  it("un socio SIN ver_reportes no puede descargar -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-desc-2",
+  it("un propietario SIN ver_reportes no puede descargar -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-desc-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-desc-2@correo.com",
+      correo: "propietario-desc-2@correo.com",
       telefono: "+59171160052",
       codigo: "SC-DESC-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-desc-2", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-desc-2", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/gastos/${gastoId}/evidencias/${gastoEvidenciaId}`)
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .get(`/carteras/${carteraId}/gastos/${gastoId}/evidencias/${gastoEvidenciaId}`)
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 });

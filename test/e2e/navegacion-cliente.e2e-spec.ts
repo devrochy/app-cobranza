@@ -5,26 +5,26 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Navegación al cliente (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let accessTokenAdmin: string;
-  let rutaId: number;
+  let carteraId: number;
   let clienteId: number;
 
   const ADMIN_USERNAME = "nav-e2e-admin";
   const ADMIN_PASSWORD = "Admin#Nav2026";
-  const PASSWORD = "Socio#Nav2026";
+  const PASSWORD = "Propietario#Nav2026";
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret-nav";
@@ -43,15 +43,15 @@ describe("Navegación al cliente (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
 
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-NAV-1" });
-    await socioRepo.delete({ codigo: "SC-NAV-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-NAV-1" });
+    await propietarioRepo.delete({ codigo: "SC-NAV-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
 
     await adminRepo.save({
@@ -69,47 +69,47 @@ describe("Navegación al cliente (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-nav-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-nav-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-nav-1@correo.com",
+      correo: "propietario-nav-1@correo.com",
       telefono: "+59171160130",
       codigo: "SC-NAV-1",
       moneda: "BOB",
       estatus: "activo",
     });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-nav-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-nav-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-nav-1@correo.com",
+      correo: "gestor-nav-1@correo.com",
       telefono: "+59172270130",
       codigo: "CB-NAV-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta NAV",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera NAV",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
         nombre: "Juan",
@@ -125,17 +125,17 @@ describe("Navegación al cliente (e2e)", () => {
   });
 
   afterAll(async () => {
-    await clienteRepo.createQueryBuilder().delete().where("ruta_id = :rutaId", { rutaId }).execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-NAV-1" });
-    await socioRepo.delete({ codigo: "SC-NAV-1" });
+    await clienteRepo.createQueryBuilder().delete().where("cartera_id = :carteraId", { carteraId }).execute();
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-NAV-1" });
+    await propietarioRepo.delete({ codigo: "SC-NAV-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
   it("GET .../navegacion devuelve enlaces de Google Maps y Waze", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/navegacion?origenLat=-17.77&origenLng=-63.17`)
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/navegacion?origenLat=-17.77&origenLng=-63.17`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -147,7 +147,7 @@ describe("Navegación al cliente (e2e)", () => {
 
   it("GET .../navegacion sin origen -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/navegacion`)
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/navegacion`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(400);
@@ -155,7 +155,7 @@ describe("Navegación al cliente (e2e)", () => {
 
   it("GET .../navegacion con origen fuera de rango -> 400", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/navegacion?origenLat=200&origenLng=-63.17`)
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/navegacion?origenLat=200&origenLng=-63.17`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(400);
@@ -163,7 +163,7 @@ describe("Navegación al cliente (e2e)", () => {
 
   it("GET .../navegacion con cliente inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/999999/navegacion?origenLat=-17.77&origenLng=-63.17`)
+      .get(`/carteras/${carteraId}/clientes/999999/navegacion?origenLat=-17.77&origenLng=-63.17`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
@@ -171,33 +171,33 @@ describe("Navegación al cliente (e2e)", () => {
 
   it("GET .../navegacion sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/navegacion?origenLat=-17.77&origenLng=-63.17`);
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/navegacion?origenLat=-17.77&origenLng=-63.17`);
 
     expect(res.status).toBe(401);
   });
 
-  it("un socio SIN ver_reportes no puede navegar -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-nav-2",
+  it("un propietario SIN ver_reportes no puede navegar -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-nav-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S2",
       apellido: "E2E",
-      correo: "socio-nav-2@correo.com",
+      correo: "propietario-nav-2@correo.com",
       telefono: "+59171160132",
       codigo: "SC-NAV-2",
       moneda: "BOB",
       estatus: "activo",
     });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-nav-2", password: PASSWORD });
-    const tokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-nav-2", password: PASSWORD });
+    const tokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .get(`/rutas/${rutaId}/clientes/${clienteId}/navegacion?origenLat=-17.77&origenLng=-63.17`)
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .get(`/carteras/${carteraId}/clientes/${clienteId}/navegacion?origenLat=-17.77&origenLng=-63.17`)
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 });

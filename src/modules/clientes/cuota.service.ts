@@ -1,0 +1,236 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
+import { assertOwned } from "../../common/ownership";
+import { RolUsuario } from "../auth/auth.service";
+import { ReautenticacionService } from "../security/reautenticacion.service";
+import { Cartera } from "../carteras/cartera.entity";
+import { CajaService, TipoMovimientoCaja } from "../carteras/caja.service";
+import { Cuota } from "./cuota.entity";
+import { Pago } from "./pago.entity";
+import { AuditoriaCartera } from "./auditoria-cartera.entity";
+import { ColorRiesgoService } from "./color-riesgo.service";
+
+export interface EditarCuotaInput {
+  valorEsperado?: number;
+  fechaVencimiento?: string;
+}
+
+export interface OperacionAuditadaContext {
+  password: string;
+  motivo: string;
+}
+
+export interface RequesterCuotaContext {
+  rol: RolUsuario;
+  sub: number;
+}
+
+export interface CuotaPublic {
+  id: number;
+  prestamoId: number;
+  numeroCuota: number;
+  valorEsperado: number;
+  fechaVencimiento: string;
+  estatus: Cuota["estatus"];
+}
+
+@Injectable()
+export class CuotaService {
+  constructor(
+    @InjectRepository(Cartera)
+    private readonly carteraRepo: Repository<Cartera>,
+    @InjectRepository(Cuota)
+    private readonly cuotaRepo: Repository<Cuota>,
+    @InjectRepository(Pago)
+    private readonly pagoRepo: Repository<Pago>,
+    @InjectRepository(AuditoriaCartera)
+    private readonly auditoriaRepo: Repository<AuditoriaCartera>,
+    private readonly dataSource: DataSource,
+    private readonly reautenticacion: ReautenticacionService,
+    private readonly cajaService: CajaService,
+    private readonly colorRiesgo: ColorRiesgoService,
+  ) {}
+
+  async editarCuota(
+    carteraId: number,
+    cuotaId: number,
+    input: EditarCuotaInput,
+    ctx: OperacionAuditadaContext,
+    requester: RequesterCuotaContext,
+  ): Promise<CuotaPublic> {
+    await this.assertAcceso(carteraId, requester, ctx);
+
+    const cuota = await this.buscarCuota(carteraId, cuotaId);
+    if (!input.valorEsperado && !input.fechaVencimiento) {
+      throw new BadRequestException("No hay campos para editar");
+    }
+    if (input.valorEsperado !== undefined && input.valorEsperado <= 0) {
+      throw new BadRequestException("El valor de la cuota debe ser mayor que 0");
+    }
+    if (!ctx.motivo?.trim()) {
+      throw new BadRequestException("El motivo es obligatorio");
+    }
+
+    const antes = this.snapshot(cuota);
+    const esPagada = cuota.estatus === "pagada";
+    const valorAnterior = cuota.valorEsperado;
+    if (input.valorEsperado !== undefined) cuota.valorEsperado = input.valorEsperado;
+    if (input.fechaVencimiento !== undefined) cuota.fechaVencimiento = input.fechaVencimiento;
+    const despues = this.snapshot(cuota);
+
+    await this.dataSource.transaction(async (manager) => {
+      const cuotaRepo = manager.getRepository(Cuota);
+      const pagoRepo = manager.getRepository(Pago);
+      const auditoriaRepo = manager.getRepository(AuditoriaCartera);
+      await cuotaRepo.save(cuota);
+      await this.registrarAuditoria(
+        auditoriaRepo,
+        "cuota",
+        cuota.id,
+        "editar",
+        antes,
+        despues,
+        requester,
+        ctx.motivo,
+      );
+      if (esPagada && input.valorEsperado !== undefined) {
+        const delta = input.valorEsperado - valorAnterior;
+        // Mantiene el pago consistente con la cuota y la caja (HU-48).
+        const pago = await pagoRepo.findOne({ where: { cuota: { id: cuota.id } } });
+        if (pago) {
+          pago.valor = input.valorEsperado;
+          await pagoRepo.save(pago);
+        }
+        if (delta !== 0) {
+          await this.cajaService.aplicarMovimiento(
+            carteraId,
+            delta,
+            TipoMovimientoCaja.PAGO,
+            requester,
+            `ajuste por edición de cuota ${cuota.numeroCuota}`,
+            manager,
+          );
+        }
+      }
+    });
+
+    return this.toPublic(cuota);
+  }
+
+  async eliminarCuota(
+    carteraId: number,
+    cuotaId: number,
+    ctx: OperacionAuditadaContext,
+    requester: RequesterCuotaContext,
+  ): Promise<{ id: number }> {
+    await this.assertAcceso(carteraId, requester, ctx);
+    if (!ctx.motivo?.trim()) {
+      throw new BadRequestException("El motivo es obligatorio");
+    }
+
+    const cuota = await this.buscarCuota(carteraId, cuotaId);
+    if (cuota.estatus === "pagada") {
+      throw new BadRequestException(
+        "No se puede eliminar una cuota pagada; primero revierta el pago",
+      );
+    }
+    const antes = this.snapshot(cuota);
+
+    await this.dataSource.transaction(async (manager) => {
+      const cuotaRepo = manager.getRepository(Cuota);
+      const auditoriaRepo = manager.getRepository(AuditoriaCartera);
+
+      const resultado = await cuotaRepo.delete({ id: cuota.id });
+      if (resultado.affected === 0) {
+        return; // eliminada concurrentemente
+      }
+
+      await this.registrarAuditoria(
+        auditoriaRepo,
+        "cuota",
+        cuota.id,
+        "eliminar",
+        antes,
+        {},
+        requester,
+        ctx.motivo,
+      );
+
+      // HU-13: al eliminar una cuota, el atraso del cliente puede cambiar.
+      await this.colorRiesgo.recalcularSeguro(cuota.prestamo.cliente.id, carteraId, manager);
+    });
+
+    return { id: cuotaId };
+  }
+
+  private async assertAcceso(
+    carteraId: number,
+    requester: RequesterCuotaContext,
+    ctx: OperacionAuditadaContext,
+  ): Promise<void> {
+    const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
+    if (!cartera) {
+      throw new NotFoundException("La cartera no existe");
+    }
+    assertOwned(cartera, requester);
+    await this.reautenticacion.validar(requester, ctx.password);
+  }
+
+  private async buscarCuota(carteraId: number, cuotaId: number): Promise<Cuota> {
+    const cuota = await this.cuotaRepo.findOne({
+      where: { id: cuotaId, prestamo: { cartera: { id: carteraId } } },
+      relations: { prestamo: { cliente: true } },
+    });
+    if (!cuota) {
+      throw new NotFoundException("La cuota no existe en esta cartera");
+    }
+    return cuota;
+  }
+
+  private snapshot(cuota: Cuota): Record<string, unknown> {
+    return {
+      valorEsperado: cuota.valorEsperado,
+      fechaVencimiento: cuota.fechaVencimiento,
+      estatus: cuota.estatus,
+    };
+  }
+
+  private async registrarAuditoria(
+    repo: Repository<AuditoriaCartera>,
+    entidad: AuditoriaCartera["entidad"],
+    entidadId: number,
+    operacion: AuditoriaCartera["operacion"],
+    antes: Record<string, unknown>,
+    despues: Record<string, unknown>,
+    requester: RequesterCuotaContext,
+    motivo: string,
+  ): Promise<void> {
+    const fila = repo.create({
+      entidad,
+      entidadId,
+      operacion,
+      valoresAntes: antes,
+      valoresDespues: despues,
+      actorRol: requester.rol,
+      actorId: requester.sub,
+      motivo,
+    });
+    await repo.save(fila);
+  }
+
+  private toPublic(cuota: Cuota): CuotaPublic {
+    return {
+      id: cuota.id,
+      prestamoId: cuota.prestamoId,
+      numeroCuota: cuota.numeroCuota,
+      valorEsperado: cuota.valorEsperado,
+      fechaVencimiento: cuota.fechaVencimiento,
+      estatus: cuota.estatus,
+    };
+  }
+}

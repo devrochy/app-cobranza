@@ -5,30 +5,30 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { CambioClientePendiente } from "../../src/modules/cartera/cambio-cliente-pendiente.entity";
-import { Cliente } from "../../src/modules/cartera/cliente.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { CambioClientePendiente } from "../../src/modules/clientes/cambio-cliente-pendiente.entity";
+import { Cliente } from "../../src/modules/clientes/cliente.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Actualización de cliente con aprobación (HU-47, e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let clienteRepo: Repository<Cliente>;
   let cambioRepo: Repository<CambioClientePendiente>;
   let accessTokenAdmin: string;
-  let accessTokenSocio: string;
-  let rutaId: number;
+  let accessTokenPropietario: string;
+  let carteraId: number;
   let clienteId: number;
 
   const ADMIN_USERNAME = "actclie-e2e-admin";
   const ADMIN_PASSWORD = "actclie-e2e-password";
   const PASSWORD = "password-seguro";
-  let socioId: number;
+  let propietarioId: number;
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "actclie-e2e-access-secret";
@@ -47,17 +47,17 @@ describe("Actualización de cliente con aprobación (HU-47, e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     clienteRepo = moduleFixture.get(getRepositoryToken(Cliente));
     cambioRepo = moduleFixture.get(getRepositoryToken(CambioClientePendiente));
 
     await cambioRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-ACTCLIE-1" });
-    await socioRepo.delete({ codigo: "SC-ACTCLIE-1" });
+    await carteraRepo.createQueryBuilder().delete().execute();
+    await gestorRepo.delete({ codigo: "CB-ACTCLIE-1" });
+    await propietarioRepo.delete({ codigo: "SC-ACTCLIE-1" });
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await adminRepo.save({
@@ -75,48 +75,48 @@ describe("Actualización de cliente con aprobación (HU-47, e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-actclie-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-actclie-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-actclie-1@correo.com",
+      correo: "propietario-actclie-1@correo.com",
       telefono: "+59171160052",
       codigo: "SC-ACTCLIE-1",
       moneda: "BOB",
       estatus: "activo",
     });
-    socioId = socio.id;
+    propietarioId = propietario.id;
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-actclie-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-actclie-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-actclie-1@correo.com",
+      correo: "gestor-actclie-1@correo.com",
       telefono: "+59172270052",
       codigo: "CB-ACTCLIE-1",
       estatus: "activo",
     });
 
-    const rutaRes = await request(app.getHttpServer())
-      .post("/rutas")
+    const carteraRes = await request(app.getHttpServer())
+      .post("/carteras")
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({
-        nombre: "Ruta ACTCLIE",
-        socioId: socio.id,
-        cobradorId: cobrador.id,
+        nombre: "Cartera ACTCLIE",
+        propietarioId: propietario.id,
+        gestorId: gestor.id,
         tipoInteres: 20,
         numCuotas: 4,
         moneda: "BOB",
         saldoInicial: 1000,
         costoCobro: 250,
       });
-    rutaId = rutaRes.body.id as number;
+    carteraId = carteraRes.body.id as number;
 
     const clienteRes = await request(app.getHttpServer())
-      .post(`/rutas/${rutaId}/clientes`)
+      .post(`/carteras/${carteraId}/clientes`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .field("nombre", "Juan")
       .field("apellido", "Cliente")
@@ -131,16 +131,16 @@ describe("Actualización de cliente con aprobación (HU-47, e2e)", () => {
   afterAll(async () => {
     await cambioRepo.createQueryBuilder().delete().execute();
     await clienteRepo.createQueryBuilder().delete().execute();
-    await rutaRepo.delete({ id: rutaId });
-    await cobradorRepo.delete({ codigo: "CB-ACTCLIE-1" });
-    await socioRepo.delete({ codigo: "SC-ACTCLIE-1" });
+    await carteraRepo.delete({ id: carteraId });
+    await gestorRepo.delete({ codigo: "CB-ACTCLIE-1" });
+    await propietarioRepo.delete({ codigo: "SC-ACTCLIE-1" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
   it("el admin actualiza el cliente directamente (tiene permiso)", async () => {
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/clientes/${clienteId}`)
+      .patch(`/carteras/${carteraId}/clientes/${clienteId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ nombre: "Juan Carlos" });
 
@@ -148,19 +148,19 @@ describe("Actualización de cliente con aprobación (HU-47, e2e)", () => {
     expect(res.body.nombre).toBe("Juan Carlos");
   });
 
-  it("un socio sin actualizar_cliente genera una propuesta pendiente", async () => {
+  it("un propietario sin actualizar_cliente genera una propuesta pendiente", async () => {
     await request(app.getHttpServer())
-      .put(`/socios/${socioId}/permisos`)
+      .put(`/propietarios/${propietarioId}/permisos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ matriz: { configurar_ruta: true } });
+      .send({ matriz: { configurar_cartera: true } });
     const login = await request(app.getHttpServer())
-      .post("/auth/socio/login")
-      .send({ usuario: "socio-actclie-1", password: PASSWORD });
-    accessTokenSocio = login.body.accessToken as string;
+      .post("/auth/propietario/login")
+      .send({ usuario: "propietario-actclie-1", password: PASSWORD });
+    accessTokenPropietario = login.body.accessToken as string;
 
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/clientes/${clienteId}`)
-      .set("Authorization", `Bearer ${accessTokenSocio}`)
+      .patch(`/carteras/${carteraId}/clientes/${clienteId}`)
+      .set("Authorization", `Bearer ${accessTokenPropietario}`)
       .send({ apellido: "García" });
 
     expect(res.status).toBe(200);
@@ -170,7 +170,7 @@ describe("Actualización de cliente con aprobación (HU-47, e2e)", () => {
   it("el admin aprueba la propuesta pendiente y aplica el cambio", async () => {
     const propuesta = await cambioRepo.findOne({ where: { cliente: { id: clienteId } } });
     const res = await request(app.getHttpServer())
-      .patch(`/rutas/${rutaId}/cambios-cliente/${propuesta!.id}/decision`)
+      .patch(`/carteras/${carteraId}/cambios-cliente/${propuesta!.id}/decision`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ decision: "aprobar" });
 

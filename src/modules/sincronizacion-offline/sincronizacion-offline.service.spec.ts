@@ -38,7 +38,7 @@ describe("SincronizacionOfflineService", () => {
     (repo.findOne as jest.Mock).mockResolvedValue(null);
 
     const resultados = await service.ingestir(device, [
-      { eventoIdCliente: UUID, tipoEvento: "visita", payload: { rutaId: 1 } },
+      { eventoIdCliente: UUID, tipoEvento: "visita", payload: { carteraId: 1 } },
     ]);
 
     // El ack al dispositivo es "sincronizado" (aceptado con dedup).

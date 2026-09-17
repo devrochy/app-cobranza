@@ -17,7 +17,7 @@ import { PerfilService } from "./perfil.service";
 
 /**
  * `GET/PATCH /perfil`: lectura y auto-actualización del perfil del usuario
- * autenticado (admin, cobrador o socio). Solo `JwtAuthGuard` (revalida estado
+ * autenticado (admin, gestor o propietario). Solo `JwtAuthGuard` (revalida estado
  * activo); no requiere permiso porque opera sobre los datos propios.
  */
 @Controller("perfil")

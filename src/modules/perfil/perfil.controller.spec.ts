@@ -35,10 +35,10 @@ describe("PerfilController", () => {
     });
 
     await controller.actualizar({ nombre: "Nuevo", apellido: "Pérez" }, {
-      user: { rol: "cobrador", sub: 7 },
+      user: { rol: "gestor", sub: 7 },
     } as never);
 
-    expect(mockService.actualizar).toHaveBeenCalledWith("cobrador", 7, {
+    expect(mockService.actualizar).toHaveBeenCalledWith("gestor", 7, {
       nombre: "Nuevo",
       apellido: "Pérez",
     });
@@ -53,10 +53,10 @@ describe("PerfilController", () => {
     });
 
     await controller.obtener({
-      user: { rol: "cobrador", sub: 7 },
+      user: { rol: "gestor", sub: 7 },
     } as never);
 
-    expect(mockService.obtener).toHaveBeenCalledWith("cobrador", 7);
+    expect(mockService.obtener).toHaveBeenCalledWith("gestor", 7);
   });
 
   it("cambiarPassword delega en el servicio con el rol y sub del usuario autenticado", async () => {

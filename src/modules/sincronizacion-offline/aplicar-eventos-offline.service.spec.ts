@@ -1,14 +1,14 @@
 import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { AbonosService } from "../cartera/abonos.service";
-import { ClienteService } from "../cartera/cliente.service";
-import { PagosService } from "../cartera/pagos.service";
-import { VisitasService } from "../cartera/visitas.service";
-import { CobradoresPermisosService } from "../cobradores/cobradores-permisos.service";
-import { Ruta } from "../rutas/ruta.entity";
-import { GastosService } from "../rutas/gastos.service";
-import { TrayectoriasService } from "../rutas/trayectorias.service";
+import { AbonosService } from "../clientes/abonos.service";
+import { ClienteService } from "../clientes/cliente.service";
+import { PagosService } from "../clientes/pagos.service";
+import { VisitasService } from "../clientes/visitas.service";
+import { GestoresPermisosService } from "../gestores/gestores-permisos.service";
+import { Cartera } from "../carteras/cartera.entity";
+import { GastosService } from "../carteras/gastos.service";
+import { TrayectoriasService } from "../carteras/trayectorias.service";
 import { Device } from "./device.entity";
 import { SincronizacionOffline } from "./sincronizacion-offline.entity";
 import { AplicarEventosOfflineService } from "./aplicar-eventos-offline.service";
@@ -17,7 +17,7 @@ import { EvidenciasOfflineService } from "./evidencias-offline.service";
 describe("AplicarEventosOfflineService", () => {
   let service: AplicarEventosOfflineService;
   let repo: { update: jest.Mock; increment: jest.Mock; find: jest.Mock };
-  let rutaRepo: { findOne: jest.Mock };
+  let carteraRepo: { findOne: jest.Mock };
   let visitas: { registrar: jest.Mock };
   let pagos: { registrarPagoDeCuota: jest.Mock };
   let abonos: { registrarAbono: jest.Mock };
@@ -25,10 +25,10 @@ describe("AplicarEventosOfflineService", () => {
   let clienteService: { actualizar: jest.Mock };
   let evidencias: { persistir: jest.Mock };
   let trayectorias: { registrarReal: jest.Mock };
-  let permisosCobrador: { tienePermiso: jest.Mock };
+  let permisosGestor: { tienePermiso: jest.Mock };
 
-  const device: Device = { id: 1, cobradorId: 20 } as Device;
-  const requester = { rol: "cobrador", sub: 20 };
+  const device: Device = { id: 1, gestorId: 20 } as Device;
+  const requester = { rol: "gestor", sub: 20 };
 
   function evento(overrides: Partial<SincronizacionOffline> = {}): SincronizacionOffline {
     return {
@@ -44,7 +44,7 @@ describe("AplicarEventosOfflineService", () => {
   }
 
   const payloadVisitaValido = {
-    rutaId: 1779,
+    carteraId: 1779,
     prestamoId: 1,
     clienteId: 2,
     resultado: "pago",
@@ -61,7 +61,7 @@ describe("AplicarEventosOfflineService", () => {
       increment: jest.fn(),
       find: jest.fn(),
     };
-    rutaRepo = { findOne: jest.fn() };
+    carteraRepo = { findOne: jest.fn() };
     visitas = { registrar: jest.fn() };
     pagos = { registrarPagoDeCuota: jest.fn() };
     abonos = { registrarAbono: jest.fn() };
@@ -69,13 +69,13 @@ describe("AplicarEventosOfflineService", () => {
     clienteService = { actualizar: jest.fn() };
     evidencias = { persistir: jest.fn() };
     trayectorias = { registrarReal: jest.fn() };
-    permisosCobrador = { tienePermiso: jest.fn().mockResolvedValue(true) };
+    permisosGestor = { tienePermiso: jest.fn().mockResolvedValue(true) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AplicarEventosOfflineService,
         { provide: getRepositoryToken(SincronizacionOffline), useValue: repo },
-        { provide: getRepositoryToken(Ruta), useValue: rutaRepo },
+        { provide: getRepositoryToken(Cartera), useValue: carteraRepo },
         { provide: VisitasService, useValue: visitas },
         { provide: PagosService, useValue: pagos },
         { provide: AbonosService, useValue: abonos },
@@ -83,7 +83,7 @@ describe("AplicarEventosOfflineService", () => {
         { provide: ClienteService, useValue: clienteService },
         { provide: EvidenciasOfflineService, useValue: evidencias },
         { provide: TrayectoriasService, useValue: trayectorias },
-        { provide: CobradoresPermisosService, useValue: permisosCobrador },
+        { provide: GestoresPermisosService, useValue: permisosGestor },
       ],
     }).compile();
 
@@ -91,16 +91,16 @@ describe("AplicarEventosOfflineService", () => {
   });
 
   it("aplica una visita y marca el evento sincronizado", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
     const e = evento({ tipoEvento: "visita", payloadJson: payloadVisitaValido });
     visitas.registrar.mockResolvedValue({ id: 1 });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
-    const payloadSinRuta: Record<string, unknown> = { ...payloadVisitaValido };
-    delete payloadSinRuta.rutaId;
-    expect(visitas.registrar).toHaveBeenCalledWith(1779, payloadSinRuta, requester);
-    expect(permisosCobrador.tienePermiso).toHaveBeenCalledWith(20, "registrar_pago");
+    const payloadSinCartera: Record<string, unknown> = { ...payloadVisitaValido };
+    delete payloadSinCartera.carteraId;
+    expect(visitas.registrar).toHaveBeenCalledWith(1779, payloadSinCartera, requester);
+    expect(permisosGestor.tienePermiso).toHaveBeenCalledWith(20, "registrar_pago");
     expect(repo.update).toHaveBeenCalledWith(1, {
       estado: "sincronizado",
       syncedAt: expect.any(Date),
@@ -109,7 +109,7 @@ describe("AplicarEventosOfflineService", () => {
   });
 
   it("marca error con motivo si la aplicación falla", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
     const e = evento({ tipoEvento: "visita", payloadJson: payloadVisitaValido });
     visitas.registrar.mockRejectedValue(new BadRequestException("Cuota no existe"));
 
@@ -123,7 +123,7 @@ describe("AplicarEventosOfflineService", () => {
   });
 
   it("salta eventos ya sincronizados (idempotencia)", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
     const e = evento({ estado: "sincronizado" });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
@@ -133,7 +133,7 @@ describe("AplicarEventosOfflineService", () => {
   });
 
   it("no aplica un evento si otro proceso ya lo reclamó", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
     (repo.update as jest.Mock).mockResolvedValue({ affected: 0 });
     const e = evento({ tipoEvento: "visita", payloadJson: payloadVisitaValido });
 
@@ -142,10 +142,10 @@ describe("AplicarEventosOfflineService", () => {
     expect(visitas.registrar).not.toHaveBeenCalled();
   });
 
-  it("marca error si el cobrador no tiene el permiso", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
-    permisosCobrador.tienePermiso.mockResolvedValue(false);
-    const e = evento({ tipoEvento: "gasto", payloadJson: { rutaId: 1779, descripcion: "x", valor: 10 } });
+  it("marca error si el gestor no tiene el permiso", async () => {
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
+    permisosGestor.tienePermiso.mockResolvedValue(false);
+    const e = evento({ tipoEvento: "gasto", payloadJson: { carteraId: 1779, descripcion: "x", valor: 10 } });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
@@ -157,8 +157,8 @@ describe("AplicarEventosOfflineService", () => {
   });
 
   it("rechaza un monto negativo (payload inválido)", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
-    const e = evento({ tipoEvento: "gasto", payloadJson: { rutaId: 1779, descripcion: "x", valor: -50 } });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
+    const e = evento({ tipoEvento: "gasto", payloadJson: { carteraId: 1779, descripcion: "x", valor: -50 } });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
@@ -169,24 +169,24 @@ describe("AplicarEventosOfflineService", () => {
     expect(gastos.registrar).not.toHaveBeenCalled();
   });
 
-  it("marca error si el dispositivo no tiene cobrador vinculado", async () => {
-    const sinCobrador = { id: 1, cobradorId: null } as Device;
+  it("marca error si el dispositivo no tiene gestor vinculado", async () => {
+    const sinGestor = { id: 1, gestorId: null } as Device;
     const e = evento();
 
-    await service.aplicarEventosDeDispositivo(sinCobrador, [e]);
+    await service.aplicarEventosDeDispositivo(sinGestor, [e]);
 
     expect(repo.update).toHaveBeenCalledWith(1, {
       estado: "error",
-      errorMotivo: expect.stringContaining("cobrador"),
+      errorMotivo: expect.stringContaining("gestor"),
     });
   });
 
   it("persiste evidencias base64 y registra el gasto", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
     const e = evento({
       tipoEvento: "gasto",
       payloadJson: {
-        rutaId: 1779,
+        carteraId: 1779,
         descripcion: "Combustible",
         valor: 50,
         evidencias: [{ nombre: "a.jpg", mimetype: "image/jpeg", base64: "AAAA" }],
@@ -208,8 +208,8 @@ describe("AplicarEventosOfflineService", () => {
   });
 
   it("marca error si el tipo de evento no se puede aplicar", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
-    const e = evento({ tipoEvento: "desconocido", payloadJson: { rutaId: 1779 } });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
+    const e = evento({ tipoEvento: "desconocido", payloadJson: { carteraId: 1779 } });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
@@ -220,17 +220,17 @@ describe("AplicarEventosOfflineService", () => {
   });
 
   it("aplica una trayectoria offline y exige el permiso generar_reporte", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
     const puntos = [
       { latitud: -17.78, longitud: -63.18 },
       { latitud: -17.79, longitud: -63.19 },
     ];
-    const e = evento({ tipoEvento: "trayectoria", payloadJson: { rutaId: 1779, puntos } });
+    const e = evento({ tipoEvento: "trayectoria", payloadJson: { carteraId: 1779, puntos } });
     trayectorias.registrarReal.mockResolvedValue({ id: 1, tipo: "real" });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
-    expect(permisosCobrador.tienePermiso).toHaveBeenCalledWith(20, "generar_reporte");
+    expect(permisosGestor.tienePermiso).toHaveBeenCalledWith(20, "generar_reporte");
     expect(trayectorias.registrarReal).toHaveBeenCalledWith(1779, puntos, requester);
     expect(repo.update).toHaveBeenCalledWith(1, {
       estado: "sincronizado",
@@ -240,8 +240,8 @@ describe("AplicarEventosOfflineService", () => {
   });
 
   it("rechaza una trayectoria con menos de 2 puntos (payload inválido)", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
-    const e = evento({ tipoEvento: "trayectoria", payloadJson: { rutaId: 1779, puntos: [{ latitud: -17.78, longitud: -63.18 }] } });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
+    const e = evento({ tipoEvento: "trayectoria", payloadJson: { carteraId: 1779, puntos: [{ latitud: -17.78, longitud: -63.18 }] } });
 
     await service.aplicarEventosDeDispositivo(device, [e]);
 
@@ -252,13 +252,13 @@ describe("AplicarEventosOfflineService", () => {
     expect(trayectorias.registrarReal).not.toHaveBeenCalled();
   });
 
-  it("marca error si el cobrador no tiene el permiso generar_reporte", async () => {
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
-    permisosCobrador.tienePermiso.mockResolvedValue(false);
+  it("marca error si el gestor no tiene el permiso generar_reporte", async () => {
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
+    permisosGestor.tienePermiso.mockResolvedValue(false);
     const e = evento({
       tipoEvento: "trayectoria",
       payloadJson: {
-        rutaId: 1779,
+        carteraId: 1779,
         puntos: [
           { latitud: -17.78, longitud: -63.18 },
           { latitud: -17.79, longitud: -63.19 },
@@ -279,7 +279,7 @@ describe("AplicarEventosOfflineService", () => {
     repo.find.mockResolvedValue([
       evento({ tipoEvento: "visita", payloadJson: payloadVisitaValido }),
     ]);
-    rutaRepo.findOne.mockResolvedValue({ id: 1779, cobradorId: 20 });
+    carteraRepo.findOne.mockResolvedValue({ id: 1779, gestorId: 20 });
     visitas.registrar.mockResolvedValue({ id: 1 });
 
     await service.aplicarPendientesDeDispositivo(device);

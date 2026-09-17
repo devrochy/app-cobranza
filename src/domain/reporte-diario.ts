@@ -1,5 +1,5 @@
 /**
- * Cálculos del reporte diario por ruta (HU-18/HU-50).
+ * Cálculos del reporte diario por cartera (HU-18/HU-50).
  * Las ventanas usan la zona horaria local del servidor, consistente con
  * `LiquidacionesService` y la lista de clientes del día.
  */

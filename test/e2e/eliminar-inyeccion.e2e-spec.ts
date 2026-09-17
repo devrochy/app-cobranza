@@ -5,25 +5,25 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Caja } from "../../src/modules/rutas/caja.entity";
-import { Inyeccion } from "../../src/modules/rutas/inyeccion.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Caja } from "../../src/modules/carteras/caja.entity";
+import { Inyeccion } from "../../src/modules/carteras/inyeccion.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Eliminación de inyecciones (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let inyRepo: Repository<Inyeccion>;
   let cajaRepo: Repository<Caja>;
   let accessTokenAdmin: string;
-  let tokenSocio: string;
-  let rutaPropiaId: number;
-  let rutaAjenaId: number;
+  let tokenPropietario: string;
+  let carteraPropiaId: number;
+  let carteraAjenaId: number;
   let inyeccionId: number;
   let inyeccion2Id: number;
 
@@ -31,9 +31,9 @@ describe("Eliminación de inyecciones (e2e)", () => {
   const ADMIN_PASSWORD = "del-iny-e2e-password";
   const PASSWORD = "password-seguro";
 
-  async function loginSocio(usuario: string): Promise<string> {
+  async function loginPropietario(usuario: string): Promise<string> {
     const res = await request(app.getHttpServer())
-      .post("/auth/socio/login")
+      .post("/auth/propietario/login")
       .send({ usuario, password: PASSWORD });
     return res.body.accessToken as string;
   }
@@ -55,18 +55,18 @@ describe("Eliminación de inyecciones (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     inyRepo = moduleFixture.get(getRepositoryToken(Inyeccion));
     cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await inyRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-DEL-INY-1" });
-    await cobradorRepo.delete({ codigo: "CB-DEL-INY-2" });
-    await socioRepo.delete({ codigo: "SC-DEL-INY-1" });
-    await socioRepo.delete({ codigo: "SC-DEL-INY-2" });
+    await gestorRepo.delete({ codigo: "CB-DEL-INY-1" });
+    await gestorRepo.delete({ codigo: "CB-DEL-INY-2" });
+    await propietarioRepo.delete({ codigo: "SC-DEL-INY-1" });
+    await propietarioRepo.delete({ codigo: "SC-DEL-INY-2" });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,
       passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 4),
@@ -82,23 +82,23 @@ describe("Eliminación de inyecciones (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-del-iny-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-del-iny-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-del-iny-1@correo.com",
+      correo: "propietario-del-iny-1@correo.com",
       telefono: "+59171150001",
       codigo: "SC-DEL-INY-1",
       moneda: "BOB",
       estatus: "activo",
     });
-    const socio2 = await socioRepo.save({
-      usuario: "socio-del-iny-2",
+    const propietario2 = await propietarioRepo.save({
+      usuario: "propietario-del-iny-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-del-iny-2@correo.com",
+      correo: "propietario-del-iny-2@correo.com",
       telefono: "+59171150002",
       codigo: "SC-DEL-INY-2",
       moneda: "BOB",
@@ -106,102 +106,102 @@ describe("Eliminación de inyecciones (e2e)", () => {
     });
 
     await request(app.getHttpServer())
-      .put(`/socios/${socio.id}/permisos`)
+      .put(`/propietarios/${propietario.id}/permisos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ matriz: { configurar_ruta: true, eliminar_inyeccion: true } });
+      .send({ matriz: { configurar_cartera: true, eliminar_inyeccion: true } });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-del-iny-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-del-iny-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-del-iny-1@correo.com",
+      correo: "gestor-del-iny-1@correo.com",
       telefono: "+59172260001",
       codigo: "CB-DEL-INY-1",
       estatus: "activo",
     });
-    const cobrador2 = await cobradorRepo.save({
-      socio: { id: socio2.id },
-      usuario: "cobrador-del-iny-2",
+    const gestor2 = await gestorRepo.save({
+      propietario: { id: propietario2.id },
+      usuario: "gestor-del-iny-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-del-iny-2@correo.com",
+      correo: "gestor-del-iny-2@correo.com",
       telefono: "+59172260002",
       codigo: "CB-DEL-INY-2",
       estatus: "activo",
     });
 
-    const rutaPropia = await rutaRepo.save({
-      socio: { id: socio.id },
-      cobrador: { id: cobrador.id },
-      nombre: "Ruta DEL-INY-1",
+    const carteraPropia = await carteraRepo.save({
+      propietario: { id: propietario.id },
+      gestor: { id: gestor.id },
+      nombre: "Cartera DEL-INY-1",
       descripcion: null,
       tipoInteres: 20,
       numCuotas: 8,
       moneda: "BOB",
       estatus: "activo",
     });
-    rutaPropiaId = rutaPropia.id;
+    carteraPropiaId = carteraPropia.id;
     await cajaRepo.save({
-      ruta: { id: rutaPropiaId },
-      rutaId: rutaPropiaId,
+      cartera: { id: carteraPropiaId },
+      carteraId: carteraPropiaId,
       saldoInicial: 1000,
       saldoActual: 1000,
     });
 
-    const rutaAjena = await rutaRepo.save({
-      socio: { id: socio2.id },
-      cobrador: { id: cobrador2.id },
-      nombre: "Ruta DEL-INY-2",
+    const carteraAjena = await carteraRepo.save({
+      propietario: { id: propietario2.id },
+      gestor: { id: gestor2.id },
+      nombre: "Cartera DEL-INY-2",
       descripcion: null,
       tipoInteres: 25,
       numCuotas: 10,
       moneda: "BOB",
       estatus: "activo",
     });
-    rutaAjenaId = rutaAjena.id;
+    carteraAjenaId = carteraAjena.id;
     await cajaRepo.save({
-      ruta: { id: rutaAjenaId },
-      rutaId: rutaAjenaId,
+      cartera: { id: carteraAjenaId },
+      carteraId: carteraAjenaId,
       saldoInicial: 500,
       saldoActual: 500,
     });
 
     const iny = await request(app.getHttpServer())
-      .post(`/rutas/${rutaPropiaId}/inyecciones`)
+      .post(`/carteras/${carteraPropiaId}/inyecciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valor: 1500, comentario: "Aporte a eliminar" });
     inyeccionId = iny.body.id as number;
 
     const iny2 = await request(app.getHttpServer())
-      .post(`/rutas/${rutaPropiaId}/inyecciones`)
+      .post(`/carteras/${carteraPropiaId}/inyecciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valor: 300, comentario: "Otra inyección" });
     inyeccion2Id = iny2.body.id as number;
 
-    tokenSocio = await loginSocio("socio-del-iny-1");
+    tokenPropietario = await loginPropietario("propietario-del-iny-1");
   });
 
   afterAll(async () => {
     await inyRepo.delete({ id: inyeccionId });
     await inyRepo.delete({ id: inyeccion2Id });
-    await rutaRepo.delete({ id: rutaPropiaId });
-    await rutaRepo.delete({ id: rutaAjenaId });
-    await cobradorRepo.delete({ codigo: "CB-DEL-INY-1" });
-    await cobradorRepo.delete({ codigo: "CB-DEL-INY-2" });
-    await socioRepo.delete({ codigo: "SC-DEL-INY-1" });
-    await socioRepo.delete({ codigo: "SC-DEL-INY-2" });
+    await carteraRepo.delete({ id: carteraPropiaId });
+    await carteraRepo.delete({ id: carteraAjenaId });
+    await gestorRepo.delete({ codigo: "CB-DEL-INY-1" });
+    await gestorRepo.delete({ codigo: "CB-DEL-INY-2" });
+    await propietarioRepo.delete({ codigo: "SC-DEL-INY-1" });
+    await propietarioRepo.delete({ codigo: "SC-DEL-INY-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("DELETE /rutas/:id/inyecciones/:id -> 200 estado eliminada y el registro persiste con su fecha_hora", async () => {
+  it("DELETE /carteras/:id/inyecciones/:id -> 200 estado eliminada y el registro persiste con su fecha_hora", async () => {
     const antes = await inyRepo.findOne({ where: { id: inyeccionId } });
 
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaPropiaId}/inyecciones/${inyeccionId}`)
+      .delete(`/carteras/${carteraPropiaId}/inyecciones/${inyeccionId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
@@ -218,7 +218,7 @@ describe("Eliminación de inyecciones (e2e)", () => {
     // inyección de 1500 (test anterior), el saldo debe bajar a 1300.
     const caja = await cajaRepo
       .createQueryBuilder("c")
-      .where("c.ruta_id = :rutaId", { rutaId: rutaPropiaId })
+      .where("c.cartera_id = :carteraId", { carteraId: carteraPropiaId })
       .getOne();
     expect(caja?.saldoActual).toBe(1300);
   });
@@ -226,71 +226,71 @@ describe("Eliminación de inyecciones (e2e)", () => {
   // Depende del test anterior: re-elimina la misma inyección ya eliminada.
   it("DELETE es idempotente (re-eliminar ya eliminada -> 200)", async () => {
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaPropiaId}/inyecciones/${inyeccionId}`)
+      .delete(`/carteras/${carteraPropiaId}/inyecciones/${inyeccionId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(200);
     expect(res.body.estado).toBe("eliminada");
   });
 
-  it("un socio sin eliminar_inyeccion no puede eliminar -> 403", async () => {
-    const socioSinPermiso = await socioRepo.save({
-      usuario: "socio-del-iny-3",
+  it("un propietario sin eliminar_inyeccion no puede eliminar -> 403", async () => {
+    const propietarioSinPermiso = await propietarioRepo.save({
+      usuario: "propietario-del-iny-3",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-del-iny-3@correo.com",
+      correo: "propietario-del-iny-3@correo.com",
       telefono: "+59171150003",
       codigo: "SC-DEL-INY-3",
       moneda: "BOB",
       estatus: "activo",
     });
-    const token = await loginSocio("socio-del-iny-3");
+    const token = await loginPropietario("propietario-del-iny-3");
 
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaPropiaId}/inyecciones/${inyeccionId}`)
+      .delete(`/carteras/${carteraPropiaId}/inyecciones/${inyeccionId}`)
       .set("Authorization", `Bearer ${token}`);
 
     expect(res.status).toBe(403);
-    await socioRepo.delete({ id: socioSinPermiso.id });
+    await propietarioRepo.delete({ id: propietarioSinPermiso.id });
   });
 
-  it("DELETE de una inyección que pertenece a otra ruta -> 404 (doble filtro)", async () => {
+  it("DELETE de una inyección que pertenece a otra cartera -> 404 (doble filtro)", async () => {
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaAjenaId}/inyecciones/${inyeccion2Id}`)
+      .delete(`/carteras/${carteraAjenaId}/inyecciones/${inyeccion2Id}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
   });
 
-  it("un socio con eliminar_inyeccion elimina en su propia ruta -> 200", async () => {
+  it("un propietario con eliminar_inyeccion elimina en su propia cartera -> 200", async () => {
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaPropiaId}/inyecciones/${inyeccion2Id}`)
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .delete(`/carteras/${carteraPropiaId}/inyecciones/${inyeccion2Id}`)
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(200);
     expect(res.body.estado).toBe("eliminada");
   });
 
-  it("un socio no puede eliminar una inyección de una ruta ajena -> 403", async () => {
+  it("un propietario no puede eliminar una inyección de una cartera ajena -> 403", async () => {
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaAjenaId}/inyecciones/${inyeccionId}`)
-      .set("Authorization", `Bearer ${tokenSocio}`);
+      .delete(`/carteras/${carteraAjenaId}/inyecciones/${inyeccionId}`)
+      .set("Authorization", `Bearer ${tokenPropietario}`);
 
     expect(res.status).toBe(403);
   });
 
   it("DELETE de una inyección inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/${rutaPropiaId}/inyecciones/999999`)
+      .delete(`/carteras/${carteraPropiaId}/inyecciones/999999`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
   });
 
-  it("DELETE de una ruta inexistente -> 404", async () => {
+  it("DELETE de una cartera inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .delete(`/rutas/999999/inyecciones/${inyeccionId}`)
+      .delete(`/carteras/999999/inyecciones/${inyeccionId}`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`);
 
     expect(res.status).toBe(404);
@@ -298,7 +298,7 @@ describe("Eliminación de inyecciones (e2e)", () => {
 
   it("DELETE sin token -> 401", async () => {
     const res = await request(app.getHttpServer()).delete(
-      `/rutas/${rutaPropiaId}/inyecciones/${inyeccionId}`,
+      `/carteras/${carteraPropiaId}/inyecciones/${inyeccionId}`,
     );
 
     expect(res.status).toBe(401);

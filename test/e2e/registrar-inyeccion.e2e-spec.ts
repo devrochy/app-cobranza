@@ -5,33 +5,33 @@ import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { Repository } from "typeorm";
 import { AdminUser } from "../../src/modules/admin-users/admin-user.entity";
-import { Cobrador } from "../../src/modules/cobradores/cobrador.entity";
-import { Caja } from "../../src/modules/rutas/caja.entity";
-import { Inyeccion } from "../../src/modules/rutas/inyeccion.entity";
-import { Ruta } from "../../src/modules/rutas/ruta.entity";
-import { Socio } from "../../src/modules/socios/socio.entity";
+import { Gestor } from "../../src/modules/gestores/gestor.entity";
+import { Caja } from "../../src/modules/carteras/caja.entity";
+import { Inyeccion } from "../../src/modules/carteras/inyeccion.entity";
+import { Cartera } from "../../src/modules/carteras/cartera.entity";
+import { Propietario } from "../../src/modules/propietarios/propietario.entity";
 import { AppModule } from "../../src/app.module";
 
 describe("Registro de inyecciones de capital (e2e)", () => {
   let app: INestApplication;
   let adminRepo: Repository<AdminUser>;
-  let socioRepo: Repository<Socio>;
-  let cobradorRepo: Repository<Cobrador>;
-  let rutaRepo: Repository<Ruta>;
+  let propietarioRepo: Repository<Propietario>;
+  let gestorRepo: Repository<Gestor>;
+  let carteraRepo: Repository<Cartera>;
   let inyRepo: Repository<Inyeccion>;
   let cajaRepo: Repository<Caja>;
   let accessTokenAdmin: string;
-  let tokenSocio: string;
-  let rutaPropiaId: number;
-  let rutaAjenaId: number;
+  let tokenPropietario: string;
+  let carteraPropiaId: number;
+  let carteraAjenaId: number;
 
   const ADMIN_USERNAME = "iny-e2e-admin";
   const ADMIN_PASSWORD = "iny-e2e-password";
   const PASSWORD = "password-seguro";
 
-  async function loginSocio(usuario: string): Promise<string> {
+  async function loginPropietario(usuario: string): Promise<string> {
     const res = await request(app.getHttpServer())
-      .post("/auth/socio/login")
+      .post("/auth/propietario/login")
       .send({ usuario, password: PASSWORD });
     return res.body.accessToken as string;
   }
@@ -53,18 +53,18 @@ describe("Registro de inyecciones de capital (e2e)", () => {
     await app.init();
 
     adminRepo = moduleFixture.get(getRepositoryToken(AdminUser));
-    socioRepo = moduleFixture.get(getRepositoryToken(Socio));
-    cobradorRepo = moduleFixture.get(getRepositoryToken(Cobrador));
-    rutaRepo = moduleFixture.get(getRepositoryToken(Ruta));
+    propietarioRepo = moduleFixture.get(getRepositoryToken(Propietario));
+    gestorRepo = moduleFixture.get(getRepositoryToken(Gestor));
+    carteraRepo = moduleFixture.get(getRepositoryToken(Cartera));
     inyRepo = moduleFixture.get(getRepositoryToken(Inyeccion));
     cajaRepo = moduleFixture.get(getRepositoryToken(Caja));
 
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await inyRepo.createQueryBuilder().delete().execute();
-    await cobradorRepo.delete({ codigo: "CB-INY-1" });
-    await cobradorRepo.delete({ codigo: "CB-INY-2" });
-    await socioRepo.delete({ codigo: "SC-INY-1" });
-    await socioRepo.delete({ codigo: "SC-INY-2" });
+    await gestorRepo.delete({ codigo: "CB-INY-1" });
+    await gestorRepo.delete({ codigo: "CB-INY-2" });
+    await propietarioRepo.delete({ codigo: "SC-INY-1" });
+    await propietarioRepo.delete({ codigo: "SC-INY-2" });
     await adminRepo.save({
       usuario: ADMIN_USERNAME,
       passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 4),
@@ -80,23 +80,23 @@ describe("Registro de inyecciones de capital (e2e)", () => {
       .send({ usuario: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     accessTokenAdmin = adminLogin.body.accessToken as string;
 
-    const socio = await socioRepo.save({
-      usuario: "socio-iny-1",
+    const propietario = await propietarioRepo.save({
+      usuario: "propietario-iny-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-iny-1@correo.com",
+      correo: "propietario-iny-1@correo.com",
       telefono: "+59171140001",
       codigo: "SC-INY-1",
       moneda: "BOB",
       estatus: "activo",
     });
-    const socio2 = await socioRepo.save({
-      usuario: "socio-iny-2",
+    const propietario2 = await propietarioRepo.save({
+      usuario: "propietario-iny-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "S",
       apellido: "E2E",
-      correo: "socio-iny-2@correo.com",
+      correo: "propietario-iny-2@correo.com",
       telefono: "+59171140002",
       codigo: "SC-INY-2",
       moneda: "BOB",
@@ -104,88 +104,88 @@ describe("Registro de inyecciones de capital (e2e)", () => {
     });
 
     await request(app.getHttpServer())
-      .put(`/socios/${socio.id}/permisos`)
+      .put(`/propietarios/${propietario.id}/permisos`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
-      .send({ matriz: { configurar_ruta: true } });
+      .send({ matriz: { configurar_cartera: true } });
 
-    const cobrador = await cobradorRepo.save({
-      socio: { id: socio.id },
-      usuario: "cobrador-iny-1",
+    const gestor = await gestorRepo.save({
+      propietario: { id: propietario.id },
+      usuario: "gestor-iny-1",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-iny-1@correo.com",
+      correo: "gestor-iny-1@correo.com",
       telefono: "+59172250001",
       codigo: "CB-INY-1",
       estatus: "activo",
     });
-    const cobrador2 = await cobradorRepo.save({
-      socio: { id: socio2.id },
-      usuario: "cobrador-iny-2",
+    const gestor2 = await gestorRepo.save({
+      propietario: { id: propietario2.id },
+      usuario: "gestor-iny-2",
       passwordHash: await bcrypt.hash(PASSWORD, 4),
       nombre: "C",
       apellido: "E2E",
-      correo: "cobrador-iny-2@correo.com",
+      correo: "gestor-iny-2@correo.com",
       telefono: "+59172250002",
       codigo: "CB-INY-2",
       estatus: "activo",
     });
 
-    const rutaPropia = await rutaRepo.save({
-      socio: { id: socio.id },
-      cobrador: { id: cobrador.id },
-      nombre: "Ruta INY-1",
+    const carteraPropia = await carteraRepo.save({
+      propietario: { id: propietario.id },
+      gestor: { id: gestor.id },
+      nombre: "Cartera INY-1",
       descripcion: null,
       tipoInteres: 20,
       numCuotas: 8,
       moneda: "BOB",
       estatus: "activo",
     });
-    rutaPropiaId = rutaPropia.id;
+    carteraPropiaId = carteraPropia.id;
     await cajaRepo.save({
-      ruta: { id: rutaPropiaId },
-      rutaId: rutaPropiaId,
+      cartera: { id: carteraPropiaId },
+      carteraId: carteraPropiaId,
       saldoInicial: 1000,
       saldoActual: 1000,
     });
 
-    const rutaAjena = await rutaRepo.save({
-      socio: { id: socio2.id },
-      cobrador: { id: cobrador2.id },
-      nombre: "Ruta INY-2",
+    const carteraAjena = await carteraRepo.save({
+      propietario: { id: propietario2.id },
+      gestor: { id: gestor2.id },
+      nombre: "Cartera INY-2",
       descripcion: null,
       tipoInteres: 25,
       numCuotas: 10,
       moneda: "BOB",
       estatus: "activo",
     });
-    rutaAjenaId = rutaAjena.id;
+    carteraAjenaId = carteraAjena.id;
     await cajaRepo.save({
-      ruta: { id: rutaAjenaId },
-      rutaId: rutaAjenaId,
+      cartera: { id: carteraAjenaId },
+      carteraId: carteraAjenaId,
       saldoInicial: 500,
       saldoActual: 500,
     });
 
-    tokenSocio = await loginSocio("socio-iny-1");
+    tokenPropietario = await loginPropietario("propietario-iny-1");
   });
 
   afterAll(async () => {
-    await inyRepo.delete({ ruta: { id: rutaPropiaId } });
-    await inyRepo.delete({ ruta: { id: rutaAjenaId } });
-    await rutaRepo.delete({ id: rutaPropiaId });
-    await rutaRepo.delete({ id: rutaAjenaId });
-    await cobradorRepo.delete({ codigo: "CB-INY-1" });
-    await cobradorRepo.delete({ codigo: "CB-INY-2" });
-    await socioRepo.delete({ codigo: "SC-INY-1" });
-    await socioRepo.delete({ codigo: "SC-INY-2" });
+    await inyRepo.delete({ cartera: { id: carteraPropiaId } });
+    await inyRepo.delete({ cartera: { id: carteraAjenaId } });
+    await carteraRepo.delete({ id: carteraPropiaId });
+    await carteraRepo.delete({ id: carteraAjenaId });
+    await gestorRepo.delete({ codigo: "CB-INY-1" });
+    await gestorRepo.delete({ codigo: "CB-INY-2" });
+    await propietarioRepo.delete({ codigo: "SC-INY-1" });
+    await propietarioRepo.delete({ codigo: "SC-INY-2" });
     await adminRepo.delete({ usuario: ADMIN_USERNAME });
     await app.close();
   });
 
-  it("POST /rutas/:id/inyecciones como admin -> 201 con estado activa y fechaHora", async () => {
+  it("POST /carteras/:id/inyecciones como admin -> 201 con estado activa y fechaHora", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaPropiaId}/inyecciones`)
+      .post(`/carteras/${carteraPropiaId}/inyecciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valor: 1500, comentario: "Aporte semanal" });
 
@@ -194,45 +194,45 @@ describe("Registro de inyecciones de capital (e2e)", () => {
     expect(res.body.comentario).toBe("Aporte semanal");
     expect(res.body.estado).toBe("activa");
     expect(() => new Date(res.body.fechaHora).toISOString()).not.toThrow();
-    expect(res.body.rutaId).toBe(rutaPropiaId);
+    expect(res.body.carteraId).toBe(carteraPropiaId);
   });
 
-  it("la inyección aumenta el saldo real de la caja de la ruta (wiring)", async () => {
+  it("la inyección aumenta el saldo real de la caja de la cartera (wiring)", async () => {
     await request(app.getHttpServer())
-      .post(`/rutas/${rutaPropiaId}/inyecciones`)
+      .post(`/carteras/${carteraPropiaId}/inyecciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valor: 300, comentario: "Aporte wiring" });
 
     const caja = await cajaRepo
       .createQueryBuilder("c")
-      .where("c.ruta_id = :rutaId", { rutaId: rutaPropiaId })
+      .where("c.cartera_id = :carteraId", { carteraId: carteraPropiaId })
       .getOne();
     // saldo inicial 1000 + 1500 (test anterior) + 300 = 2800
     expect(caja?.saldoActual).toBe(2800);
   });
 
-  it("un socio con configurar_ruta registra en su propia ruta -> 201", async () => {
+  it("un propietario con configurar_cartera registra en su propia cartera -> 201", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaPropiaId}/inyecciones`)
-      .set("Authorization", `Bearer ${tokenSocio}`)
+      .post(`/carteras/${carteraPropiaId}/inyecciones`)
+      .set("Authorization", `Bearer ${tokenPropietario}`)
       .send({ valor: 800, comentario: "Caja inicial" });
 
     expect(res.status).toBe(201);
     expect(res.body.valor).toBe(800);
   });
 
-  it("un socio no puede registrar en una ruta ajena -> 403", async () => {
+  it("un propietario no puede registrar en una cartera ajena -> 403", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaAjenaId}/inyecciones`)
-      .set("Authorization", `Bearer ${tokenSocio}`)
+      .post(`/carteras/${carteraAjenaId}/inyecciones`)
+      .set("Authorization", `Bearer ${tokenPropietario}`)
       .send({ valor: 100, comentario: "X" });
 
     expect(res.status).toBe(403);
   });
 
-  it("POST /rutas/:id/inyecciones de una ruta inexistente -> 404", async () => {
+  it("POST /carteras/:id/inyecciones de una cartera inexistente -> 404", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/999999/inyecciones`)
+      .post(`/carteras/999999/inyecciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send({ valor: 100, comentario: "X" });
 
@@ -244,18 +244,18 @@ describe("Registro de inyecciones de capital (e2e)", () => {
     ["valor negativo", { valor: -100, comentario: "X" }],
     ["comentario vacío", { valor: 100, comentario: "" }],
     ["comentario solo espacios", { valor: 100, comentario: "   " }],
-  ])("POST /rutas/:id/inyecciones con %s -> 400", async (_nombre, payload) => {
+  ])("POST /carteras/:id/inyecciones con %s -> 400", async (_nombre, payload) => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaPropiaId}/inyecciones`)
+      .post(`/carteras/${carteraPropiaId}/inyecciones`)
       .set("Authorization", `Bearer ${accessTokenAdmin}`)
       .send(payload);
 
     expect(res.status).toBe(400);
   });
 
-  it("POST /rutas/:id/inyecciones sin token -> 401", async () => {
+  it("POST /carteras/:id/inyecciones sin token -> 401", async () => {
     const res = await request(app.getHttpServer())
-      .post(`/rutas/${rutaPropiaId}/inyecciones`)
+      .post(`/carteras/${carteraPropiaId}/inyecciones`)
       .send({ valor: 100, comentario: "X" });
 
     expect(res.status).toBe(401);

@@ -33,7 +33,7 @@ describe("SnapshotCryptoService", () => {
 
   it("cifra y se puede descifrar con la clave privada del dispositivo", () => {
     const { publicKey, privateKey } = generateKeyPairSync("x25519");
-    const payload = Buffer.from('{"ruta":{"id":5,"nombre":"Centro"}}', "utf8");
+    const payload = Buffer.from('{"cartera":{"id":5,"nombre":"Centro"}}', "utf8");
 
     const cifrado = service.cifrar(rawPublicKeyBase64(publicKey), payload);
 
@@ -59,7 +59,7 @@ describe("SnapshotCryptoService", () => {
       decipher.final(),
     ]);
 
-    expect(plaintext.toString("utf8")).toBe('{"ruta":{"id":5,"nombre":"Centro"}}');
+    expect(plaintext.toString("utf8")).toBe('{"cartera":{"id":5,"nombre":"Centro"}}');
   });
 
   it("genera un nonce y una clave efímera distintos en cada cifrado", () => {

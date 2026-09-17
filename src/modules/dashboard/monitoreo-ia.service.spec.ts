@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ConversacionIa } from "../cartera/conversacion-ia.entity";
+import { ConversacionIa } from "../clientes/conversacion-ia.entity";
 import { MonitoreoIaService } from "./monitoreo-ia.service";
 
 describe("MonitoreoIaService", () => {
