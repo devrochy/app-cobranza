@@ -14,6 +14,7 @@ import { EditarCuotaDto } from "../clientes/dto/editar-cuota.dto";
 import { EstadisticasCarteraService } from "../carteras/estadisticas-cartera.service";
 import { GestorService } from "./gestor.service";
 import { GestorController } from "./gestor.controller";
+import { NotificacionesFeedService } from "./notificaciones-feed.service";
 
 describe("GestorController", () => {
   let controller: GestorController;
@@ -42,6 +43,8 @@ describe("GestorController", () => {
     obtener: jest.fn(),
   };
 
+  const mockNotificacionesFeed = { listar: jest.fn() };
+
   function req(sub = 20): Request & { user: AuthTokenPayload } {
     return {
       user: { sub, rol: "gestor", tipo: "access", usuario: "gestor1" },
@@ -55,6 +58,7 @@ describe("GestorController", () => {
       providers: [
         { provide: GestorService, useValue: mockService },
         { provide: EstadisticasCarteraService, useValue: mockEstadisticasCarteraService },
+        { provide: NotificacionesFeedService, useValue: mockNotificacionesFeed },
         JwtAuthGuard,
         GestorPermisoGuard,
         { provide: JwtService, useValue: new JwtService() },
@@ -75,6 +79,16 @@ describe("GestorController", () => {
 
     await expect(controller.misCarteras(req())).resolves.toEqual([]);
     expect(service.misCarteras).toHaveBeenCalledWith({ rol: "gestor", sub: 20 });
+  });
+
+  it("notificaciones delega con el requester del token", async () => {
+    mockNotificacionesFeed.listar.mockResolvedValue([]);
+
+    await expect(controller.notificaciones(req())).resolves.toEqual([]);
+    expect(mockNotificacionesFeed.listar).toHaveBeenCalledWith({
+      rol: "gestor",
+      sub: 20,
+    });
   });
 
   it("dia delega con la cartera y el requester del token", async () => {

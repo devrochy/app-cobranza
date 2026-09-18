@@ -37,7 +37,7 @@ describe("GestorService", () => {
   let gastos: { registrar: jest.Mock };
   let trayectorias: { registrarReal: jest.Mock };
   let tarjeta: { obtener: jest.Mock };
-  let clientes: { listar: jest.Mock; crear: jest.Mock; actualizar: jest.Mock };
+  let clientes: { listar: jest.Mock; listarConEstado: jest.Mock; crear: jest.Mock; actualizar: jest.Mock };
   let estadoCuenta: { obtener: jest.Mock };
   let cuotas: { editarCuota: jest.Mock; eliminarCuota: jest.Mock };
   let abonos: { eliminarAbono: jest.Mock };
@@ -62,7 +62,7 @@ describe("GestorService", () => {
     gastos = { registrar: jest.fn() };
     trayectorias = { registrarReal: jest.fn() };
     tarjeta = { obtener: jest.fn() };
-    clientes = { listar: jest.fn(), crear: jest.fn(), actualizar: jest.fn() };
+    clientes = { listar: jest.fn(), listarConEstado: jest.fn(), crear: jest.fn(), actualizar: jest.fn() };
     estadoCuenta = { obtener: jest.fn() };
     cuotas = { editarCuota: jest.fn(), eliminarCuota: jest.fn() };
     abonos = { eliminarAbono: jest.fn() };
@@ -390,13 +390,13 @@ describe("GestorService", () => {
       expect(posiciones.registrar).toHaveBeenCalledWith(6, pos, requester);
     });
 
-    it("listarClientesDeCartera delega en ClienteService.listar con el requester", async () => {
-      clientes.listar.mockResolvedValue([{ id: 1, carteraId: 6 }]);
+    it("listarClientesDeCartera delega en ClienteService.listarConEstado con el requester", async () => {
+      clientes.listarConEstado.mockResolvedValue([{ id: 1, carteraId: 6 }]);
 
       await expect(
         service.listarClientesDeCartera(6, requester),
       ).resolves.toEqual([{ id: 1, carteraId: 6 }]);
-      expect(clientes.listar).toHaveBeenCalledWith(6, requester);
+      expect(clientes.listarConEstado).toHaveBeenCalledWith(6, requester);
     });
 
     it("crearCliente delega en ClienteService.crear con evidencias y requester", async () => {
