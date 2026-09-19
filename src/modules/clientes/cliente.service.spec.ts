@@ -60,6 +60,7 @@ describe("ClienteService", () => {
         }),
       }),
     ),
+    manager: { createQueryBuilder: jest.fn() },
   };
 
   interface ArchivoSubido {
@@ -730,6 +731,38 @@ describe("ClienteService", () => {
     it("lanza 404 si la cartera no existe al listar", async () => {
       (mockCarteraRepo.findOne as jest.Mock).mockResolvedValue(null);
       await expect(service.listar(999, adminCtx)).rejects.toThrow(NotFoundException);
+    });
+
+    it("listarConEstado agrega numPrestamos y diasMora por cliente", async () => {
+      (mockCarteraRepo.findOne as jest.Mock).mockResolvedValue(cartera);
+      (mockClienteRepo.find as jest.Mock).mockResolvedValue([
+        { id: 1, carteraId: 10, nombre: "Ana", apellido: "Ruiz", ubicacion: { coordinates: [-63.2, -17.8] }, ubicacionDomicilio: null },
+        { id: 2, carteraId: 10, nombre: "Beto", apellido: "Soto", ubicacion: { coordinates: [-63.2, -17.8] }, ubicacionDomicilio: null },
+      ]);
+      (mockEvidenciaRepo.find as jest.Mock).mockResolvedValue([]);
+
+      const hace10Dias = new Date();
+      hace10Dias.setHours(0, 0, 0, 0);
+      hace10Dias.setDate(hace10Dias.getDate() - 10);
+      const fecha = hace10Dias.toISOString().slice(0, 10);
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        leftJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { clienteId: 1, numPrestamos: "2", fechaVencida: fecha },
+        ]),
+      };
+      (mockDataSource.manager.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+
+      const res = await service.listarConEstado(10, adminCtx);
+
+      expect(res.find((c) => c.id === 1)).toMatchObject({ numPrestamos: 2, diasMora: 10 });
+      expect(res.find((c) => c.id === 2)).toMatchObject({ numPrestamos: 0, diasMora: 0 });
     });
 
     it("lista los cambios de cliente filtrados por estado", async () => {

@@ -19,6 +19,7 @@ import {
   validarNumeroDocumento,
 } from "../../domain/tipo-documento";
 import { fromPoint, toPoint } from "../../common/geo";
+import { diasDeMora } from "../../domain/tarjeta-cliente";
 
 export interface ArchivoSubido {
   originalname: string;
@@ -74,6 +75,16 @@ export interface ClientePublic {
 
 export interface ClienteGlobalPublic extends ClientePublic {
   carteraNombre: string;
+}
+
+/**
+ * Cliente de una cartera con el estado de sus préstamos, para filtros de la APK:
+ * `numPrestamos` = préstamos vigentes; `diasMora` = días desde la cuota vencida
+ * más antigua (misma semántica que la tarjeta del cliente).
+ */
+export interface ClienteCarteraPublic extends ClientePublic {
+  numPrestamos: number;
+  diasMora: number;
 }
 
 export interface ListarClientesGlobalFiltros {
@@ -501,6 +512,61 @@ export class ClienteService {
     return clientes.map((cliente) =>
       this.toPublic(cliente, carteraId, fotos.get(cliente.id) ?? null),
     );
+  }
+
+  /**
+   * Igual que `listar`, pero agrega `numPrestamos` (vigentes) y `diasMora` por
+   * cliente, en una sola consulta agregada (sin N+1).
+   */
+  async listarConEstado(
+    carteraId: number,
+    requester: RequesterCarteraContext,
+  ): Promise<ClienteCarteraPublic[]> {
+    const clientes = await this.listar(carteraId, requester);
+    const estados = await this.estadoPrestamosPorCliente(carteraId);
+    return clientes.map((cliente) => {
+      const estado = estados.get(cliente.id);
+      return {
+        ...cliente,
+        numPrestamos: estado?.numPrestamos ?? 0,
+        diasMora: diasDeMora(estado?.fechaVencida ?? null),
+      };
+    });
+  }
+
+  private async estadoPrestamosPorCliente(
+    carteraId: number,
+  ): Promise<Map<number, { numPrestamos: number; fechaVencida: string | Date | null }>> {
+    const filas = await this.dataSource.manager
+      .createQueryBuilder()
+      .select("p.cliente_id", "clienteId")
+      .addSelect("COUNT(DISTINCT p.id)", "numPrestamos")
+      .addSelect(
+        "MIN(CASE WHEN cu.estatus IN ('pendiente','atrasada') THEN cu.fecha_vencimiento END)",
+        "fechaVencida",
+      )
+      .from("prestamos", "p")
+      .leftJoin("cuotas", "cu", "cu.prestamo_id = p.id")
+      .where("p.cartera_id = :carteraId", { carteraId })
+      .andWhere("p.estatus = 'vigente'")
+      .groupBy("p.cliente_id")
+      .getRawMany<{
+        clienteId: number | string;
+        numPrestamos: string;
+        fechaVencida: string | Date | null;
+      }>();
+
+    const map = new Map<
+      number,
+      { numPrestamos: number; fechaVencida: string | Date | null }
+    >();
+    for (const fila of filas) {
+      map.set(Number(fila.clienteId), {
+        numPrestamos: Number(fila.numPrestamos),
+        fechaVencida: fila.fechaVencida,
+      });
+    }
+    return map;
   }
 
   private async fotosFacialesDeClientes(

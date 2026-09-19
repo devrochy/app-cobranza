@@ -39,6 +39,7 @@ import { clienteFotosMulterOptions } from "../clientes/cliente-foto-upload";
 import { RequesterOwned } from "../../common/ownership";
 import { EstadisticasCarteraService } from "../carteras/estadisticas-cartera.service";
 import { GestorService } from "./gestor.service";
+import { NotificacionesFeedService } from "./notificaciones-feed.service";
 
 /**
  * API del APK del gestor (modo en línea). Autenticación: JwtAuthGuard
@@ -52,6 +53,7 @@ export class GestorController {
   constructor(
     private readonly gestorService: GestorService,
     private readonly estadisticasCarteraService: EstadisticasCarteraService,
+    private readonly notificacionesFeed: NotificacionesFeedService,
   ) {}
 
   private requester(req: Request & { user: AuthTokenPayload }): RequesterOwned {
@@ -62,6 +64,12 @@ export class GestorController {
   @GestorPermisoRequerido("ver_cartera")
   misCarteras(@Req() req: Request & { user: AuthTokenPayload }) {
     return this.gestorService.misCarteras(this.requester(req));
+  }
+
+  @Get("notificaciones")
+  @GestorPermisoRequerido("ver_cartera")
+  notificaciones(@Req() req: Request & { user: AuthTokenPayload }) {
+    return this.notificacionesFeed.listar(this.requester(req));
   }
 
   @Patch("carteras/:carteraId")

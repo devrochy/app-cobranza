@@ -8,6 +8,7 @@ import { Cartera } from "../carteras/cartera.entity";
 import { CarterasModule } from "../carteras/carteras.module";
 import { GestorController } from "./gestor.controller";
 import { GestorService } from "./gestor.service";
+import { NotificacionesFeedService } from "./notificaciones-feed.service";
 
 @Module({
   imports: [
@@ -19,6 +20,6 @@ import { GestorService } from "./gestor.service";
     AuthModule,
   ],
   controllers: [GestorController],
-  providers: [GestorService],
+  providers: [GestorService, NotificacionesFeedService],
 })
 export class GestorModule {}

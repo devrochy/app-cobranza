@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ClienteTarjetaService, ClienteTarjetaPublic } from "../clientes/cliente-tarjeta.service";
-import { ClienteService, ClientePublic, ClienteCambioPublic, ClienteEvidenciaInput, CreateClienteInput, ActualizarClienteInput } from "../clientes/cliente.service";
+import { ClienteService, ClientePublic, ClienteCarteraPublic, ClienteCambioPublic, ClienteEvidenciaInput, CreateClienteInput, ActualizarClienteInput } from "../clientes/cliente.service";
 import { EstadoCuentaService, EstadoCuentaPrestamoPublic } from "../clientes/estado-cuenta.service";
 import { DetalleCuotaService, DetalleCuotaPublic } from "../clientes/detalle-cuota.service";
 import { AbonosService } from "../clientes/abonos.service";
@@ -245,8 +245,8 @@ export class GestorService {
   async listarClientesDeCartera(
     carteraId: number,
     requester: RequesterOwned,
-  ): Promise<ClientePublic[]> {
-    return this.clienteService.listar(carteraId, requester);
+  ): Promise<ClienteCarteraPublic[]> {
+    return this.clienteService.listarConEstado(carteraId, requester);
   }
 
   async crearCliente(

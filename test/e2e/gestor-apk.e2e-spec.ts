@@ -310,6 +310,26 @@ describe("API del gestor para la APK (e2e)", () => {
     expect(verCartera.habilitado).toBe(true);
   });
 
+  it("GET /gestor/notificaciones -> 200 con el feed de las carteras del gestor", async () => {
+    const res = await request(app.getHttpServer())
+      .get("/gestor/notificaciones")
+      .set("Authorization", `Bearer ${tokenGestor1}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    for (const item of res.body) {
+      expect(typeof item.id).toBe("string");
+      expect(typeof item.tipo).toBe("string");
+      expect(typeof item.carteraId).toBe("number");
+      expect(typeof item.mensaje).toBe("string");
+    }
+  });
+
+  it("GET /gestor/notificaciones sin token -> 401", async () => {
+    const res = await request(app.getHttpServer()).get("/gestor/notificaciones");
+    expect(res.status).toBe(401);
+  });
+
   it("GET /gestor/carteras/:id/trayecto-diario -> 200 con clientes y trayectos null", async () => {
     const res = await request(app.getHttpServer())
       .get(`/gestor/carteras/${cartera1Id}/trayecto-diario`)
@@ -510,6 +530,8 @@ describe("API del gestor para la APK (e2e)", () => {
     expect(cliente).toBeDefined();
     expect(cliente.id).toBe(cliente1Id);
     expect(cliente.carteraId).toBe(cartera1Id);
+    expect(typeof cliente.numPrestamos).toBe("number");
+    expect(typeof cliente.diasMora).toBe("number");
   });
 
   it("GET /gestor/carteras/:id/clientes de una cartera ajena -> 403 (ownership)", async () => {
