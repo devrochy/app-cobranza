@@ -1,4 +1,4 @@
--- Cleanup: recalcula `clientes."colorRiesgo"` según el atraso vs el umbral de la ruta.
+-- Cleanup: recalcula `clientes."colorRiesgo"` según el atraso vs el umbral de la cartera.
 -- Motivo: el color solo se calculaba al crear un préstamo (hasta el fix de recálculo
 -- en pagos/eliminaciones/mora). Aplicar una vez por entorno con datos históricos.
 -- Idempotente: solo actualiza las filas que difieren.
@@ -9,7 +9,7 @@ WITH calc AS (
          MIN(COALESCE(rc."cuotasAtrasoUmbral", 1)) AS umbral
   FROM prestamos p
   JOIN cuotas c ON c.prestamo_id = p.id
-  LEFT JOIN ruta_config rc ON rc.ruta_id = p.ruta_id
+  LEFT JOIN cartera_config rc ON rc.cartera_id = p.cartera_id
   GROUP BY p.cliente_id
 ),
 target AS (

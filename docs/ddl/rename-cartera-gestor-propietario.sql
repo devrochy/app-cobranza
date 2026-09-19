@@ -148,7 +148,8 @@ BEGIN
       ('cliente_evidencias', 'creado_por_rol'),
       ('visitas',            'creado_por_rol'),
       ('auditoria_cartera',  'actor_rol'),
-      ('caja_ajustes_log',   'actor_rol')
+      ('caja_ajustes_log',   'actor_rol'),
+      ('cambios_cliente_pendientes', 'solicitado_por_rol')
     ) AS t(tbl, col)
   LOOP
     IF EXISTS (SELECT 1 FROM information_schema.columns
