@@ -161,6 +161,18 @@ Formato de cada entrada:
 - Decisiones abiertas: ¿vinculación bloqueante hasta aprobar?, origen de la clave X25519 (backend vs APK), WhatsApp prellenado o manual, y gate del primer release a producción.
 - Prioridad sugerida: **alta (bloqueante de producción)**.
 
+## Claves viejas (`rutaId`/`cobradorId`/`rutaNombre`) en columnas JSONB
+- Detectado en: docs/ai/tasks/db-rename-complementos.md (validación de la migración de nomenclatura, 2026-09-18)
+- Fecha: 2026-09-18
+- Descripción: `sincronizacion_offline.payload_json`, `reportes_diarios.clientes_visitados_json`/`clientes_sin_pago_json`/`trayectorias_json` y `cartera_optimizada_log.orden_clientes_json` pueden contener claves `rutaId`/`cobradorId`/`rutaNombre` en filas históricas. Decisión: **no migrar** (datos de cola/telemetría regenerables); el backend ya no las escribe. Si algún consumidor del panel/APK las lee de históricos, revisar.
+- Prioridad sugerida: baja
+
+## Constraint único de `posicion_gestor` sin nombre explícito
+- Detectado en: docs/ai/tasks/db-rename-complementos.md (validación de la migración de nomenclatura, 2026-09-18)
+- Fecha: 2026-09-18
+- Descripción: `posicion-gestor.entity.ts` usa `@Unique(["gestorId","carteraId"])` sin nombre (antes `@Unique(["cobradorId","rutaId"])`); TypeORM le asigna un nombre auto-generado. Tras el rename de columnas, en dev (`synchronize:true`) puede quedar un constraint duplicado sobre las mismas columnas (inofensivo); en prod no afecta. Si se quiere estabilizar, nombrarlo explícitamente y alinear el DDL.
+- Prioridad sugerida: baja
+
 ---
 
 ## Resueltos (historial)
