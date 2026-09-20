@@ -33,7 +33,7 @@ describe("TestDataSeedService", () => {
   let clientesIds: number;
   let adminRepo: { findOne: jest.Mock };
   let propietarioRepo: { findOne: jest.Mock };
-  let cuotaRepo: { find: jest.Mock; findOne: jest.Mock };
+  let cuotaRepo: { find: jest.Mock; findOne: jest.Mock; update: jest.Mock };
   let gestorRepo: { find: jest.Mock };
   let carteraRepo: { find: jest.Mock; findOne: jest.Mock };
   let prestamoRepo: { count: jest.Mock; update: jest.Mock };
@@ -54,7 +54,7 @@ describe("TestDataSeedService", () => {
 
   const mockAdminRepo = { findOne: jest.fn() };
   const mockPropietarioRepo = { findOne: jest.fn() };
-  const mockCuotaRepo = { find: jest.fn(), findOne: jest.fn() };
+  const mockCuotaRepo = { find: jest.fn(), findOne: jest.fn(), update: jest.fn() };
   const mockGestorRepo = { find: jest.fn() };
   const mockCarteraRepo = { find: jest.fn(), findOne: jest.fn() };
   const mockPrestamoRepo = { count: jest.fn(), update: jest.fn() };
@@ -314,6 +314,12 @@ describe("TestDataSeedService", () => {
     expect(mockGestoresPermisos.setMatriz).toHaveBeenCalledWith(
       2,
       expect.objectContaining({ registrar_prestamo: true }),
+    );
+    // Los préstamos liquidado/cancelado de Manizales dejan sus cuotas como
+    // "pagada" (evita la "mora fantasma" en la APK).
+    expect(cuotaRepo.update).toHaveBeenCalledWith(
+      { prestamo: { id: 300 } },
+      { estatus: "pagada" },
     );
   });
 

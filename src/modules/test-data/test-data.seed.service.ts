@@ -486,9 +486,11 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         );
         if (prestamo.id) {
           await this.prestamoRepo.update(prestamo.id, { estatus: "liquidado" });
+          await this.marcarCuotasPagadas(prestamo.id);
         }
         if (extra.id) {
           await this.prestamoRepo.update(extra.id, { estatus: "cancelado" });
+          await this.marcarCuotasPagadas(extra.id);
         }
       } else if (cliente.id % 3 === 2) {
         const extra = await this.prestamoService.crear(
@@ -503,10 +505,10 @@ export class TestDataSeedService implements OnApplicationBootstrap {
         );
         if (extra.id) {
           await this.prestamoRepo.update(extra.id, { estatus: "liquidado" });
+          await this.marcarCuotasPagadas(extra.id);
         }
       }
     }
-
     await this.pagarAlgunasCuotas(cartera.id, requester);
     await this.registrarAbonoParcial(cartera.id, requester);
     await this.carteraOptimizacionService.generar(cartera.id, requester);
@@ -569,6 +571,15 @@ export class TestDataSeedService implements OnApplicationBootstrap {
       clientes.push({ id: cliente.id });
     }
     return clientes;
+  }
+
+  /**
+   * Marca como "pagada" todas las cuotas de un préstamo. Se usa en los préstamos
+   * liquidado/cancelado del seed para que sus cuotas no queden en
+   * `pendiente`/`atrasada` (evita la "mora fantasma" en la APK).
+   */
+  private async marcarCuotasPagadas(prestamoId: number): Promise<void> {
+    await this.cuotaRepo.update({ prestamo: { id: prestamoId } }, { estatus: "pagada" });
   }
 
   private async pagarAlgunasCuotas(
