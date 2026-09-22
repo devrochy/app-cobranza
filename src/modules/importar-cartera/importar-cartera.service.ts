@@ -32,6 +32,13 @@ interface CuotaGenerada {
   fechaVencimiento: string;
 }
 
+/** Resta `dias` días a una fecha (UTC), sin mutar la original. */
+function restarDias(fecha: Date, dias: number): Date {
+  const resultado = new Date(fecha.getTime());
+  resultado.setUTCDate(resultado.getUTCDate() - dias);
+  return resultado;
+}
+
 /** Réplica de la generación de cuotas del préstamo (sin ajuste por días no laborables). */
 function generarCuotas(
   valor: number,
@@ -93,7 +100,14 @@ export class ImportarCarteraService {
 
       for (const fila of filas) {
         const cedula = normalizarNumeroDocumento(fila.cedula);
-        const fecha = new Date(`${fila.fecha}T00:00:00Z`);
+        const fechaReporte = new Date(`${fila.fecha}T00:00:00Z`);
+        // La cuota #CUOTAS A LA FECHA debe caer en la FECHA reportada: se ancla
+        // el otorgamiento `cA * diasEntreCuotas` días atrás y se generan las
+        // cuotas hacia adelante (así las pagadas quedan retrocedidas).
+        const fechaOtorgado = restarDias(
+          fechaReporte,
+          fila.cuotasALaFecha * fila.diasEntreCuotas,
+        );
 
         let clienteId = clientesPorCedula.get(cedula);
         if (clienteId === undefined) {
@@ -126,7 +140,7 @@ export class ImportarCarteraService {
         }
 
         const existente = await prestamoRepo.findOne({
-          where: { cliente: { id: clienteId }, fechaOtorgado: fecha },
+          where: { cliente: { id: clienteId }, fechaOtorgado },
         });
         if (existente) {
           reporte.omitidos++;
@@ -149,7 +163,7 @@ export class ImportarCarteraService {
             numCuotas: fila.numCuotas,
             tipoInteres,
             diasEntreCuotas: fila.diasEntreCuotas,
-            fechaOtorgado: fecha,
+            fechaOtorgado,
             fiadorNombre: null,
             fiadorApellido: null,
             fiadorDocumento: null,
@@ -163,7 +177,7 @@ export class ImportarCarteraService {
           tipoInteres,
           fila.numCuotas,
           fila.diasEntreCuotas,
-          fecha,
+          fechaOtorgado,
         );
         const cuotasGuardadas = await cuotaRepo.save(
           cuotas.map((c) => ({

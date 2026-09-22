@@ -157,6 +157,66 @@ describe("ImportarCarteraService.importar", () => {
     expect(reporte).toMatchObject({ creados: 1, omitidos: 1 });
   });
 
+  it("retrocede las cuotas pagadas desde la FECHA reportada", async () => {
+    const { service, prestamoRepo, cuotaRepo } = crearService();
+
+    await service.importar(
+      1,
+      [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, numCuotas: 24, cuotasALaFecha: 5 })],
+      requester,
+    );
+
+    // fechaOtorgado = 2026-09-14 - 5*7 = 2026-08-10; la cuota 5 cae en FECHA.
+    expect(prestamoRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ fechaOtorgado: new Date("2026-08-10T00:00:00Z") }),
+    );
+
+    const cuotas = cuotaRepo.save.mock.calls[0][0] as {
+      numeroCuota: number;
+      fechaVencimiento: string;
+    }[];
+    const vencimiento = (n: number) =>
+      cuotas.find((c) => c.numeroCuota === n)?.fechaVencimiento;
+
+    expect(vencimiento(1)).toBe("2026-08-17");
+    expect(vencimiento(5)).toBe("2026-09-14");
+    expect(vencimiento(6)).toBe("2026-09-21");
+  });
+
+  it("no desplaza la fecha si no hay cuotas pagadas", async () => {
+    const { service, prestamoRepo, cuotaRepo } = crearService();
+
+    await service.importar(
+      1,
+      [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, numCuotas: 3, cuotasALaFecha: 0, liquido: 0 })],
+      requester,
+    );
+
+    expect(prestamoRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ fechaOtorgado: new Date("2026-09-14T00:00:00Z") }),
+    );
+
+    const cuotas = cuotaRepo.save.mock.calls[0][0] as {
+      numeroCuota: number;
+      fechaVencimiento: string;
+    }[];
+    expect(cuotas.find((c) => c.numeroCuota === 1)?.fechaVencimiento).toBe("2026-09-21");
+  });
+
+  it("busca el préstamo existente por el fechaOtorgado calculado", async () => {
+    const { service, prestamoRepo } = crearService();
+
+    await service.importar(
+      1,
+      [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, cuotasALaFecha: 5 })],
+      requester,
+    );
+
+    expect(prestamoRepo.findOne).toHaveBeenCalledWith({
+      where: { cliente: { id: 1 }, fechaOtorgado: new Date("2026-08-10T00:00:00Z") },
+    });
+  });
+
   it("rechaza si la cartera no existe", async () => {
     const { service } = crearService({ cartera: null });
 
