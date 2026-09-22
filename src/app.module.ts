@@ -21,6 +21,7 @@ import { SecurityModule } from "./modules/security/security.module";
 import { SincronizacionOfflineModule } from "./modules/sincronizacion-offline/sincronizacion-offline.module";
 import { PropietariosModule } from "./modules/propietarios/propietarios.module";
 import { TestDataModule } from "./modules/test-data/test-data.module";
+import { ImportarCarteraModule } from "./modules/importar-cartera/importar-cartera.module";
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { TestDataModule } from "./modules/test-data/test-data.module";
     MetricsModule,
     PerfilModule,
     TestDataModule,
+    ImportarCarteraModule,
   ],
   providers: [
     {
