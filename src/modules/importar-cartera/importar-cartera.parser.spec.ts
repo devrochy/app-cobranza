@@ -73,19 +73,26 @@ describe("parsearCarteraXlsx", () => {
       new Date(Date.UTC(2026, 8, 14)), "CARLOS", "PEREZ", "6334116", "59177388488",
       -17.78, -63.18, 7, 1000, 200, 1200, 24, 50, 5, 5, 250, 19, 950,
     ]);
+    // VALOR TARJETA (col K) es una fórmula en la hoja real.
+    ws.getCell("K2").value = { formula: "I2+J2", result: 1200 };
     ws.addRow([
       new Date(Date.UTC(2026, 8, 15)), "ANA", "RUIZ", "9759716", "59177615454",
       -17.79, -63.19, 7, 2500, 500, 3000, 24, 125, 5, 5, 625, 19, 2375,
     ]);
-    // Fila de resumen (sin PRESTAMO): debe ignorarse.
-    ws.addRow(["RESUMEN", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]);
-    ws.addRow(["PRESTAMOS", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "23500"]);
+    // Fila de resumen del negocio (valor en PRESTAMO pero sin FECHA/NOMBRE): se ignora.
+    ws.addRow(["ALQUILER", "", "", "", "", "", "", "", 500]);
+    ws.addRow(["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "23500"]);
     return Buffer.from(await wb.xlsx.writeBuffer());
   }
 
-  it("devuelve solo las filas con PRESTAMO > 0", async () => {
+  it("devuelve solo las filas de préstamo (ignora el resumen)", async () => {
     const filas = await parsearCarteraXlsx(await generarHoja());
     expect(filas).toHaveLength(2);
+  });
+
+  it("lee el resultado de las celdas con fórmula", async () => {
+    const filas = await parsearCarteraXlsx(await generarHoja());
+    expect(filas[0].valorTarjeta).toBe(1200);
   });
 
   it("mapea los campos por nombre de columna", async () => {

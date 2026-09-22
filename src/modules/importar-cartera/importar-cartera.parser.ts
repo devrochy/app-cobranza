@@ -124,8 +124,33 @@ function entero(valor: number | null, porDefecto = 0): number {
 }
 
 /**
+ * Normaliza el valor crudo de una celda: extrae el `result` de las fórmulas
+ * (INTERES, VALOR TARJETA, COBRO, etc. son fórmulas en la hoja) y el texto de
+ * rich text.
+ */
+function valorCrudo(valor: CellValue): unknown {
+  if (valor && typeof valor === "object" && !(valor instanceof Date)) {
+    const obj = valor as {
+      result?: unknown;
+      richText?: { text: string }[];
+      text?: string;
+    };
+    if ("result" in obj) {
+      return obj.result;
+    }
+    if (obj.richText) {
+      return obj.richText.map((t) => t.text).join("");
+    }
+    if (typeof obj.text === "string") {
+      return obj.text;
+    }
+  }
+  return valor;
+}
+
+/**
  * Lee `cartera.xlsx` y devuelve las filas de préstamo (ignora la sección de
- * resumen y las filas sin PRESTAMO).
+ * resumen y las filas sin FECHA/NOMBRE/PRESTAMO).
  */
 export async function parsearCarteraXlsx(buffer: Buffer): Promise<FilaImport[]> {
   const ExcelJS = await import("exceljs");
@@ -149,26 +174,30 @@ export async function parsearCarteraXlsx(buffer: Buffer): Promise<FilaImport[]> 
     if (numeroFila === 1) {
       return;
     }
-    const celda = (columna: string): CellValue | undefined => {
+    const celda = (columna: string): unknown => {
       const indice = cabeceras.get(columna);
-      return indice ? row.getCell(indice).value : undefined;
+      return indice ? valorCrudo(row.getCell(indice).value) : undefined;
     };
 
+    const fecha = parsearFecha(celda(COLUMNAS.FECHA));
+    const nombre = String(celda(COLUMNAS.NOMBRE) ?? "").trim();
     const prestamo = parsearMonto(celda(COLUMNAS.PRESTAMO));
-    if (prestamo === null || prestamo === 0) {
+    // Una fila es de préstamo solo si tiene fecha, nombre y capital; así se
+    // descartan las filas de resumen del negocio (inversión, caja, gastos).
+    if (!fecha || !nombre || prestamo === null || prestamo === 0) {
       return;
     }
 
     filas.push({
       fila: numeroFila,
-      nombre: String(celda(COLUMNAS.NOMBRE) ?? "").trim(),
+      nombre,
       apellido: String(celda(COLUMNAS.APELLIDO) ?? "").trim(),
       cedula: String(celda(COLUMNAS.CEDULA) ?? "").trim(),
       telefono: String(celda(COLUMNAS.TELEFONO) ?? "").trim(),
       latitud: parsearMonto(celda(COLUMNAS.LATITUD)) ?? 0,
       longitud: parsearMonto(celda(COLUMNAS.LONGITUD)) ?? 0,
       diasEntreCuotas: entero(parsearMonto(celda(COLUMNAS.DIAS_ENTRE_CUOTAS))),
-      fecha: parsearFecha(celda(COLUMNAS.FECHA)) ?? "",
+      fecha,
       prestamo,
       interes: parsearMonto(celda(COLUMNAS.INTERES)) ?? 0,
       numCuotas: entero(parsearMonto(celda(COLUMNAS.NRO_CUOTAS))),
