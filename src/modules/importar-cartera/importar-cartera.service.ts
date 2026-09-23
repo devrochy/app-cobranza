@@ -32,6 +32,13 @@ interface CuotaGenerada {
   fechaVencimiento: string;
 }
 
+/** Resta `dias` días a una fecha (UTC), sin mutar la original. */
+function restarDias(fecha: Date, dias: number): Date {
+  const resultado = new Date(fecha.getTime());
+  resultado.setUTCDate(resultado.getUTCDate() - dias);
+  return resultado;
+}
+
 /** Réplica de la generación de cuotas del préstamo (sin ajuste por días no laborables). */
 function generarCuotas(
   valor: number,
@@ -73,6 +80,7 @@ export class ImportarCarteraService {
   async importar(
     carteraId: number,
     filas: FilaImport[],
+    fechaReporte: string,
     requester: RequesterOwned,
   ): Promise<ReporteImport> {
     const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
@@ -81,6 +89,7 @@ export class ImportarCarteraService {
     }
     assertOwned(cartera, requester);
 
+    const fechaReporteDate = new Date(`${fechaReporte}T00:00:00Z`);
     const reporte: ReporteImport = { creados: 0, omitidos: 0, filas: [] };
 
     await this.dataSource.transaction(async (manager) => {
@@ -93,7 +102,14 @@ export class ImportarCarteraService {
 
       for (const fila of filas) {
         const cedula = normalizarNumeroDocumento(fila.cedula);
-        const fecha = new Date(`${fila.fecha}T00:00:00Z`);
+        const fechaReporte = new Date(`${fila.fecha}T00:00:00Z`);
+        // La cuota #CUOTAS A LA FECHA debe caer en la FECHA reportada: se ancla
+        // el otorgamiento `cA * diasEntreCuotas` días atrás y se generan las
+        // cuotas hacia adelante (así las pagadas quedan retrocedidas).
+        const fechaOtorgado = restarDias(
+          fechaReporte,
+          fila.cuotasALaFecha * fila.diasEntreCuotas,
+        );
 
         let clienteId = clientesPorCedula.get(cedula);
         if (clienteId === undefined) {
@@ -126,7 +142,7 @@ export class ImportarCarteraService {
         }
 
         const existente = await prestamoRepo.findOne({
-          where: { cliente: { id: clienteId }, fechaOtorgado: fecha },
+          where: { cliente: { id: clienteId }, fechaOtorgado },
         });
         if (existente) {
           reporte.omitidos++;
@@ -149,7 +165,7 @@ export class ImportarCarteraService {
             numCuotas: fila.numCuotas,
             tipoInteres,
             diasEntreCuotas: fila.diasEntreCuotas,
-            fechaOtorgado: fecha,
+            fechaOtorgado,
             fiadorNombre: null,
             fiadorApellido: null,
             fiadorDocumento: null,
@@ -163,7 +179,7 @@ export class ImportarCarteraService {
           tipoInteres,
           fila.numCuotas,
           fila.diasEntreCuotas,
-          fecha,
+          fechaOtorgado,
         );
         const cuotasGuardadas = await cuotaRepo.save(
           cuotas.map((c) => ({
@@ -186,10 +202,16 @@ export class ImportarCarteraService {
                 cliente: { id: clienteId } as Cliente,
                 clienteId,
                 visitaId: null,
-                valor: cuota.valorEsperado,
-                metodoPago: "efectivo",
-                registradoPor: requester.sub,
-              }),
+                  valor: cuota.valorEsperado,
+                  metodoPago: "efectivo",
+                  registradoPor: requester.sub,
+                  // El pago de la última cuota pagada cae un período antes de la
+                  // fecha de reporte; los anteriores retroceden por diasEntreCuotas.
+                  fechaHora: restarDias(
+                    fechaReporteDate,
+                    (fila.cuotasALaFecha - cuota.numeroCuota + 1) * fila.diasEntreCuotas,
+                  ),
+                }),
             );
           }
         }

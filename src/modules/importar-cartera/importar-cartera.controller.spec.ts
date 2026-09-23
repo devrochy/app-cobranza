@@ -48,20 +48,22 @@ describe("ImportarCarteraController", () => {
   });
 
   it("dryRun valida sin escribir", async () => {
-    (parsearCarteraXlsx as jest.Mock).mockResolvedValue([fila()]);
+    (parsearCarteraXlsx as jest.Mock).mockResolvedValue({ filas: [fila()], fechaReporte: "2026-09-23" });
 
     const res = (await controller.importar(1, archivo, "true", req)) as {
       total: number;
       conErrores: number;
+      fechaReporte: string;
     };
 
     expect(res.total).toBe(1);
     expect(res.conErrores).toBe(0);
+    expect(res.fechaReporte).toBe("2026-09-23");
     expect(service.importar).not.toHaveBeenCalled();
   });
 
   it("rechaza con 400 si hay filas con errores (sin dryRun)", async () => {
-    (parsearCarteraXlsx as jest.Mock).mockResolvedValue([fila({ cedula: "" })]);
+    (parsearCarteraXlsx as jest.Mock).mockResolvedValue({ filas: [fila({ cedula: "" })], fechaReporte: "2026-09-23" });
 
     await expect(controller.importar(1, archivo, undefined, req)).rejects.toThrow(
       BadRequestException,
@@ -70,12 +72,12 @@ describe("ImportarCarteraController", () => {
   });
 
   it("importa cuando no hay errores", async () => {
-    (parsearCarteraXlsx as jest.Mock).mockResolvedValue([fila()]);
+    (parsearCarteraXlsx as jest.Mock).mockResolvedValue({ filas: [fila()], fechaReporte: "2026-09-23" });
     service.importar.mockResolvedValue({ creados: 1, omitidos: 0, filas: [] });
 
     const res = await controller.importar(1, archivo, undefined, req);
 
-    expect(service.importar).toHaveBeenCalledWith(1, [fila()], { rol: "admin", sub: 1 });
+    expect(service.importar).toHaveBeenCalledWith(1, [fila()], "2026-09-23", { rol: "admin", sub: 1 });
     expect(res).toMatchObject({ creados: 1 });
   });
 
