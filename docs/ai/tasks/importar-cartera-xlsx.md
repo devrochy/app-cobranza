@@ -29,7 +29,8 @@ LIQUIDO, COBRO, CUOTAS CARTERA, CARTERA, **DIAS ENTRE CUOTAS**.
   pendientes hacia adelante); `fechaOtorgado = FECHA − CUOTAS A LA FECHA × DIAS ENTRE CUOTAS`.
   Ver `importar-cartera-fechas-cuotas.md`.
 - Fecha de reporte global (ajuste posterior): celda etiquetada `FECHA REPORTE` (default hoy). Los **pagos** se
-  fechan hacia atrás desde esa fecha (`fechaReporte − (cA − k) × DIAS ENTRE CUOTAS`).
+  fechan hacia atrás desde esa fecha (`fechaReporte − (cA − k + 1) × DIAS ENTRE CUOTAS`, la última pagada un período
+  antes de la fecha del documento).
   Ver `importar-cartera-fecha-reporte.md`.
 - `LIQUIDO == NRO CUOTAS` → préstamo `liquidado`; si no, `vigente`.
 - Dedupe: cliente por `CEDULA` dentro de la cartera; préstamo por (cliente + fechaOtorgado).

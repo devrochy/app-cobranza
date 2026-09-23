@@ -2,8 +2,8 @@
 -- Fix: fechas de los pagos de préstamos importados desde cartera.xlsx
 --
 -- Re-fecha `pagos.fecha_hora` hacia atrás desde la fecha de reporte: el pago de
--- la cuota #"CUOTAS A LA FECHA" cae en la fecha de reporte y los anteriores
--- retroceden por `DIAS ENTRE CUOTAS`.
+-- la cuota #"CUOTAS A LA FECHA" cae un período antes de la fecha de reporte y
+-- los anteriores retroceden por `DIAS ENTRE CUOTAS`.
 --
 -- Es idempotente: calcula el valor absoluto, se puede correr varias veces.
 --
@@ -16,7 +16,7 @@
 SELECT pg.id AS pago_id,
        c.numero_cuota,
        :'fecha_reporte'::timestamp
-         - ((COUNT(*) OVER (PARTITION BY p.id) - c.numero_cuota) * p.dias_entre_cuotas
+         - ((COUNT(*) OVER (PARTITION BY p.id) - c.numero_cuota + 1) * p.dias_entre_cuotas
             || ' days')::interval AS fecha_nueva
 FROM pagos pg
 JOIN cuotas c ON c.id = pg.cuota_id
@@ -38,7 +38,7 @@ WITH base AS (
 )
 UPDATE pagos pg
 SET fecha_hora = :'fecha_reporte'::timestamp
-                 - ((base.cA - base.numero_cuota) * base.dias_entre_cuotas || ' days')::interval
+                 - ((base.cA - base.numero_cuota + 1) * base.dias_entre_cuotas || ' days')::interval
 FROM base
 WHERE pg.id = base.pago_id;
 

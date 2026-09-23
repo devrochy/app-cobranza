@@ -205,11 +205,11 @@ export class ImportarCarteraService {
                   valor: cuota.valorEsperado,
                   metodoPago: "efectivo",
                   registradoPor: requester.sub,
-                  // El pago de la cuota #cA cae en la fecha de reporte y los
-                  // anteriores retroceden por diasEntreCuotas.
+                  // El pago de la última cuota pagada cae un período antes de la
+                  // fecha de reporte; los anteriores retroceden por diasEntreCuotas.
                   fechaHora: restarDias(
                     fechaReporteDate,
-                    (fila.cuotasALaFecha - cuota.numeroCuota) * fila.diasEntreCuotas,
+                    (fila.cuotasALaFecha - cuota.numeroCuota + 1) * fila.diasEntreCuotas,
                   ),
                 }),
             );

@@ -236,8 +236,9 @@ describe("ImportarCarteraService.importar", () => {
     const fechas = pagoRepo.save.mock.calls.map((llamada) =>
       (llamada[0] as { fechaHora: Date }).fechaHora.toISOString().slice(0, 10),
     );
-    // cA = 3: cuota 3 paga el 2026-09-23, cuota 2 el 09-16, cuota 1 el 09-09.
-    expect(fechas).toEqual(["2026-09-09", "2026-09-16", "2026-09-23"]);
+    // cA = 3: la última pagada paga un período antes de la fecha del documento
+    // (cuota 3 = 2026-09-16, cuota 2 = 09-09, cuota 1 = 09-02).
+    expect(fechas).toEqual(["2026-09-02", "2026-09-09", "2026-09-16"]);
   });
 
   it("rechaza si la cartera no existe", async () => {
