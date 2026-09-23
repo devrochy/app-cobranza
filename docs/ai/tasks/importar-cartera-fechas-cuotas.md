@@ -57,3 +57,4 @@ los datos ya importados de la cartera inactiva donde se cargó la plantilla.
   préstamos. Verificado: préstamo 997 pasó de cuota 1 = 2026-09-15 → **2026-09-08** (la FECHA reportada) y
   `fecha_otorgado` 2026-09-07 → 2026-08-31.
 - Pendientes/seguimiento: commit + PR a `develop` (rama `feature/importar-cartera-fechas-cuotas`).
+- Seguimiento (mismo PR): fecha de reporte global y pagos retro-fechados → `importar-cartera-fecha-reporte.md`.

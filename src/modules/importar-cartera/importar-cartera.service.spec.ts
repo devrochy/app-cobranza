@@ -104,6 +104,7 @@ describe("ImportarCarteraService.importar", () => {
     const reporte = await service.importar(
       1,
       [fila({ numCuotas: 5, cuotasALaFecha: 5, liquido: 5, valorCuota: 240, valorTarjeta: 1200 })],
+      "2026-09-23",
       requester,
     );
 
@@ -119,7 +120,7 @@ describe("ImportarCarteraService.importar", () => {
   it("marca solo las cuotas a la fecha y no liquida si falta", async () => {
     const { service, cuotaRepo, pagoRepo, prestamoRepo } = crearService();
 
-    await service.importar(1, [fila({ numCuotas: 24, cuotasALaFecha: 5, liquido: 5 })], requester);
+    await service.importar(1, [fila({ numCuotas: 24, cuotasALaFecha: 5, liquido: 5 })], "2026-09-23", requester);
 
     expect(cuotaRepo.update).toHaveBeenCalledTimes(5);
     expect(pagoRepo.save).toHaveBeenCalledTimes(5);
@@ -134,6 +135,7 @@ describe("ImportarCarteraService.importar", () => {
     await service.importar(
       1,
       [fila({ cedula: "6334116", fecha: "2026-09-14" }), fila({ cedula: "6334116", fecha: "2026-09-21" })],
+      "2026-09-23",
       requester,
     );
 
@@ -150,6 +152,7 @@ describe("ImportarCarteraService.importar", () => {
     const reporte = await service.importar(
       1,
       [fila({ cedula: "6334116", fecha: "2026-09-14" }), fila({ cedula: "6334116", fecha: "2026-09-14" })],
+      "2026-09-23",
       requester,
     );
 
@@ -163,6 +166,7 @@ describe("ImportarCarteraService.importar", () => {
     await service.importar(
       1,
       [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, numCuotas: 24, cuotasALaFecha: 5 })],
+      "2026-09-23",
       requester,
     );
 
@@ -189,6 +193,7 @@ describe("ImportarCarteraService.importar", () => {
     await service.importar(
       1,
       [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, numCuotas: 3, cuotasALaFecha: 0, liquido: 0 })],
+      "2026-09-23",
       requester,
     );
 
@@ -209,6 +214,7 @@ describe("ImportarCarteraService.importar", () => {
     await service.importar(
       1,
       [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, cuotasALaFecha: 5 })],
+      "2026-09-23",
       requester,
     );
 
@@ -217,9 +223,28 @@ describe("ImportarCarteraService.importar", () => {
     });
   });
 
+  it("fecha los pagos hacia atrás desde la fecha de reporte", async () => {
+    const { service, pagoRepo } = crearService();
+
+    await service.importar(
+      1,
+      [fila({ diasEntreCuotas: 7, numCuotas: 24, cuotasALaFecha: 3 })],
+      "2026-09-23",
+      requester,
+    );
+
+    const fechas = pagoRepo.save.mock.calls.map((llamada) =>
+      (llamada[0] as { fechaHora: Date }).fechaHora.toISOString().slice(0, 10),
+    );
+    // cA = 3: cuota 3 paga el 2026-09-23, cuota 2 el 09-16, cuota 1 el 09-09.
+    expect(fechas).toEqual(["2026-09-09", "2026-09-16", "2026-09-23"]);
+  });
+
   it("rechaza si la cartera no existe", async () => {
     const { service } = crearService({ cartera: null });
 
-    await expect(service.importar(999, [fila()], requester)).rejects.toThrow(NotFoundException);
+    await expect(service.importar(999, [fila()], "2026-09-23", requester)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

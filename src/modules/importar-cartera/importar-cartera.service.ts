@@ -80,6 +80,7 @@ export class ImportarCarteraService {
   async importar(
     carteraId: number,
     filas: FilaImport[],
+    fechaReporte: string,
     requester: RequesterOwned,
   ): Promise<ReporteImport> {
     const cartera = await this.carteraRepo.findOne({ where: { id: carteraId } });
@@ -88,6 +89,7 @@ export class ImportarCarteraService {
     }
     assertOwned(cartera, requester);
 
+    const fechaReporteDate = new Date(`${fechaReporte}T00:00:00Z`);
     const reporte: ReporteImport = { creados: 0, omitidos: 0, filas: [] };
 
     await this.dataSource.transaction(async (manager) => {
@@ -200,10 +202,16 @@ export class ImportarCarteraService {
                 cliente: { id: clienteId } as Cliente,
                 clienteId,
                 visitaId: null,
-                valor: cuota.valorEsperado,
-                metodoPago: "efectivo",
-                registradoPor: requester.sub,
-              }),
+                  valor: cuota.valorEsperado,
+                  metodoPago: "efectivo",
+                  registradoPor: requester.sub,
+                  // El pago de la cuota #cA cae en la fecha de reporte y los
+                  // anteriores retroceden por diasEntreCuotas.
+                  fechaHora: restarDias(
+                    fechaReporteDate,
+                    (fila.cuotasALaFecha - cuota.numeroCuota) * fila.diasEntreCuotas,
+                  ),
+                }),
             );
           }
         }

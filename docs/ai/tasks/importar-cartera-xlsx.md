@@ -28,6 +28,9 @@ LIQUIDO, COBRO, CUOTAS CARTERA, CARTERA, **DIAS ENTRE CUOTAS**.
 - Fechado (ajuste posterior): la cuota #`CUOTAS A LA FECHA` cae en la `FECHA` reportada (pagadas retrocedidas,
   pendientes hacia adelante); `fechaOtorgado = FECHA − CUOTAS A LA FECHA × DIAS ENTRE CUOTAS`.
   Ver `importar-cartera-fechas-cuotas.md`.
+- Fecha de reporte global (ajuste posterior): celda etiquetada `FECHA REPORTE` (default hoy). Los **pagos** se
+  fechan hacia atrás desde esa fecha (`fechaReporte − (cA − k) × DIAS ENTRE CUOTAS`).
+  Ver `importar-cartera-fecha-reporte.md`.
 - `LIQUIDO == NRO CUOTAS` → préstamo `liquidado`; si no, `vigente`.
 - Dedupe: cliente por `CEDULA` dentro de la cartera; préstamo por (cliente + fechaOtorgado).
 - Fechas retroactivas permitidas (solo en importación).
@@ -61,3 +64,4 @@ LIQUIDO, COBRO, CUOTAS CARTERA, CARTERA, **DIAS ENTRE CUOTAS**.
 - Archivos modificados (backend): `src/modules/importar-cartera/{importar-cartera.module.ts, importar-cartera.parser.ts (+.spec), importar-cartera.validacion.ts (+.spec), importar-cartera.service.ts (+.spec), importar-cartera.controller.ts (+.spec)}`, `src/app.module.ts`.
 - Pendientes/seguimiento: la UI de importación del **panel** (upload + vista previa + reporte) queda como siguiente fase.
 - Ajuste posterior de fechas (retroceso desde la FECHA reportada) + backfill: ver `importar-cartera-fechas-cuotas.md`.
+- Fecha de reporte global + pagos retro-fechados: ver `importar-cartera-fecha-reporte.md`.
