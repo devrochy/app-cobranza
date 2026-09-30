@@ -48,11 +48,17 @@ export class ImportarCarteraController {
       throw new BadRequestException("Falta el archivo (cartera.xlsx)");
     }
 
-    const filas = await parsearCarteraXlsx(archivo.buffer);
+    const { filas, fechaReporte } = await parsearCarteraXlsx(archivo.buffer);
     const validacion = validarFilas(filas);
 
     if (dryRun === "true") {
-      return { total: validacion.total, conErrores: validacion.conErrores, errores: validacion.errores, filas };
+      return {
+        total: validacion.total,
+        conErrores: validacion.conErrores,
+        errores: validacion.errores,
+        fechaReporte,
+        filas,
+      };
     }
 
     if (validacion.conErrores > 0) {
@@ -62,7 +68,7 @@ export class ImportarCarteraController {
       });
     }
 
-    return this.importarCarteraService.importar(carteraId, filas, {
+    return this.importarCarteraService.importar(carteraId, filas, fechaReporte, {
       rol: req.user.rol,
       sub: req.user.sub,
     });

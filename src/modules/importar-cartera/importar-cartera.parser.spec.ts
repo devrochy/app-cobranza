@@ -60,7 +60,7 @@ describe("normalizarEncabezado", () => {
 });
 
 describe("parsearCarteraXlsx", () => {
-  async function generarHoja(): Promise<Buffer> {
+  async function generarHoja(conFechaReporte = true): Promise<Buffer> {
     const ExcelJS = await import("exceljs");
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("cartera");
@@ -82,21 +82,37 @@ describe("parsearCarteraXlsx", () => {
     // Fila de resumen del negocio (valor en PRESTAMO pero sin FECHA/NOMBRE): se ignora.
     ws.addRow(["ALQUILER", "", "", "", "", "", "", "", 500]);
     ws.addRow(["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "23500"]);
+    if (conFechaReporte) {
+      ws.getCell("A7").value = "FECHA REPORTE";
+      ws.getCell("B7").value = new Date(Date.UTC(2026, 8, 23));
+    }
     return Buffer.from(await wb.xlsx.writeBuffer());
   }
 
   it("devuelve solo las filas de préstamo (ignora el resumen)", async () => {
-    const filas = await parsearCarteraXlsx(await generarHoja());
+    const { filas } = await parsearCarteraXlsx(await generarHoja());
     expect(filas).toHaveLength(2);
   });
 
+  it("lee la fecha de reporte de la celda etiquetada FECHA REPORTE", async () => {
+    const { fechaReporte } = await parsearCarteraXlsx(await generarHoja());
+    expect(fechaReporte).toBe("2026-09-23");
+  });
+
+  it("usa la fecha de hoy si no hay celda FECHA REPORTE", async () => {
+    const { fechaReporte } = await parsearCarteraXlsx(await generarHoja(false));
+    const hoy = new Date();
+    const esperado = `${hoy.getUTCFullYear()}-${String(hoy.getUTCMonth() + 1).padStart(2, "0")}-${String(hoy.getUTCDate()).padStart(2, "0")}`;
+    expect(fechaReporte).toBe(esperado);
+  });
+
   it("lee el resultado de las celdas con fórmula", async () => {
-    const filas = await parsearCarteraXlsx(await generarHoja());
+    const { filas } = await parsearCarteraXlsx(await generarHoja());
     expect(filas[0].valorTarjeta).toBe(1200);
   });
 
   it("mapea los campos por nombre de columna", async () => {
-    const filas = await parsearCarteraXlsx(await generarHoja());
+    const { filas } = await parsearCarteraXlsx(await generarHoja());
     expect(filas[0]).toMatchObject({
       fila: 2,
       nombre: "CARLOS",
@@ -123,5 +139,6 @@ describe("parsearCarteraXlsx", () => {
   it("expone los nombres canónicos de columna requeridos", () => {
     expect(COLUMNAS.CEDULA).toBe("CEDULA");
     expect(COLUMNAS.DIAS_ENTRE_CUOTAS).toBe("DIAS ENTRE CUOTAS");
+    expect(COLUMNAS.FECHA_REPORTE).toBe("FECHA REPORTE");
   });
 });

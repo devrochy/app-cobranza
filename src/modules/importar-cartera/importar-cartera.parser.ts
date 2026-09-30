@@ -1,8 +1,10 @@
-import type { CellValue } from "exceljs";
+import type { CellValue, Worksheet } from "exceljs";
+import { formatDate } from "../../common/date";
 
 /** Nombres canónicos de columna esperados en `cartera.xlsx` (mayúsculas, sin tildes). */
 export const COLUMNAS = {
   FECHA: "FECHA",
+  FECHA_REPORTE: "FECHA REPORTE",
   NOMBRE: "NOMBRE",
   APELLIDO: "APELLIDO",
   CEDULA: "CEDULA",
@@ -148,17 +150,47 @@ function valorCrudo(valor: CellValue): unknown {
   return valor;
 }
 
+/** Resultado del parseo de `cartera.xlsx`. */
+export interface CarteraParseada {
+  filas: FilaImport[];
+  /** Fecha de reporte global (`YYYY-MM-DD`); hoy (UTC) si la celda no está. */
+  fechaReporte: string;
+}
+
+/**
+ * Busca en la hoja una celda etiquetada `FECHA REPORTE` y devuelve la fecha de la
+ * celda inmediatamente a la derecha. Si no existe (o no es una fecha válida),
+ * devuelve la fecha de hoy (UTC).
+ */
+function leerFechaReporte(hoja: Worksheet): string {
+  let encontrada: string | null = null;
+  hoja.eachRow({ includeEmpty: false }, (row) => {
+    if (encontrada) {
+      return;
+    }
+    row.eachCell({ includeEmpty: false }, (cell, numeroColumna) => {
+      if (encontrada) {
+        return;
+      }
+      if (normalizarEncabezado(cell.value) === COLUMNAS.FECHA_REPORTE) {
+        encontrada = parsearFecha(valorCrudo(hoja.getCell(row.number, numeroColumna + 1).value));
+      }
+    });
+  });
+  return encontrada ?? formatDate(new Date());
+}
+
 /**
  * Lee `cartera.xlsx` y devuelve las filas de préstamo (ignora la sección de
- * resumen y las filas sin FECHA/NOMBRE/PRESTAMO).
+ * resumen y las filas sin FECHA/NOMBRE/PRESTAMO) junto con la fecha de reporte.
  */
-export async function parsearCarteraXlsx(buffer: Buffer): Promise<FilaImport[]> {
+export async function parsearCarteraXlsx(buffer: Buffer): Promise<CarteraParseada> {
   const ExcelJS = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as never);
   const hoja = workbook.worksheets[0];
   if (!hoja) {
-    return [];
+    return { filas: [], fechaReporte: formatDate(new Date()) };
   }
 
   const cabeceras = new Map<string, number>();
@@ -211,5 +243,5 @@ export async function parsearCarteraXlsx(buffer: Buffer): Promise<FilaImport[]> 
     });
   });
 
-  return filas;
+  return { filas, fechaReporte: leerFechaReporte(hoja) };
 }

@@ -104,6 +104,7 @@ describe("ImportarCarteraService.importar", () => {
     const reporte = await service.importar(
       1,
       [fila({ numCuotas: 5, cuotasALaFecha: 5, liquido: 5, valorCuota: 240, valorTarjeta: 1200 })],
+      "2026-09-23",
       requester,
     );
 
@@ -119,7 +120,7 @@ describe("ImportarCarteraService.importar", () => {
   it("marca solo las cuotas a la fecha y no liquida si falta", async () => {
     const { service, cuotaRepo, pagoRepo, prestamoRepo } = crearService();
 
-    await service.importar(1, [fila({ numCuotas: 24, cuotasALaFecha: 5, liquido: 5 })], requester);
+    await service.importar(1, [fila({ numCuotas: 24, cuotasALaFecha: 5, liquido: 5 })], "2026-09-23", requester);
 
     expect(cuotaRepo.update).toHaveBeenCalledTimes(5);
     expect(pagoRepo.save).toHaveBeenCalledTimes(5);
@@ -134,6 +135,7 @@ describe("ImportarCarteraService.importar", () => {
     await service.importar(
       1,
       [fila({ cedula: "6334116", fecha: "2026-09-14" }), fila({ cedula: "6334116", fecha: "2026-09-21" })],
+      "2026-09-23",
       requester,
     );
 
@@ -150,6 +152,7 @@ describe("ImportarCarteraService.importar", () => {
     const reporte = await service.importar(
       1,
       [fila({ cedula: "6334116", fecha: "2026-09-14" }), fila({ cedula: "6334116", fecha: "2026-09-14" })],
+      "2026-09-23",
       requester,
     );
 
@@ -157,9 +160,92 @@ describe("ImportarCarteraService.importar", () => {
     expect(reporte).toMatchObject({ creados: 1, omitidos: 1 });
   });
 
+  it("retrocede las cuotas pagadas desde la FECHA reportada", async () => {
+    const { service, prestamoRepo, cuotaRepo } = crearService();
+
+    await service.importar(
+      1,
+      [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, numCuotas: 24, cuotasALaFecha: 5 })],
+      "2026-09-23",
+      requester,
+    );
+
+    // fechaOtorgado = 2026-09-14 - 5*7 = 2026-08-10; la cuota 5 cae en FECHA.
+    expect(prestamoRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ fechaOtorgado: new Date("2026-08-10T00:00:00Z") }),
+    );
+
+    const cuotas = cuotaRepo.save.mock.calls[0][0] as {
+      numeroCuota: number;
+      fechaVencimiento: string;
+    }[];
+    const vencimiento = (n: number) =>
+      cuotas.find((c) => c.numeroCuota === n)?.fechaVencimiento;
+
+    expect(vencimiento(1)).toBe("2026-08-17");
+    expect(vencimiento(5)).toBe("2026-09-14");
+    expect(vencimiento(6)).toBe("2026-09-21");
+  });
+
+  it("no desplaza la fecha si no hay cuotas pagadas", async () => {
+    const { service, prestamoRepo, cuotaRepo } = crearService();
+
+    await service.importar(
+      1,
+      [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, numCuotas: 3, cuotasALaFecha: 0, liquido: 0 })],
+      "2026-09-23",
+      requester,
+    );
+
+    expect(prestamoRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ fechaOtorgado: new Date("2026-09-14T00:00:00Z") }),
+    );
+
+    const cuotas = cuotaRepo.save.mock.calls[0][0] as {
+      numeroCuota: number;
+      fechaVencimiento: string;
+    }[];
+    expect(cuotas.find((c) => c.numeroCuota === 1)?.fechaVencimiento).toBe("2026-09-21");
+  });
+
+  it("busca el préstamo existente por el fechaOtorgado calculado", async () => {
+    const { service, prestamoRepo } = crearService();
+
+    await service.importar(
+      1,
+      [fila({ fecha: "2026-09-14", diasEntreCuotas: 7, cuotasALaFecha: 5 })],
+      "2026-09-23",
+      requester,
+    );
+
+    expect(prestamoRepo.findOne).toHaveBeenCalledWith({
+      where: { cliente: { id: 1 }, fechaOtorgado: new Date("2026-08-10T00:00:00Z") },
+    });
+  });
+
+  it("fecha los pagos hacia atrás desde la fecha de reporte", async () => {
+    const { service, pagoRepo } = crearService();
+
+    await service.importar(
+      1,
+      [fila({ diasEntreCuotas: 7, numCuotas: 24, cuotasALaFecha: 3 })],
+      "2026-09-23",
+      requester,
+    );
+
+    const fechas = pagoRepo.save.mock.calls.map((llamada) =>
+      (llamada[0] as { fechaHora: Date }).fechaHora.toISOString().slice(0, 10),
+    );
+    // cA = 3: la última pagada paga un período antes de la fecha del documento
+    // (cuota 3 = 2026-09-16, cuota 2 = 09-09, cuota 1 = 09-02).
+    expect(fechas).toEqual(["2026-09-02", "2026-09-09", "2026-09-16"]);
+  });
+
   it("rechaza si la cartera no existe", async () => {
     const { service } = crearService({ cartera: null });
 
-    await expect(service.importar(999, [fila()], requester)).rejects.toThrow(NotFoundException);
+    await expect(service.importar(999, [fila()], "2026-09-23", requester)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });
